@@ -23,7 +23,7 @@
     "test:watch": "NODE_ENV=test jest --watch"
   },
   "dependencies": {
-    "@astrojs/react": "^3.6.3",
+    "@astrojs/react": "^4.2.1",
     "@astrojs/starlight": "^0.32.2",
     "astro": "^5.1.5",
     "mermaid": "^10.6.1",
