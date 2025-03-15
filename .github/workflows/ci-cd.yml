@@ -12,6 +12,8 @@ permissions:
   issues: write        # Needed for creating issues
   pull-requests: write # Needed for commenting on PRs
   packages: write      # Needed for publishing to GitHub Packages
+  pages: write         # Needed for GitHub Pages deployments
+  id-token: write      # Needed for GitHub Pages deployments
 
 jobs:
   # PR validation job - only runs on PRs
@@ -267,6 +269,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    
+    # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+    # However, do NOT cancel in-progress runs as we want to allow these deployments to complete.
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+      
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
       - name: Checkout
@@ -289,9 +303,14 @@ jobs:
       - name: Build Astro documentation site (includes TypeDoc generation)
         run: yarn build:docs
       
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: packages/docs/dist
-          target-folder: docs
-          clean: true 
+          path: packages/docs/dist
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 
