@@ -1,6 +1,6 @@
 {
   "name": "subnetter",
-  "version": "1.3.1",
+  "version": "1.0.0",
   "description": "IPv4 CIDR allocation tool for cloud infrastructure",
   "private": true,
   "workspaces": [
