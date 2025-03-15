@@ -1,0 +1,212 @@
+---
+title: Kubernetes Network Design
+description: "A comprehensive guide to designing multi-availability zone Kubernetes network architectures with optimal subnet allocations for high availability and efficient IP address space utilization."
+---
+
+import MermaidDiagram from '../../../components/MermaidDiagram.astro';
+
+This guide presents a standardized approach to IP address allocation for multi-account, multi-region Kubernetes deployments across three Availability Zones (AZs). It focuses on balancing several critical factors:
+
+- Providing sufficient IP address space for all workloads
+- Efficiently using allocated CIDR blocks to minimize waste
+- Properly segregating network functions (nodes, services, endpoints)
+- Ensuring high availability through multi-AZ design
+
+## 3-AZ Network Architecture
+
+For production Kubernetes deployments, using at least three Availability Zones is highly recommended to ensure that applications can continue functioning even during an AZ outage. This design pattern follows AWS best practices for high availability and is applicable to most cloud providers that offer similar regional isolation.
+
+<MermaidDiagram chart={`graph TD
+    R[Region] --> A1[Availability Zone 1]
+    R --> A2[Availability Zone 2]
+    R --> A3[Availability Zone 3]
+    
+    A1 --> S1[Node Subnet]
+    A1 --> S2[Load Balancer Subnet]
+    A1 --> S3[Endpoints Subnet]
+    A1 --> S4[Transit Subnet]
+    
+    A2 --> S5[Node Subnet]
+    A2 --> S6[Load Balancer Subnet]
+    A2 --> S7[Endpoints Subnet]
+    A2 --> S8[Transit Subnet]
+    
+    A3 --> S9[Node Subnet]
+    A3 --> S10[Load Balancer Subnet]
+    A3 --> S11[Endpoints Subnet]
+    A3 --> S12[Transit Subnet]
+    
+    style R fill:#1E3D59,color:#FFFFFF,stroke:#333,stroke-width:2px
+    style A1 fill:#FF5733,color:#FFFFFF,stroke:#333,stroke-width:2px
+    style A2 fill:#FF5733,color:#FFFFFF,stroke:#333,stroke-width:2px
+    style A3 fill:#FF5733,color:#FFFFFF,stroke:#333,stroke-width:2px
+    style S1 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S2 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S3 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S4 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S5 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S6 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S7 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S8 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S9 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S10 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S11 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px
+    style S12 fill:#36BCF7,color:#000000,stroke:#333,stroke-width:1px`} />
+
+## CNI Considerations for Kubernetes
+
+This guide assumes the use of a Container Network Interface (CNI) like Cilium that creates its own private pod and service networks internal to the cluster. This is an important distinction from some other networking models:
+
+- **Overlay Network CNIs (Cilium, Calico, Flannel)**: Create their own pod networks that are separate from the VPC subnets
+- **AWS VPC CNI**: Assigns pod IPs directly from the VPC subnet, requiring larger subnet allocations
+
+When using CNIs like Cilium:
+- Pod IPs are assigned from a private overlay network internal to the cluster (e.g., 10.244.0.0/16)
+- Service IPs are assigned from a separate internal cluster CIDR (e.g., 10.96.0.0/12)
+- The host VPC subnets only need to accommodate the Kubernetes nodes themselves, not the pods
+
+This approach dramatically reduces the size of VPC subnets needed, as you only need to allocate IP addresses for your nodes, not for all pods.
+
+## Subnet Allocation Strategies
+
+The table below compares different configurations for AZ CIDR size and subnet sizing when using a CNI like Cilium. Each configuration has different implications for node capacity, utilization efficiency, and operational complexity.
+
+| Configuration | AZ CIDR Size | Node Subnet Size | Load Balancer | Endpoints | Transit | Reserved Space | Node Capacity per AZ | Efficiency | Notes |
+|---------------|-------------|-------------------------|----------|-----------|---------|----------------|----------------|------------|-------|
+| Small | /26 | /27 | /28 | /28 | /29 | /28 | 30 | High | Good for small clusters, minimal wasted space |
+| Medium | /25 | /26 | /28 | /28 | /29 | /27 | 62 | High | Balanced size for most deployments |
+| Large | /24 | /25 | /27 | /27 | /28 | /26 | 126 | Medium | Good for larger deployments |
+| **Recommended** | **/25** | **/26** | **/28** | **/28** | **/29** | **/27** | **62** | **High** | **Optimal for most deployments** |
+
+### Recommended Configuration Details
+
+Our recommended configuration uses a /25 CIDR block for each AZ with the following allocation:
+
+- **Node Subnet: /26** — For Kubernetes nodes (62 usable IPs)
+- **Load Balancer Subnet: /28** — For load balancers (14 usable IPs)
+- **Endpoints Subnet: /28** — For VPC endpoints (14 usable IPs)
+- **Transit Subnet: /29** — For transit gateway attachments (6 usable IPs)
+- **Reserved Space: /27** — For future expansion (30 usable IPs)
+
+This configuration provides an optimal balance of IP space efficiency and operational capacity for Kubernetes workloads. With 62 node IPs per AZ, you can support medium-sized clusters while maintaining reasonable subnet sizes.
+
+## Pod and Service Network Configuration
+
+When using Cilium or similar CNIs, you'll configure private networks for pods and services that are internal to the Kubernetes cluster:
+
+- **Pod Network CIDR**: 10.244.0.0/16 (Typical default, provides 65,536 pod IPs)
+- **Service Network CIDR**: 10.96.0.0/12 (Typical default, provides 1,048,576 service IPs)
+
+These networks are managed by Kubernetes and the CNI, and are separate from your VPC subnets. They don't consume IP addresses from your VPC CIDR allocations.
+
+## Real-World Implementation Example
+
+Here's how this configuration might be implemented for the `innovation-prod` account in the `us-east-1` region:
+
+### CIDR Allocations for innovation-prod in us-east-1
+
+| Resource | CIDR Block | Description |
+|----------|------------|-------------|
+| Region CIDR | 10.0.0.0/23 | Entire region allocation |
+| AZ1 (us-east-1a) | 10.0.0.0/25 | First AZ allocation |
+| AZ2 (us-east-1b) | 10.0.0.128/25 | Second AZ allocation |
+| AZ3 (us-east-1c) | 10.0.1.0/25 | Third AZ allocation |
+| Reserved | 10.0.1.128/25 | Reserved for future expansion |
+
+### Subnet Allocations for AZ1 (us-east-1a)
+
+| Subnet Type | CIDR Block | Usable IPs | Purpose |
+|-------------|------------|------------|---------|
+| Node | 10.0.0.0/26 | 62 | Kubernetes nodes |
+| Load Balancer | 10.0.0.64/28 | 14 | Kubernetes service exposure |
+| Endpoints | 10.0.0.80/28 | 14 | VPC endpoint IPs |
+| Transit | 10.0.0.96/29 | 6 | Transit gateway attachment |
+| Reserved | 10.0.0.104/27 | 30 | Future expansion |
+
+### Subnet Allocations for AZ2 (us-east-1b)
+
+| Subnet Type | CIDR Block | Usable IPs | Purpose |
+|-------------|------------|------------|---------|
+| Node | 10.0.0.128/26 | 62 | Kubernetes nodes |
+| Load Balancer | 10.0.0.192/28 | 14 | Kubernetes service exposure |
+| Endpoints | 10.0.0.208/28 | 14 | VPC endpoint IPs |
+| Transit | 10.0.0.224/29 | 6 | Transit gateway attachment |
+| Reserved | 10.0.0.232/27 | 30 | Future expansion |
+
+### Subnet Allocations for AZ3 (us-east-1c)
+
+| Subnet Type | CIDR Block | Usable IPs | Purpose |
+|-------------|------------|------------|---------|
+| Node | 10.0.1.0/26 | 62 | Kubernetes nodes |
+| Load Balancer | 10.0.1.64/28 | 14 | Kubernetes service exposure |
+| Endpoints | 10.0.1.80/28 | 14 | VPC endpoint IPs |
+| Transit | 10.0.1.96/29 | 6 | Transit gateway attachment |
+| Reserved | 10.0.1.104/27 | 30 | Future expansion |
+
+## IP Space Efficiency Analysis
+
+The table below summarizes the IP space efficiency of the recommended configuration:
+
+| Resource Level | Total IPs | Allocated IPs | Reserved IPs | Utilization % |
+|----------------|-----------|---------------|--------------|---------------|
+| Region (us-east-1) | 512 | 384 | 128 | 75% |
+| Per AZ | 128 | 96 | 32 | 75% |
+| All 3 AZs | 384 | 288 | 96 | 75% |
+
+## Implementation Guidance
+
+To implement this network design, follow these steps:
+
+1. Create a Subnetter configuration file that includes:
+   - The base CIDR for your entire network (e.g., 10.0.0.0/16)
+   - Account-level allocations (e.g., /20 per account)
+   - Region-level allocations (e.g., /23 per region as shown above)
+   - AZ-level allocations (/25 per AZ as recommended)
+   - Subnet-level allocations as per the recommended sizes above
+
+2. Run Subnetter to generate the allocation table:
+   ```bash
+   subnetter allocate --config kubernetes-config.yaml --output kubernetes-allocations.csv
+   ```
+
+3. Use the generated allocations to create your network infrastructure using your preferred IaC tool (Terraform, CloudFormation, etc.).
+
+4. When configuring your Kubernetes cluster:
+   - Deploy nodes in the Node subnets
+   - Configure Cilium (or your chosen CNI) with its own pod CIDR (e.g., 10.244.0.0/16)
+   - Set the Kubernetes service CIDR (e.g., 10.96.0.0/12)
+   - Place load balancers in the Load Balancer subnets
+
+5. Sample kubeadm init configuration:
+   ```yaml
+   apiVersion: kubeadm.k8s.io/v1beta3
+   kind: ClusterConfiguration
+   networking:
+     podSubnet: 10.244.0.0/16
+     serviceSubnet: 10.96.0.0/12
+   ```
+
+## Benefits of This Approach
+
+1. **High Availability**: The 3-AZ design ensures your applications remain available even during an AZ outage.
+
+2. **Efficient IP Utilization**: By using a CNI with an overlay network, VPC IP addresses are only consumed by nodes, not pods.
+
+3. **Future-Proof Design**: Reserved space at each level allows for future expansion without readdressing.
+
+4. **Operational Clarity**: Clear subnet boundaries make network management and troubleshooting easier.
+
+5. **Automation-Friendly**: This standardized approach works well with infrastructure-as-code tools.
+
+## Limitations and Considerations
+
+- When selecting a CNI, consider its specific networking model and requirements.
+- Ensure your cluster's pod CIDR and service CIDR don't overlap with any VPC CIDRs in your organization.
+- Some cloud providers may impose specific networking requirements for Kubernetes. Always check provider-specific guidance.
+- Consider your node density requirements when selecting subnet sizes.
+
+## Conclusion
+
+This Kubernetes 3-AZ network design provides a solid foundation for production Kubernetes deployments using CNIs like Cilium. By following the recommended subnet allocation strategy, you can achieve an optimal balance of high availability, IP space efficiency, and operational simplicity.
+
+Remember that while this guide provides a general recommendation, your specific requirements may vary. Subnetter gives you the flexibility to adjust these parameters while maintaining a consistent allocation methodology. 

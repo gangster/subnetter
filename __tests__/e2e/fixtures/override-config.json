@@ -1,0 +1,47 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "subnetTypes": {
+    "app": 26,
+    "data": 26
+  },
+  "cloudProviders": [
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "provider-override",
+      "clouds": {
+        "aws": {
+          
+          "baseCidr": "172.31.0.0/16",
+          "regions": [
+            "us-east-1",
+            "eu-west-1"
+          ]
+        },
+        "azure": {
+          
+          "baseCidr": "192.168.0.0/16",
+          "regions": [
+            "eastus",
+            "westeurope"
+          ]
+        },
+        "gcp": {
+          
+          "regions": [
+            "us-central1",
+            "europe-west1"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,682 @@
+---
+title: Reference
+description: "This document provides detailed reference information for developers who want to use Subnetter programmatically in their Node.js applications."
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+# Subnetter API Reference
+
+<Card title="TypeDoc Generated Documentation" icon="document">
+  Our API documentation is now available in TypeDoc format. Please visit the [Generated API Documentation](/subnetter/api/index.html) for the most up-to-date and comprehensive API details.
+</Card>
+
+This document provides detailed reference information for developers who want to use Subnetter programmatically in their Node.js applications.
+
+## Table of Contents
+- [Installation](#installation)
+- [Core Modules](#core-modules)
+- [Types and Interfaces](#types-and-interfaces)
+- [Configuration Handling](#configuration-handling)
+- [CIDR Allocation](#cidr-allocation)
+- [CIDR Utilities](#cidr-utilities)
+- [Output Handling](#output-handling)
+- [Error Handling](#error-handling)
+- [Complete Example](#complete-example)
+
+## Installation
+
+To use Subnetter in your Node.js application:
+
+```bash
+npm install @subnetter/core
+```
+
+Or if you want to use the CLI:
+
+```bash
+npm install @subnetter/cli
+```
+
+## Core Modules
+
+Subnetter's functionality is divided into several packages:
+
+### @subnetter/core
+
+This package contains the core CIDR allocation functionality and can be used programmatically.
+
+```typescript
+// Import everything
+import * as SubnetterCore from '@subnetter/core';
+
+// Or import specific features
+import { 
+  loadConfig, 
+  CidrAllocator, 
+  writeAllocationsToCsv 
+} from '@subnetter/core';
+```
+
+### @subnetter/cli
+
+This package provides the command-line interface and depends on the core package.
+
+```typescript
+// This package is typically used through the CLI, but can be imported
+import { CLI } from '@subnetter/cli';
+```
+
+## Types and Interfaces
+
+### Config
+
+The main configuration interface that defines the structure for IP allocation.
+
+```typescript
+interface Config {
+  baseCidr: string;
+  prefixLengths?: {
+    account?: number;
+    region?: number;
+    az?: number;
+    subnet?: number;
+  };
+  cloudProviders: string[];
+  accounts: Account[];
+  subnetTypes: SubnetType[] | Record<string, number>;
+}
+```
+
+### Account
+
+Represents a logical account with cloud-specific configurations.
+
+```typescript
+interface Account {
+  name: string;
+  clouds: Record<string, CloudConfig>;
+}
+```
+
+### CloudConfig
+
+Represents cloud-specific configuration for an account.
+
+```typescript
+interface CloudConfig {
+  baseCidr?: string;
+  regions: string[];
+}
+```
+
+### SubnetType
+
+Defines a subnet type with specific prefix length.
+
+```typescript
+type SubnetTypes = Record<string, number>;
+```
+
+### Allocation
+
+Represents a complete IPv4 CIDR allocation for a specific subnet.
+
+```typescript
+interface Allocation {
+  accountName: string;
+  vpcName: string;
+  cloudProvider: string;
+  regionName: string;
+  availabilityZone: string;
+  regionCidr: string;
+  vpcCidr: string;
+  azCidr: string;
+  subnetCidr: string;
+  cidr: string; // Duplicate of subnetCidr for compatibility
+  subnetRole: string;
+  usableIps: number;
+}
+```
+
+## Configuration Handling
+
+### loadConfig
+
+Loads and validates a configuration file.
+
+```typescript
+function loadConfig(configPath: string): Config
+```
+
+**Parameters:**
+- `configPath`: Path to the JSON configuration file
+
+**Returns:** A validated Config object
+
+**Throws:** ConfigValidationError if the configuration is invalid
+
+**Example:**
+```typescript
+import { loadConfig } from 'subnetter';
+
+try {
+  const config = loadConfig('./config.json');
+  console.log('Configuration loaded successfully');
+} catch (error) {
+  if (error instanceof ConfigValidationError) {
+    console.error('Configuration validation failed:', error.errors);
+  } else {
+    console.error('Error loading configuration:', error.message);
+  }
+}
+```
+
+### validateConfig
+
+Validates a configuration object without loading it from a file.
+
+```typescript
+function validateConfig(config: unknown): Config
+```
+
+**Parameters:**
+- `config`: A configuration object to validate
+
+**Returns:** A validated Config object if valid
+
+**Throws:** ConfigValidationError if the configuration is invalid
+
+**Example:**
+```typescript
+import { validateConfig } from 'subnetter';
+
+const configObject = {
+  baseCidr: '10.0.0.0/8',
+  cloudProviders: ['aws'],
+  accounts: [
+    {
+      name: 'example-account',
+      clouds: {
+        aws: {
+          regions: ['us-east-1']
+        }
+      }
+    }
+  ],
+  subnetTypes: {
+    Public: 24,
+    Private: 24,
+    Data: 26
+  }
+};
+
+try {
+  const validatedConfig = validateConfig(configObject);
+  console.log('Configuration is valid');
+} catch (error) {
+  console.error('Invalid configuration:', error.message);
+}
+```
+
+## CIDR Allocation
+
+### CidrAllocator
+
+Class responsible for allocating CIDRs at each level of the hierarchy.
+
+```typescript
+class CidrAllocator {
+  constructor(config: Config);
+  generateAllocations(): Allocation[];
+}
+```
+
+**Constructor Parameters:**
+- `config`: A validated Config object
+
+**Methods:**
+- `generateAllocations()`: Generates IP allocations for all accounts, regions, and subnets
+
+**Returns:** An array of Allocation objects
+
+**Throws:** AllocationError if allocation fails due to insufficient space or overlapping CIDRs
+
+**Example:**
+```typescript
+import { loadConfig, CidrAllocator } from 'subnetter';
+
+try {
+  // Load configuration
+  const config = loadConfig('./config.json');
+  
+  // Create allocator
+  const allocator = new CidrAllocator(config);
+  
+  // Generate allocations
+  const allocations = allocator.generateAllocations();
+  
+  console.log(`Generated ${allocations.length} subnet allocations`);
+} catch (error) {
+  console.error('Error generating allocations:', error.message);
+}
+```
+
+## CIDR Utilities
+
+### isValidIpv4Cidr
+
+Validates if a string is a valid IPv4 CIDR block.
+
+```typescript
+function isValidIpv4Cidr(cidr: string): boolean
+```
+
+**Parameters:**
+- `cidr`: String to validate as IPv4 CIDR block
+
+**Returns:** Boolean indicating if the string is a valid IPv4 CIDR block
+
+**Example:**
+```typescript
+import { isValidIpv4Cidr } from 'subnetter';
+
+console.log(isValidIpv4Cidr('10.0.0.0/8')); // true
+console.log(isValidIpv4Cidr('10.0.0.0/33')); // false (prefix length > 32)
+console.log(isValidIpv4Cidr('10.0.0/8')); // false (incomplete IP)
+console.log(isValidIpv4Cidr('10.0.0.0-24')); // false (wrong delimiter)
+```
+
+### calculateUsableIps
+
+Calculates the number of usable IP addresses in a CIDR block.
+
+```typescript
+function calculateUsableIps(cidr: string): number
+```
+
+**Parameters:**
+- `cidr`: Valid IPv4 CIDR block
+
+**Returns:** Number of usable IP addresses (total IPs minus network and broadcast addresses)
+
+**Throws:** CidrError if the CIDR format is invalid
+
+**Example:**
+```typescript
+import { calculateUsableIps } from 'subnetter';
+
+console.log(calculateUsableIps('10.0.0.0/24')); // 254 (256 - 2)
+console.log(calculateUsableIps('10.0.0.0/31')); // 2 (RFC 3021)
+console.log(calculateUsableIps('10.0.0.0/32')); // 1
+```
+
+### doCidrsOverlap
+
+Checks if two CIDR blocks overlap.
+
+```typescript
+function doCidrsOverlap(cidr1: string, cidr2: string): boolean
+```
+
+**Parameters:**
+- `cidr1`: First IPv4 CIDR block
+- `cidr2`: Second IPv4 CIDR block
+
+**Returns:** Boolean indicating if the CIDR blocks overlap
+
+**Throws:** CidrError if either CIDR format is invalid
+
+**Example:**
+```typescript
+import { doCidrsOverlap } from 'subnetter';
+
+console.log(doCidrsOverlap('10.0.0.0/24', '10.0.1.0/24')); // false
+console.log(doCidrsOverlap('10.0.0.0/24', '10.0.0.0/25')); // true
+console.log(doCidrsOverlap('10.0.0.0/24', '10.0.0.128/25')); // true
+```
+
+### subdivideIpv4Cidr
+
+Subdivides a CIDR block into smaller blocks of a specified prefix length.
+
+```typescript
+function subdivideIpv4Cidr(cidr: string, newPrefixLength: number): string[]
+```
+
+**Parameters:**
+- `cidr`: IPv4 CIDR block to subdivide
+- `newPrefixLength`: New prefix length for the subdivided blocks
+
+**Returns:** Array of CIDR blocks with the new prefix length
+
+**Throws:** CidrError if subdivision is not possible or parameters are invalid
+
+**Example:**
+```typescript
+import { subdivideIpv4Cidr } from 'subnetter';
+
+// Subdivide a /24 into four /26 blocks
+const subnets = subdivideIpv4Cidr('10.0.0.0/24', 26);
+console.log(subnets);
+// Output: ['10.0.0.0/26', '10.0.0.64/26', '10.0.0.128/26', '10.0.0.192/26']
+```
+
+### calculateRequiredPrefixLength
+
+Calculates the prefix length needed to accommodate a specific number of addresses.
+
+```typescript
+function calculateRequiredPrefixLength(requiredAddresses: number): number
+```
+
+**Parameters:**
+- `requiredAddresses`: Number of IP addresses needed
+
+**Returns:** Smallest prefix length that can accommodate the required addresses
+
+**Example:**
+```typescript
+import { calculateRequiredPrefixLength } from 'subnetter';
+
+console.log(calculateRequiredPrefixLength(250)); // 24 (provides 254 usable IPs)
+console.log(calculateRequiredPrefixLength(500)); // 23 (provides 510 usable IPs)
+console.log(calculateRequiredPrefixLength(50)); // 26 (provides 62 usable IPs)
+```
+
+### calculateOptimalPrefixLength
+
+Calculates the optimal prefix length for subdividing a CIDR block into a given number of subnets.
+
+```typescript
+function calculateOptimalPrefixLength(cidr: string, count: number): number
+```
+
+**Parameters:**
+- `cidr`: Starting CIDR block
+- `count`: Number of subnets needed
+
+**Returns:** Optimal prefix length to create at least the requested number of subnets
+
+**Throws:** CidrError if parameters are invalid or if it's not possible to create enough subnets
+
+**Example:**
+```typescript
+import { calculateOptimalPrefixLength } from 'subnetter';
+
+// Calculate optimal prefix length to create 5 subnets from a /16 block
+console.log(calculateOptimalPrefixLength('10.0.0.0/16', 5)); // 19 (creates 8 subnets)
+```
+
+## Output Handling
+
+### writeAllocationsToCsv
+
+Writes the allocations to a CSV file.
+
+```typescript
+function writeAllocationsToCsv(allocations: Allocation[], outputPath: string): Promise<void>
+```
+
+**Parameters:**
+- `allocations`: Array of Allocation objects
+- `outputPath`: Path to the output CSV file
+
+**Returns:** Promise that resolves when the file is written
+
+**Throws:** OutputError if writing the file fails
+
+**Example:**
+```typescript
+import { loadConfig, CidrAllocator, writeAllocationsToCsv } from 'subnetter';
+
+async function generateAndSaveAllocations() {
+  try {
+    // Load configuration
+    const config = loadConfig('./config.json');
+    
+    // Create allocator
+    const allocator = new CidrAllocator(config);
+    
+    // Generate allocations
+    const allocations = allocator.generateAllocations();
+    
+    // Write to CSV
+    await writeAllocationsToCsv(allocations, './allocations.csv');
+    
+    console.log(`Successfully wrote ${allocations.length} allocations to allocations.csv`);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+generateAndSaveAllocations();
+```
+
+### filterAllocationsByProvider
+
+Filters allocations by cloud provider.
+
+```typescript
+function filterAllocationsByProvider(allocations: Allocation[], provider: string): Allocation[]
+```
+
+**Parameters:**
+- `allocations`: Array of Allocation objects
+- `provider`: Cloud provider to filter by (e.g., 'aws', 'azure', 'gcp')
+
+**Returns:** Array of filtered Allocation objects
+
+**Example:**
+```typescript
+import { loadConfig, CidrAllocator, filterAllocationsByProvider } from 'subnetter';
+
+// Load configuration
+const config = loadConfig('./config.json');
+
+// Create allocator
+const allocator = new CidrAllocator(config);
+
+// Generate allocations
+const allAllocations = allocator.generateAllocations();
+
+// Filter for AWS only
+const awsAllocations = filterAllocationsByProvider(allAllocations, 'aws');
+console.log(`Found ${awsAllocations.length} AWS allocations`);
+
+// Filter for Azure only
+const azureAllocations = filterAllocationsByProvider(allAllocations, 'azure');
+console.log(`Found ${azureAllocations.length} Azure allocations`);
+```
+
+## Error Handling
+
+Subnetter defines the following error classes to help with error handling:
+
+### ConfigValidationError
+
+Thrown when configuration validation fails.
+
+```typescript
+class ConfigValidationError extends Error {
+  errors: string[];
+}
+```
+
+### AllocationError
+
+Thrown when CIDR allocation fails.
+
+```typescript
+class AllocationError extends Error {
+  // The name property is set to 'AllocationError'
+}
+```
+
+### CidrError
+
+Thrown when CIDR calculations fail.
+
+```typescript
+class CidrError extends Error {
+  // The name property is set to 'CidrError'
+}
+```
+
+### OutputError
+
+Thrown when output generation fails.
+
+```typescript
+class OutputError extends Error {
+  // The name property is set to 'OutputError'
+}
+```
+
+**Example:**
+```typescript
+import { 
+  loadConfig, 
+  CidrAllocator, 
+  writeAllocationsToCsv,
+  ConfigValidationError,
+  AllocationError,
+  CidrError,
+  OutputError
+} from 'subnetter';
+
+try {
+  // Load configuration
+  const config = loadConfig('./config.json');
+  
+  // Create allocator
+  const allocator = new CidrAllocator(config);
+  
+  // Generate allocations
+  const allocations = allocator.generateAllocations();
+  
+  // Write to CSV
+  await writeAllocationsToCsv(allocations, './allocations.csv');
+  
+  console.log('Success!');
+} catch (error) {
+  if (error instanceof ConfigValidationError) {
+    console.error('Configuration validation failed:', error.errors);
+  } else if (error instanceof AllocationError) {
+    console.error('CIDR allocation failed:', error.message);
+  } else if (error instanceof CidrError) {
+    console.error('CIDR calculation error:', error.message);
+  } else if (error instanceof OutputError) {
+    console.error('Output generation failed:', error.message);
+  } else {
+    console.error('Unknown error:', error);
+  }
+}
+```
+
+## Complete Example
+
+Here's a complete example that demonstrates how to use Subnetter programmatically:
+
+```typescript
+import { 
+  Config,
+  loadConfig,
+  validateConfig, 
+  CidrAllocator, 
+  writeAllocationsToCsv,
+  filterAllocationsByProvider,
+  ConfigValidationError,
+  AllocationError,
+  CidrError,
+  OutputError
+} from 'subnetter';
+
+async function main() {
+  try {
+    // Option 1: Load configuration from file
+    const config = loadConfig('./config.json');
+    
+    // Option 2: Create configuration programmatically
+    const manualConfig: Config = {
+      baseCidr: '10.0.0.0/16',
+      cloudProviders: ['aws'],
+      prefixLengths: {
+        region: 20,
+        az: 22
+      },
+      accounts: [
+        {
+          name: 'example-account',
+          clouds: {
+            aws: {
+              regions: ['us-east-1', 'us-west-2']
+            }
+          }
+        }
+      ],
+      subnetTypes: {
+        Public: 24,
+        Private: 24,
+        Data: 26
+      }
+    };
+    
+    // Validate the manual config
+    const validatedConfig = validateConfig(manualConfig);
+    
+    // Create allocator
+    const allocator = new CidrAllocator(validatedConfig);
+    
+    // Generate allocations
+    const allocations = allocator.generateAllocations();
+    
+    console.log(`Generated ${allocations.length} subnet allocations`);
+    
+    // Filter for AWS only
+    const awsAllocations = filterAllocationsByProvider(allocations, 'aws');
+    console.log(`Found ${awsAllocations.length} AWS allocations`);
+    
+    // Write to CSV
+    await writeAllocationsToCsv(allocations, './allocations.csv');
+    
+    console.log('Successfully wrote allocations to allocations.csv');
+  } catch (error) {
+    if (error instanceof ConfigValidationError) {
+      console.error('Configuration validation failed:', error.errors);
+    } else if (error instanceof AllocationError) {
+      console.error('CIDR allocation failed:', error.message);
+    } else if (error instanceof CidrError) {
+      console.error('CIDR calculation error:', error.message);
+    } else if (error instanceof OutputError) {
+      console.error('Output generation failed:', error.message);
+    } else {
+      console.error('Unknown error:', error);
+    }
+    process.exit(1);
+  }
+}
+
+main();
+```
+
+## TypeScript Integration
+
+Subnetter is built with TypeScript and provides type definitions out of the box. When using Subnetter in a TypeScript project, you'll get full type checking and IDE autocompletion for all APIs.
+
+```typescript
+import { Config, Allocation, CidrAllocator } from 'subnetter';
+
+// TypeScript will provide full type checking
+const config: Config = {
+  // Configuration with type checking
+};
+
+const allocator = new CidrAllocator(config);
+const allocations: Allocation[] = allocator.generateAllocations();
+
+// Access properties with autocompletion
+allocations.forEach(allocation => {
+  console.log(`Subnet: ${allocation.subnetCidr}, Role: ${allocation.subnetRole}`);
+});
+``` 

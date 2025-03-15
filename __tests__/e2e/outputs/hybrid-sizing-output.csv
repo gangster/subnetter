@@ -1,0 +1,13 @@
+Account Name,VPC Name,Cloud Provider,Region Name,Availability Zone,Region CIDR,VPC CIDR,AZ CIDR,Subnet CIDR,CIDR,Subnet Role,Usable IPs
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/22,10.0.0.0/22,10.0.0.0/24,Public,254
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/22,10.0.1.0/24,10.0.1.0/25,Private,126
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/22,10.0.2.0/24,10.0.2.0/26,Data,62
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/22,10.0.3.0/24,10.0.3.0/27,Management,30
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.4.0/22,10.0.4.0/22,10.0.4.0/24,Public,254
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.4.0/22,10.0.5.0/24,10.0.5.0/25,Private,126
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.4.0/22,10.0.6.0/24,10.0.6.0/26,Data,62
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.4.0/22,10.0.7.0/24,10.0.7.0/27,Management,30
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.8.0/22,10.0.8.0/22,10.0.8.0/24,Public,254
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.8.0/22,10.0.9.0/24,10.0.9.0/25,Private,126
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.8.0/22,10.0.10.0/24,10.0.10.0/26,Data,62
+hybrid-sizing-test,hybrid-sizing-test-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.8.0/22,10.0.11.0/24,10.0.11.0/27,Management,30

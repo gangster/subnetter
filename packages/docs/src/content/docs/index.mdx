@@ -1,0 +1,209 @@
+---
+title: Subnetter Documentation
+description: "Welcome to the Subnetter documentation. This directory contains comprehensive guides and information about the Subnetter tool, which automates hierarchical IPv4 CIDR allocation across cloud infrastructure."
+---
+
+import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+Welcome to the Subnetter documentation. Subnetter is a powerful tool that automates hierarchical IPv4 CIDR allocation across cloud infrastructure, addressing one of the most challenging aspects of modern cloud architecture.
+
+## The IP Address Management Challenge
+
+Managing IP address space in modern cloud environments presents several significant challenges that grow exponentially with scale:
+
+### IP Address Management Complexity
+
+- **Manual allocation is error-prone**: Hand-crafting CIDR blocks for hundreds of subnets across multiple regions leads to mistakes that can cause outages, security vulnerabilities, and costly remediation efforts.
+  
+- **Overlapping CIDRs create critical connectivity issues**: Without a systematic approach, IP conflicts between networks prevent proper routing, break VPC peering, and cause unexpected application failures.
+  
+- **Multi-cloud environments multiply complexity**: Organizations using AWS, Azure, and GCP simultaneously need a unified addressing strategy while respecting each provider's unique networking constraints.
+
+<MermaidDiagram chart={`graph TD
+    A[IP Address Management Challenges] --> B1[Manual Allocation Errors]
+    A --> B2[IP Conflicts & Overlaps]
+    A --> B3[Multi-Cloud Complexity]
+    A --> B4[Poor Documentation]
+    A --> B5[Scaling Limitations]
+    
+    B1 --> C1[Outages & Downtime]
+    B2 --> C2[Failed Connectivity]
+    B3 --> C3[Inconsistent Implementations]
+    B4 --> C4[Knowledge Silos]
+    B5 --> C5[Costly Re-IP Projects]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9 stroke:#FF5733,stroke-width:2px;
+    style A fill:#283747,color:#FFFFFF
+    style B1 fill:#1E3D59,color:#FFFFFF
+    style B2 fill:#1E3D59,color:#FFFFFF
+    style B3 fill:#1E3D59,color:#FFFFFF
+    style B4 fill:#1E3D59,color:#FFFFFF
+    style B5 fill:#1E3D59,color:#FFFFFF
+    style C1 fill:#FF5733,color:#FFFFFF
+    style C2 fill:#FF5733,color:#FFFFFF
+    style C3 fill:#FF5733,color:#FFFFFF
+    style C4 fill:#FF5733,color:#FFFFFF
+    style C5 fill:#FF5733,color:#FFFFFF`} />
+
+### Scaling Challenges
+
+- **Growing organizations quickly exhaust IP space**: Without proper planning, organizations need painful re-IP projects as they expand to new regions or add more workloads.
+  
+- **Future-proofing is difficult**: Planning for expansion across regions, accounts, and cloud providers requires complex CIDR math and foresight about future network requirements.
+  
+- **Consistent documentation is hard to maintain**: Network diagrams and spreadsheets become outdated as infrastructure evolves, leading to confusion and errors during network changes.
+
+### Operational Overhead
+
+- **Tracking allocated CIDRs across teams**: Different teams deploy resources in different regions with no central coordination, leading to IP conflicts and inefficient utilization.
+  
+- **Limited visibility across environments**: Network administrators struggle to understand the global IP addressing picture, especially in organizations with multiple accounts or cloud providers.
+  
+- **Automation integration requires structured data**: Infrastructure-as-code tools need consistent, predictable IP allocation to properly automate network provisioning.
+
+## How Subnetter Solves These Problems
+
+Subnetter addresses these challenges through an innovative, deterministic approach to IP address allocation:
+
+<MermaidDiagram chart={`graph TD
+    A[Subnetter] --> B1[Hierarchical Allocation]
+    A --> B2[Multi-Cloud Support]
+    A --> B3[Deterministic Algorithm]
+    A --> B4[Configuration-Driven]
+    A --> B5[Infrastructure-as-Code Ready]
+    
+    B1 --> C1[Organized, Non-Overlapping CIDRs]
+    B2 --> C2[Consistent Strategy Across Clouds]
+    B3 --> C3[Predictable, Repeatable Results]
+    B4 --> C4[Adaptable to Organization Structure]
+    B5 --> C5[Automation-Friendly Outputs]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9 stroke:#36BCF7,stroke-width:2px;
+    style A fill:#283747,color:#FFFFFF
+    style B1 fill:#1E3D59,color:#FFFFFF
+    style B2 fill:#1E3D59,color:#FFFFFF
+    style B3 fill:#1E3D59,color:#FFFFFF
+    style B4 fill:#1E3D59,color:#FFFFFF
+    style B5 fill:#1E3D59,color:#FFFFFF
+    style C1 fill:#36BCF7,color:#FFFFFF
+    style C2 fill:#36BCF7,color:#FFFFFF
+    style C3 fill:#36BCF7,color:#FFFFFF
+    style C4 fill:#36BCF7,color:#FFFFFF
+    style C5 fill:#36BCF7,color:#FFFFFF`} />
+
+### 1. Hierarchical Allocation Model
+
+Subnetter implements a structured, hierarchical approach to CIDR allocation that mirrors the organizational structure of modern cloud deployments:
+
+```
+Base CIDR
+│
+├── Account A
+│   │
+│   ├── Region 1
+│   │   │
+│   │   ├── AZ 1
+│   │   │   │
+│   │   │   ├── Subnet Type 1
+│   │   │   ├── Subnet Type 2
+│   │   │   └── Subnet Type 3
+│   │   │
+│   │   └── AZ 2 (similar structure)
+│   │
+│   └── Region 2 (similar structure)
+│
+└── Account B (similar structure)
+```
+
+This hierarchical model ensures:
+
+- **No CIDR overlaps**: Each level of the hierarchy has its own dedicated address space
+- **Efficient allocation**: Subnet sizes are tailored to their specific use cases
+- **Future-proofing**: Space is reserved at each level for future expansion
+- **Natural organization mapping**: Network design follows organizational boundaries
+
+### 2. Deterministic, Configuration-Driven Approach
+
+Subnetter uses a deterministic algorithm to generate CIDR allocations based on a single configuration file. This approach:
+
+- **Eliminates human error** in CIDR calculations and assignments
+- **Ensures reproducibility** across environments and over time
+- **Provides a single source of truth** for network architecture
+- **Simplifies infrastructure-as-code integration**
+
+### 3. Multi-Cloud Flexibility with Consistent Patterns
+
+Subnetter supports multiple cloud providers while maintaining a consistent addressing scheme:
+
+- **Provider-specific configurations** account for unique requirements of AWS, Azure, and GCP
+- **Consistent patterns** across environments simplify operations and documentation
+- **Simple integration** with cloud-specific infrastructure-as-code tools
+
+### 4. Documentation and Visibility
+
+Subnetter automatically generates detailed allocation outputs that:
+
+- **Document all CIDR allocations** in a standardized format
+- **Provide clear visibility** into the entire network hierarchy
+- **Support automation** through machine-readable outputs
+- **Prevent IP conflicts** by making allocations explicit and traceable
+
+## Key Features
+
+- Hierarchical IPv4 CIDR allocation (Provider → Account → Region → AZ → Subnet)
+- Support for multiple cloud providers (AWS, Azure, GCP)
+- Deterministic allocation to prevent overlaps
+- Configurable prefix lengths for different hierarchy levels
+- Variable subnet sizes based on workload requirements
+- CSV output for easy integration with other tools
+- Support for cloud-specific configurations per account
+
+## Use Cases
+
+Subnetter is designed to help organizations:
+
+- Plan and manage IP address space across cloud environments
+- Ensure consistent, non-overlapping CIDR blocks
+- Automate network design for infrastructure as code
+- Document network architecture in a structured format
+- Scale network architecture across multiple cloud providers
+- Maintain a clear IP addressing scheme as infrastructure grows
+
+## Getting Started
+
+If you're new to Subnetter, we recommend starting with the following resources:
+
+1. First, read the [CIDR Primer](./cidr-primer/) to understand the fundamental concepts of IP addressing
+2. Next, follow the [User Guide](./user-guide/) to learn how to use the tool
+3. Explore the [Architecture](./architecture/) document to understand how Subnetter works
+4. Check our [Guides](./guides/) for specific use cases like [Kubernetes Network Design](./guides/kubernetes-network-design/)
+5. If you encounter issues, consult the [Troubleshooting](./troubleshooting/) guide
+
+## Documentation Index
+
+### Core Documentation
+
+| Document | Description |
+|----------|-------------|
+| [User Guide](./user-guide/) | Detailed instructions on how to use Subnetter, including examples and best practices |
+| [Guides](./guides/) | Practical guides for implementing Subnetter in specific scenarios |
+| [Architecture](./architecture/) | Overview of Subnetter's architecture, components, and design considerations |
+| [CIDR Primer](./cidr-primer/) | Introduction to CIDR notation and IP subnetting concepts |
+| [API Reference](./api/overview/) | Comprehensive reference for Subnetter's programmatic API |
+| [Developer Guide](./developer-guide/) | Guide for developers who want to modify or extend the Subnetter codebase |
+
+### Additional Resources
+
+| Document | Description |
+|----------|-------------|
+| [Project Structure](./project/structure/) | Explanation of the modular package structure and how components interact |
+| [Example Scenarios](./example-scenarios/) | Real-world examples of Subnetter implementation in various environments |
+| [Troubleshooting](./troubleshooting/) | Solutions for common issues and error messages |
+
+## Additional Help
+
+For additional assistance or to report issues, please:
+
+- Visit the [GitHub repository](https://github.com/gangster/subnetter)
+- Submit an issue on GitHub
+- Refer to the [API Reference](./api/overview/) for programmatic usage 

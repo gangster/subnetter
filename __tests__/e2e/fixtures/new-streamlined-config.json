@@ -1,0 +1,30 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "streamlined-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        },
+        "azure": {
+          "regions": ["eastus", "westus2"]
+        },
+        "gcp": {
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 28,
+    "Private": 26,
+    "Database": 27,
+    "Management": 28
+  }
+} 

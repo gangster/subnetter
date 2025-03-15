@@ -1,0 +1,105 @@
+name: Manually Fix Dependabot PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to fix'
+        required: true
+        type: string
+
+jobs:
+  manual-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Get PR details
+        id: pr_details
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ github.event.inputs.pr_number }}
+            });
+            console.log(`PR ${pr.number} is from branch ${pr.head.ref} by ${pr.user.login}`);
+            return {
+              ref: pr.head.ref,
+              user: pr.user.login,
+              isDependabot: pr.user.login === 'dependabot[bot]'
+            };
+          result-encoding: string
+      
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ fromJSON(steps.pr_details.outputs.result).ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Debug information
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "PR number: ${{ github.event.inputs.pr_number }}"
+          echo "Branch: ${{ fromJSON(steps.pr_details.outputs.result).ref }}"
+          echo "Author: ${{ fromJSON(steps.pr_details.outputs.result).user }}"
+          echo "Is Dependabot: ${{ fromJSON(steps.pr_details.outputs.result).isDependabot }}"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory: $(ls -la)"
+      
+      - name: Find package-lock.json files
+        id: find_files
+        run: |
+          FOUND_FILES=$(find . -name "package-lock.json" -type f | tr '\n' ' ')
+          echo "Found package-lock.json files: $FOUND_FILES"
+          echo "found_files=$FOUND_FILES" >> $GITHUB_OUTPUT
+      
+      - name: Remove package-lock.json files
+        if: steps.find_files.outputs.found_files != ''
+        run: |
+          # Find and remove all package-lock.json files
+          find . -name "package-lock.json" -type f -delete
+          
+          # Check if any files were removed
+          if [[ $(git status --porcelain) ]]; then
+            echo "Removed package-lock.json files, committing changes"
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
+            git add -A
+            git commit -m "chore: remove package-lock.json files from PR #${{ github.event.inputs.pr_number }}"
+            git push
+            echo "Successfully pushed changes to remove package-lock.json files"
+          else
+            echo "No changes to commit after removal"
+          fi
+      
+      - name: Comment on PR
+        if: steps.find_files.outputs.found_files != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ github.event.inputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '👋 I manually removed package-lock.json files from this PR as we use Yarn only in this project.'
+            });
+      
+      - name: Notify if no files found
+        if: steps.find_files.outputs.found_files == ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ github.event.inputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔍 I looked for package-lock.json files in this PR but didn\'t find any.'
+            }); 

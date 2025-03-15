@@ -1,0 +1,605 @@
+---
+/**
+ * MermaidDiagram component for rendering Mermaid diagrams
+ * 
+ * Usage:
+ * ```astro
+ * <MermaidDiagram chart={`
+ *   graph TD
+ *   A[Client] --> B[Load Balancer]
+ *   B --> C[Server1]
+ *   B --> D[Server2]
+ * `} />
+ * ```
+ */
+
+interface Props {
+  chart: string;
+  id?: string;
+}
+
+const { chart, id } = Astro.props;
+const safeId = id || `mermaid-${Math.random().toString(36).substring(2, 11)}`;
+---
+
+<div class="mermaid-wrapper">
+  <div class="mermaid" id={safeId}>
+    {chart}
+  </div>
+</div>
+
+<script>
+  // Add type declaration for mermaid on window
+  declare global {
+    interface Window {
+      mermaid: any;
+    }
+  }
+
+  // Function to preprocess class diagrams to improve cardinality label placement
+  function preprocessClassDiagram(code: string): string {
+    // Check if this is a class diagram
+    if (code.trim().startsWith('classDiagram')) {
+      // Replace relationship syntax to add padding between lines and labels
+      // This adds extra spaces in the syntax to push labels away from lines
+      return code.replace(/(\w+)\s*([<|>](?:[-.])[-.]|[-.](?:[-.])>|[-.](?:[-.])[|<])\s*(\w+)\s*:\s*([^,\n]+)/g, 
+                         '$1 $2      $3 : $4'); // Add extra spaces to push labels away
+    }
+    return code;
+  }
+
+  // Initialize Mermaid if it hasn't been initialized yet
+  if (typeof window.mermaid === 'undefined') {
+    // Load Mermaid dynamically if it's not already present
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js';
+      script.onload = () => {
+      const isDarkMode = document.documentElement.dataset.theme === 'dark';
+      
+        window.mermaid.initialize({
+        startOnLoad: false,
+        theme: isDarkMode ? 'dark' : 'default',
+          securityLevel: 'loose',
+          htmlLabels: true,
+          flowchart: {
+            curve: 'basis',
+            useMaxWidth: true
+          },
+        sequence: {
+          mirrorActors: false,
+          activationWidth: 15,
+          diagramMarginX: 50,
+          diagramMarginY: 30,
+          actorMargin: 100,
+          messageMargin: 50
+        },
+        classDiagram: {
+          useMaxWidth: true,
+          diagramMarginX: 20,
+          diagramMarginY: 20,
+          labels: {
+            offset: 15 // Increase space for labels
+          }
+        },
+        themeVariables: isDarkMode ? {
+          // Dark theme with improved readability
+          primaryColor: '#8465D4',
+          primaryTextColor: '#FFFFFF',
+          primaryBorderColor: '#8465D4',
+          lineColor: '#8465D4',  // Purple lines for connections
+          secondaryColor: '#F0F0F0',
+          tertiaryColor: '#E2E2E2',
+          // Node styling with light backgrounds and purple accents
+          nodeBorder: '#8465D4',  // Purple border
+          mainBkg: '#8465D4',
+          nodeBkg: '#F0F0F0',     // Light grey fill for better readability
+          // Text colors with better readability
+          edgeLabelBackground: '#F0F0F0',
+          clusterBkg: '#F0F0F0',
+          clusterBorder: '#8465D4',
+          titleColor: '#333333',
+          // Contrast improvements
+          labelBackground: '#F0F0F0',
+          labelColor: '#333333',
+          // Make node text dark for better readability on light backgrounds
+          nodeTextColor: '#333333',
+          // Edge colors
+          edgeColor: '#8465D4',
+          // Class and sequence colors
+          classText: '#333333',
+          // Sequence diagram specific colors
+          actorBorder: '#8465D4',
+          actorBkg: '#F0F0F0',
+          activationBorderColor: '#8465D4',
+          activationBkgColor: '#F8F0FF',
+          noteBorderColor: '#8465D4',
+          noteBkgColor: '#F8F0FF',
+          // Class diagram specific colors
+          classNameBackground: '#F0F0F0',
+          classNameColor: '#333333',
+          relationColor: '#8465D4',
+          relationLabelBackground: '#F0F0F0',
+          // Cardinality label visibility improvements
+          classDiagramLabelColor: '#FFFF00',
+          classDiagramLabelBackground: '#000000',
+          classDiagramLabelBorder: '#000000',
+          classDiagramTitleFontWeight: 'bold'
+        } : {
+          // Light theme variables with purple accents
+          primaryColor: '#8465D4',
+          primaryTextColor: '#FFFFFF',
+          primaryBorderColor: '#8465D4',
+          lineColor: '#8465D4',
+          secondaryColor: '#F8F0FF',
+          tertiaryColor: '#FFFFFF',
+          // Additional colors for different node types
+          nodeBorder: '#8465D4',
+          mainBkg: '#8465D4',
+          nodeBkg: '#FFFFFF',
+          // Text colors
+          edgeLabelBackground: '#FFFFFF',
+          clusterBkg: '#F8F0FF',
+          clusterBorder: '#8465D4',
+          titleColor: '#FFFFFF',
+          // Contrast
+          labelBackground: '#FFFFFF',
+          labelColor: '#333333',
+          // Make node text clear for better readability
+          nodeTextColor: '#333333'
+        }
+      });
+
+      // Get all mermaid diagrams
+      document.querySelectorAll('.mermaid:not([data-processed="true"])').forEach(element => {
+        // Preprocess the diagram
+        const originalCode = element.textContent || '';
+        element.textContent = preprocessClassDiagram(originalCode);
+      });
+
+      window.mermaid.init(undefined, '.mermaid:not([data-processed="true"])');
+      };
+      document.head.appendChild(script);
+  } else {
+    // If Mermaid is already loaded, preprocess and init
+    document.querySelectorAll('.mermaid:not([data-processed="true"])').forEach(element => {
+      const originalCode = element.textContent || '';
+      element.textContent = preprocessClassDiagram(originalCode);
+    });
+    
+    window.mermaid.init(undefined, '.mermaid:not([data-processed="true"])');
+  }
+
+  // Re-render diagrams when theme changes
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.attributeName === 'data-theme') {
+        const isDarkMode = document.documentElement.dataset.theme === 'dark';
+        
+        // Clear existing diagrams
+        document.querySelectorAll('.mermaid').forEach(elem => {
+          elem.removeAttribute('data-processed');
+        });
+        
+        // Re-initialize with the new theme
+        window.mermaid.initialize({
+          theme: isDarkMode ? 'dark' : 'default',
+          sequence: {
+            mirrorActors: false,
+            activationWidth: 15,
+            diagramMarginX: 50,
+            diagramMarginY: 30,
+            actorMargin: 100,
+            messageMargin: 50
+          },
+          classDiagram: {
+            useMaxWidth: true,
+            diagramMarginX: 20,
+            diagramMarginY: 20,
+            labels: {
+              offset: 15 // Increase space for labels
+            }
+          },
+          themeVariables: isDarkMode ? {
+            // Dark theme with improved readability
+            primaryColor: '#8465D4',
+            primaryTextColor: '#FFFFFF',
+            primaryBorderColor: '#8465D4',
+            lineColor: '#8465D4',  // Purple lines for connections
+            secondaryColor: '#F0F0F0',
+            tertiaryColor: '#E2E2E2',
+            // Node styling with light backgrounds and purple accents
+            nodeBorder: '#8465D4',  // Purple border
+            mainBkg: '#8465D4',
+            nodeBkg: '#F0F0F0',     // Light grey fill for better readability
+            // Text colors with better readability
+            edgeLabelBackground: '#F0F0F0',
+            clusterBkg: '#F0F0F0',
+            clusterBorder: '#8465D4',
+            titleColor: '#333333',
+            // Contrast improvements
+            labelBackground: '#F0F0F0',
+            labelColor: '#333333',
+            // Make node text dark for better readability on light backgrounds
+            nodeTextColor: '#333333',
+            // Edge colors
+            edgeColor: '#8465D4',
+            // Class and sequence colors
+            classText: '#333333',
+            // Sequence diagram specific colors
+            actorBorder: '#8465D4',
+            actorBkg: '#F0F0F0',
+            activationBorderColor: '#8465D4',
+            activationBkgColor: '#F8F0FF',
+            noteBorderColor: '#8465D4',
+            noteBkgColor: '#F8F0FF',
+            // Class diagram specific colors
+            classNameBackground: '#F0F0F0',
+            classNameColor: '#333333',
+            relationColor: '#8465D4',
+            relationLabelBackground: '#F0F0F0',
+            // Cardinality label visibility improvements
+            classDiagramLabelColor: '#FFFF00',
+            classDiagramLabelBackground: '#000000',
+            classDiagramLabelBorder: '#000000',
+            classDiagramTitleFontWeight: 'bold'
+          } : {
+            // Light theme variables with purple accents
+            primaryColor: '#8465D4',
+            primaryTextColor: '#FFFFFF',
+            primaryBorderColor: '#8465D4',
+            lineColor: '#8465D4',
+            secondaryColor: '#F8F0FF',
+            tertiaryColor: '#FFFFFF',
+            // Additional colors for different node types
+            nodeBorder: '#8465D4',
+            mainBkg: '#8465D4',
+            nodeBkg: '#FFFFFF',
+            // Text colors
+            edgeLabelBackground: '#FFFFFF',
+            clusterBkg: '#F8F0FF',
+            clusterBorder: '#8465D4',
+            titleColor: '#FFFFFF',
+            // Contrast
+            labelBackground: '#FFFFFF',
+            labelColor: '#333333',
+            // Make node text clear for better readability
+            nodeTextColor: '#333333'
+          }
+        });
+        
+        // Re-render diagrams
+        window.mermaid.init(undefined, '.mermaid:not([data-processed="true"])');
+    }
+    });
+  });
+
+  observer.observe(document.documentElement, { attributes: true });
+</script>
+
+<style>
+  .mermaid-wrapper {
+    width: 100%;
+    margin: 2rem 0;
+    display: flex;
+    justify-content: center;
+  }
+  
+  /* Ensure diagrams fit within their container */
+  :global(.mermaid) {
+    width: 100%;
+    overflow: auto;
+  }
+  
+  /* Add some basic styling to ensure text is readable regardless of theme */
+  :global(.mermaid text) {
+    font-weight: 600 !important;
+  }
+  
+  /* Make sure lines are visible with increased thickness */
+  :global(.mermaid .flowchart-link) {
+    stroke-width: 2.5px !important;
+  }
+  
+  /* Improve node appearance with stronger borders */
+  :global(.mermaid .node rect, .mermaid .node circle, .mermaid .node ellipse, .mermaid .node polygon, .mermaid .node path) {
+    stroke-width: 2.5px !important;
+  }
+
+  /* Make plain text (edge labels, descriptions, etc.) more visible in dark mode */
+  :global([data-theme="dark"] .mermaid .nodeLabel) {
+    color: #333333 !important;
+    background-color: #F0F0F0 !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Ensure all text in dark mode is properly visible */
+  :global([data-theme="dark"] .mermaid text) {
+    fill: #333333 !important;
+  }
+
+  /* Override for sequence diagram labels specifically - needs higher specificity */
+  :global([data-theme="dark"] .mermaid.sequence-diagram text:not(.noteText):not(.labelText)) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+  
+  /* Ensure edges are visible in dark mode */
+  :global([data-theme="dark"] .mermaid .flowchart-link) {
+    stroke: #8465D4 !important;
+    stroke-width: 2.5px !important;
+  }
+
+  /* Make sure arrowheads match the line colors */
+  :global([data-theme="dark"] .mermaid .marker) {
+    fill: #8465D4 !important;
+    stroke: #8465D4 !important;
+  }
+
+  /* Add vibrancy to node styling in dark mode */
+  :global([data-theme="dark"] .mermaid .node) {
+    filter: brightness(1.02);
+  }
+
+  /* Make sure edge labels are readable */
+  :global([data-theme="dark"] .mermaid .edgeLabel) {
+    color: #FFFFFF !important;
+    background-color: transparent !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  /* Ensure edge label text is white */
+  :global([data-theme="dark"] .mermaid .edgeLabel text) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  /* Increase padding and visibility of cardinality labels */
+  :global([data-theme="dark"] .mermaid .edgeLabel .label) {
+    padding: 4px 6px !important;
+    background-color: transparent !important;
+    color: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  /* Custom styling for sequence diagrams */
+  :global([data-theme="dark"] .mermaid .actor) {
+    fill: #F0F0F0 !important;
+    stroke: #8465D4 !important;
+    stroke-width: 2px !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .actor text) {
+    fill: #333333 !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .note) {
+    fill: #F8F0FF !important;
+    stroke: #8465D4 !important;
+    stroke-width: 2px !important;
+  }
+
+  /* Custom styling for class diagrams */
+  :global([data-theme="dark"] .mermaid .classGroup) {
+    fill: #F0F0F0 !important;
+    stroke: #8465D4 !important;
+    stroke-width: 2px !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .classGroup .title) {
+    fill: #F8F0FF !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .classLabel .label) {
+    color: #333333 !important;
+    background-color: #F8F0FF !important;
+    padding: 4px 8px !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .relation) {
+    stroke: #8465D4 !important;
+    stroke-width: 2px !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .relation .cardinality) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    background-color: transparent !important;
+    font-weight: 700 !important;
+    filter: drop-shadow(0px 0px 2px rgba(0,0,0,0.8)) !important;
+  }
+
+  /* Make sure sequence diagram messages stand out */
+  :global([data-theme="dark"] .mermaid .messageLine0) {
+    stroke: #8465D4 !important;
+    stroke-width: 2.5px !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .messageLine1) {
+    stroke: #8465D4 !important;
+    stroke-width: 2.5px !important;
+  }
+
+  /* Make class diagram relationships more visible */
+  :global([data-theme="dark"] .mermaid .classLine) {
+    stroke: #8465D4 !important;
+    stroke-width: 2.5px !important;
+  }
+
+  /* Style for flowchart nodes in dark mode */
+  :global([data-theme="dark"] .mermaid .node rect, 
+          [data-theme="dark"] .mermaid .node circle, 
+          [data-theme="dark"] .mermaid .node ellipse, 
+          [data-theme="dark"] .mermaid .node polygon, 
+          [data-theme="dark"] .mermaid .node path) {
+    fill: #F0F0F0 !important;
+  }
+
+  /* Ensure flowchart box titles have proper contrast */
+  :global([data-theme="dark"] .mermaid .label text) {
+    fill: #333333 !important;
+  }
+
+  /* ALL edge labels should be white in dark mode */
+  :global([data-theme="dark"] .mermaid .edgeLabel text) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  /* Make sure sequence diagram message labels are white */
+  :global([data-theme="dark"] .mermaid .messageText) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .sequenceNumber) {
+    fill: #FFFFFF !important; 
+  }
+
+  :global([data-theme="dark"] .mermaid #arrowhead path) {
+    fill: #8465D4 !important;
+    stroke: #8465D4 !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .loopText tspan) {
+    fill: #FFFFFF !important;
+    font-weight: 700 !important;
+  }
+
+  :global([data-theme="dark"] .mermaid .noteText) {
+    fill: #333333 !important; /* Keep dark text for notes as they have light backgrounds */
+  }
+
+  /* Force ALL text elements in sequence diagrams to be white except specific exceptions */
+  :global([data-theme="dark"] .mermaid g[class*="messageLine"] + text) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-shadow: 0px 0px 2px rgba(0,0,0,0.8) !important;
+  }
+
+  /* Ensure proper padding for relation cardinality */
+  :global([data-theme="dark"] .mermaid .cardinality) {
+    padding: 0 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Make relationship labels stand out with white text and no background */
+  :global([data-theme="dark"] .mermaid .edgeLabel) {
+    background-color: transparent !important;
+  }
+  
+  :global([data-theme="dark"] .mermaid .relationshipLabelText) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    filter: drop-shadow(0px 0px 2px rgba(0,0,0,0.8)) !important;
+  }
+  
+  /* Ensure relationship texts are visible without backgrounds */
+  :global([data-theme="dark"] .mermaid .relationshipLine + text) {
+    fill: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    filter: drop-shadow(0px 0px 2px rgba(0,0,0,0.8)) !important;
+  }
+
+  /* Target tspan elements inside cardinality labels */
+  :global([data-theme="dark"] .mermaid .cardinality tspan) {
+    fill: white !important;
+    font-weight: bold !important;
+    transform: translateY(-6px) !important;
+  }
+
+  /* Specifically target class diagram cardinality labels */
+  :global([data-theme="dark"] .mermaid .classGroup ~ .cardinality text),
+  :global([data-theme="dark"] .mermaid .cardinality text),
+  :global([data-theme="dark"] .mermaid g.cardinality text) {
+    fill: #FFFFFF !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    stroke: #000000 !important;
+    stroke-width: 0.5px !important;
+    paint-order: stroke !important;
+    text-shadow: 0px 0px 3px rgba(0,0,0,0.9) !important;
+    transform: translateY(-12px) !important; /* Move labels further upward */
+    background-color: rgba(40, 44, 52, 0.9) !important;
+    padding: 3px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 0 3px rgba(40, 44, 52, 0.9) !important;
+  }
+
+  /* Adjust the positioning of specific cardinality types */
+  :global([data-theme="dark"] .mermaid .relation .cardinality) {
+    transform: translateY(-15px) translateX(5px) !important; /* Move up and slightly to the right */
+  }
+  
+  /* Improved cardinality label styles for class diagrams */
+  :global([data-theme="dark"] .mermaid .cardinality),
+  :global([data-theme="dark"] .mermaid g.cardinality) {
+    position: relative !important;
+    top: -15px !important;
+    z-index: 10 !important;
+    transform: translateY(-17px) !important;
+  }
+
+  /* Style all cardinality text elements */
+  :global([data-theme="dark"] .mermaid .cardinality text),
+  :global([data-theme="dark"] .mermaid g.cardinality text) {
+    fill: #FFFFFF !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    paint-order: stroke !important;
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+    text-shadow: 
+      0px 0px 4px rgba(0,0,0,1),
+      0px 0px 8px rgba(0,0,0,1) !important;
+  }
+
+  /* Create a glow effect to separate labels from background */
+  :global([data-theme="dark"] .mermaid .cardinality text::before) {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 4px;
+    filter: blur(2px);
+    z-index: -1;
+  }
+
+  /* Create absolute positioning for cardinality labels for more precise control */
+  :global([data-theme="dark"] .mermaid svg[aria-roledescription="classDiagram"] .cardinality) {
+    filter: drop-shadow(0 0 5px rgba(0,0,0,0.8)) !important;
+  }
+  
+  /* Move labels positioned at the end of lines upwards */
+  :global([data-theme="dark"] .mermaid svg[aria-roledescription="classDiagram"] .classGroup + g > g:has(.cardinality)) {
+    transform: translateY(-25px) !important;
+  }
+  
+  /* Add color contrast between line and text */
+  :global([data-theme="dark"] .mermaid .cardinality text) {
+    fill: #FFFF00 !important; /* Yellow text for maximum visibility */
+    font-weight: 900 !important;
+    stroke: #000000 !important;
+    stroke-width: 2px !important;
+    dominant-baseline: text-before-edge !important;
+  }
+</style> 

@@ -1,0 +1,12 @@
+{
+  "files": [
+    {
+      "path": "packages/core/dist/**/*.js",
+      "maxSize": "10 kB"
+    },
+    {
+      "path": "packages/cli/dist/**/*.js",
+      "maxSize": "15 kB"
+    }
+  ]
+} 

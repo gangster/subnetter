@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "expand",
+  "entryPoints": ["packages/core/src", "packages/cli/src"],
+  "out": "docs/api",
+  "name": "Subnetter API Documentation",
+  "includeVersion": true,
+  "skipErrorChecking": true,
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "plugin": [],
+  "logLevel": "Verbose",
+  "disableGit": true,
+  "cleanOutputDir": true
+} 

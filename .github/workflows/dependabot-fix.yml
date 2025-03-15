@@ -1,0 +1,71 @@
+name: Fix Dependabot PRs
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  fix-dependabot-pr:
+    # Only run this workflow for Dependabot PRs
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed to push changes
+      pull-requests: write  # Needed to comment on PRs
+    
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug information
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "PR number: ${{ github.event.pull_request.number }}"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory: $(ls -la)"
+      
+      - name: Find package-lock.json files
+        id: find_files
+        run: |
+          FOUND_FILES=$(find . -name "package-lock.json" -type f | tr '\n' ' ')
+          echo "Found package-lock.json files: $FOUND_FILES"
+          echo "found_files=$FOUND_FILES" >> $GITHUB_OUTPUT
+      
+      - name: Remove package-lock.json files
+        if: steps.find_files.outputs.found_files != ''
+        run: |
+          # Find and remove all package-lock.json files
+          find . -name "package-lock.json" -type f -delete
+          
+          # Check if any files were removed
+          if [[ $(git status --porcelain) ]]; then
+            echo "Removed package-lock.json files, committing changes"
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
+            git add -A
+            git commit -m "chore: remove package-lock.json files from Dependabot PR"
+            git push
+            echo "Successfully pushed changes to remove package-lock.json files"
+          else
+            echo "No changes to commit after removal"
+          fi
+      
+      - name: Comment on PR
+        if: steps.find_files.outputs.found_files != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '👋 I removed package-lock.json files from this PR as we use Yarn only in this project.'
+            }); 

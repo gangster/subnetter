@@ -1,0 +1,71 @@
+/* Custom styling for Mermaid diagrams */
+.mermaid {
+  width: 100%;
+  margin: 1rem auto;
+  padding: 1rem;
+  background-color: #fafafa;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Ensure diagrams are responsive */
+.mermaid svg {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* Style nodes in flowcharts */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon {
+  fill: #f4f4f4;
+  stroke: #999;
+  stroke-width: 1px;
+}
+
+/* Style text in nodes */
+.mermaid .node text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  fill: #333;
+}
+
+/* Style edges/arrows */
+.mermaid .edgePath .path {
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+
+/* Style arrowheads */
+.mermaid .arrowheadPath {
+  fill: #666;
+  stroke: none;
+}
+
+/* Style labels on edges */
+.mermaid .edgeLabel {
+  background-color: #fff;
+  color: #333;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+}
+
+/* Style for class diagrams */
+.mermaid .classGroup rect {
+  fill: #f4f4f4;
+  stroke: #999;
+}
+
+/* Style for sequence diagrams */
+.mermaid .actor {
+  fill: #f4f4f4;
+  stroke: #999;
+}
+
+.mermaid .messageText {
+  fill: #333;
+  font-size: 12px;
+} 

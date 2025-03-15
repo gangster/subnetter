@@ -1,0 +1,1107 @@
+---
+title: Manual Testing
+---
+
+[r# Subnetter Manual Testing Guide
+
+This guide provides detailed instructions for manually testing the Subnetter application. It is designed to validate that the application functions correctly across various scenarios, edge cases, and environments.
+
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Setup for Testing](#setup-for-testing)
+- [Basic Functionality Tests](#basic-functionality-tests)
+- [Configuration Validation Tests](#configuration-validation-tests)
+- [CIDR Allocation Tests](#cidr-allocation-tests)
+- [Edge Case Testing](#edge-case-testing)
+- [Output Validation](#output-validation)
+- [Performance Testing](#performance-testing)
+- [Cross-Platform Testing](#cross-platform-testing)
+- [CLI Options Testing](#cli-options-testing)
+- [Integration Testing](#integration-testing)
+- [Module Compatibility Testing](#module-compatibility-testing)
+- [Regression Testing](#regression-testing)
+- [Test Reporting](#test-reporting)
+
+## Prerequisites
+
+Before beginning manual testing, ensure you have the following:
+
+- **Node.js Environment**: Node.js v18 or higher installed (v22+ recommended)
+- **Git**: For cloning the repository
+- **Text Editor**: For editing configuration files
+- **Terminal/Command Line**: For running the application
+- **CSV Viewer**: For examining output files (e.g., Excel, Google Sheets)
+- **Subnetter Source Code**: Clone the repository or install via npm
+
+## Setup for Testing
+
+### Local Development Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/gangster/subnetter.git
+   cd subnetter
+   ```
+
+2. Install dependencies using Yarn (the project uses zero-install configuration):
+   ```bash
+   # The project includes Yarn in the .yarn/releases directory
+   ./yarn install
+   ```
+
+3. Build the project:
+   ```bash
+   ./yarn build
+   ```
+
+4. Link for local testing:
+   ```bash
+   # If using npm for global link
+   npm link
+   
+   # If using yarn
+   ./yarn link
+   ```
+
+### NPM Installation Testing
+
+Test the installation process as an end-user would experience it:
+
+1. Create a new directory for testing:
+   ```bash
+   mkdir subnetter-test
+   cd subnetter-test
+   ```
+
+2. Install Subnetter:
+   ```bash
+   # Using npm
+   npm install -g subnetter
+   
+   # Using yarn
+   yarn global add subnetter
+   ```
+
+3. Verify installation:
+   ```bash
+   subnetter --version
+   ```
+
+## Basic Functionality Tests
+
+### Command Availability Test
+
+**Objective**: Verify that all commands are available and respond correctly.
+
+**Steps**:
+1. Run the help command:
+   ```bash
+   subnetter --help
+   ```
+2. Verify that the output displays all available commands and options.
+
+**Expected Results**:
+- Help text should be displayed with all commands: `generate`, `validate`
+- Options should be listed for each command
+- No errors should be thrown
+
+### Version Command Test
+
+**Objective**: Verify that the version command works correctly.
+
+**Steps**:
+1. Run the version command:
+   ```bash
+   subnetter --version
+   ```
+
+**Expected Results**:
+- The current version number should be displayed
+- Format should be semantic versioning (e.g., 1.0.0)
+
+### Generate Command Basic Test
+
+**Objective**: Verify that the generate command works with a minimal valid configuration.
+
+**Steps**:
+1. Create a minimal configuration file `minimal-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24,
+       "Private": 26
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate minimal-config.json -o minimal-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output file `minimal-output.csv` should be created
+- Output should contain 6 allocations (1 account × 1 region × 3 AZs × 2 subnet types)
+- Each allocation should have the correct fields (Account Name, VPC Name, etc.)
+
+### Validate Command Basic Test
+
+**Objective**: Verify that the validate command works correctly.
+
+**Steps**:
+1. Use the same minimal configuration file from above.
+2. Run the validate command:
+   ```bash
+   subnetter validate -c minimal-config.json
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output should indicate that the configuration is valid
+
+### YAML Configuration Test
+
+**Objective**: Verify that YAML configuration files are supported and work correctly.
+
+**Steps**:
+1. Create a minimal YAML configuration file `minimal-config.yaml`:
+   ```yaml
+   # Minimal YAML configuration
+   baseCidr: 10.0.0.0/8
+   cloudProviders:
+     - aws
+   accounts:
+     - name: test-account
+       clouds:
+         aws:
+           regions:
+             - us-east-1
+   subnetTypes:
+     Public: 24
+     Private: 26
+   ```
+
+2. Run the validate command:
+   ```bash
+   subnetter validate -c minimal-config.yaml
+   ```
+
+3. Run the generate command:
+   ```bash
+   subnetter generate -c minimal-config.yaml -o yaml-output.csv
+   ```
+
+**Expected Results**:
+- Both commands should complete without errors
+- Validation should indicate that the configuration is valid
+- Generation should produce the same allocations as with the JSON configuration
+- Output file should contain 6 allocations (1 account × 1 region × 3 AZs × 2 subnet types)
+
+## Configuration Validation Tests
+
+### Invalid Configuration Test
+
+**Objective**: Verify that invalid configurations are rejected with clear error messages.
+
+**Test Case 1: Missing Required Fields**
+
+**Steps**:
+1. Create `invalid-missing-fields.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ]
+     // Missing subnetTypes and cloudProviders
+   }
+   ```
+
+2. Run validation:
+   ```bash
+   subnetter validate -c invalid-missing-fields.json
+   ```
+
+**Expected Results**:
+- Validation should fail
+- Error message should mention the missing required fields
+- Error message should be clear and actionable, indicating what needs to be fixed
+- Exit code should be non-zero
+
+**Criteria for Evaluating Error Messages**:
+- **Specificity**: Error messages should identify the specific issue
+- **Location**: Error messages should indicate where in the configuration the issue is
+- **Actionability**: Error messages should suggest how to fix the issue
+- **Clarity**: Error messages should be understandable to users without deep knowledge of the codebase
+
+**Test Case 2: Invalid CIDR Format**
+
+**Steps**:
+1. Create `invalid-cidr-format.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/33", // Invalid prefix length
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24
+     }
+   }
+   ```
+
+2. Run validation:
+   ```bash
+   subnetter validate invalid-cidr-format.json
+   ```
+
+**Expected Results**:
+- Validation should fail
+- Error message should mention the invalid CIDR format
+- Error should point to the `baseCidr` field
+
+**Test Case 3: Empty Account Name**
+
+**Steps**:
+1. Create `invalid-empty-account-name.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "", // Empty name
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24
+     }
+   }
+   ```
+
+2. Run validation:
+   ```bash
+   subnetter validate invalid-empty-account-name.json
+   ```
+
+**Expected Results**:
+- Validation should fail
+- Error message should mention the empty account name
+- Error should point to the `accounts[0].name` field
+
+## CIDR Allocation Tests
+
+### Multi-Account Allocation Test
+
+**Objective**: Verify that CIDR allocation works correctly with multiple accounts.
+
+**Steps**:
+1. Create `multi-account-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "prefixLengths": {
+       "account": 16,
+       "region": 20,
+       "az": 24
+     },
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "dev-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1", "us-west-2"]
+           }
+         }
+       },
+       {
+         "name": "prod-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 26,
+       "Private": 28
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate multi-account-config.json -o multi-account-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output should contain 30 allocations (2 accounts with 2+3 regions = 5 regions total, 5 regions × 3 AZs × 2 subnet types = 30 allocations)
+- CIDRs should be correctly nested with no overlaps
+- First account should use 10.0.0.0/16 and second should use 10.1.0.0/16
+
+### Multi-Cloud Provider Test
+
+**Objective**: Verify allocation across multiple cloud providers.
+
+**Steps**:
+1. Create `multi-cloud-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "prefixLengths": {
+       "account": 16,
+       "region": 20,
+       "az": 24
+     },
+     "cloudProviders": ["aws", "azure", "gcp"],
+     "accounts": [
+       {
+         "name": "cloud-dev",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           },
+           "azure": {
+             "regions": ["eastus"]
+           },
+           "gcp": {
+             "regions": ["us-central1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 26,
+       "Private": 27
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate multi-cloud-config.json -o multi-cloud-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output should contain 18 allocations (1 account × 3 providers × 1 region per provider × 3 AZs × 2 subnet types = 18 allocations)
+- Each provider should have the correct region and AZ naming patterns
+- AWS should have AZs like us-east-1a, us-east-1b, us-east-1c
+- Azure should have AZs like eastusa, eastusb, eastusc
+- GCP should have AZs like us-central1a, us-central1b, us-central1c
+
+### Account-Specific CIDR Override Test
+
+**Objective**: Verify that account-specific CIDR blocks are respected.
+
+**Steps**:
+1. Create `account-cidr-override-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "default-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       },
+       {
+         "name": "override-account",
+         "clouds": {
+           "aws": {
+             "baseCidr": "172.16.0.0/12",
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate account-cidr-override-config.json -o account-cidr-override-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- `default-account` should use CIDRs from 10.0.0.0/8 range
+- `override-account` should use CIDRs from 172.16.0.0/12 range
+- No CIDR overlaps should occur
+
+### Different Subnet Sizes Test
+
+**Objective**: Verify that different subnet sizes are correctly allocated.
+
+**Steps**:
+1. Create `subnet-sizes-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24,
+       "Private": 25,
+       "Data": 26,
+       "Management": 27
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate subnet-sizes-config.json -o subnet-sizes-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Public subnets should have /24 CIDR blocks (254 usable IPs)
+- Private subnets should have /25 CIDR blocks (126 usable IPs)
+- Data subnets should have /26 CIDR blocks (62 usable IPs)
+- Management subnets should have /27 CIDR blocks (30 usable IPs)
+- Usable IPs column should correctly reflect these numbers
+
+## Edge Case Testing
+
+### Minimum Prefix Length Test
+
+**Objective**: Test with the smallest possible prefix length (largest network).
+
+**Steps**:
+1. Create `min-prefix-config.json`:
+   ```json
+   {
+     "baseCidr": "0.0.0.0/0", // Entire IPv4 address space
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 1
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate min-prefix-config.json -o min-prefix-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Allocations should be valid
+- Initial allocation should be 0.0.0.0/0
+- Subsequent allocations should use prefix length 1
+
+### Maximum Prefix Length Test
+
+**Objective**: Test with the largest possible prefix length (smallest network).
+
+**Steps**:
+1. Create `max-prefix-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/24",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 32
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate max-prefix-config.json -o max-prefix-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Subnet CIDRs should have /32 prefix length
+- Usable IPs should be 1 for each subnet
+
+### Large Number of Allocations Test
+
+**Objective**: Test with a large number of allocations to check performance and memory usage.
+
+**Steps**:
+1. Create `large-config.json` with many accounts, regions, and subnet types (sample):
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws", "azure", "gcp"],
+     "accounts": [
+       // Create 10 accounts with 5 regions each
+       {
+         "name": "account-1",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "eu-west-1"]
+           }
+         }
+       },
+       // ... (repeat for account-2 through account-10)
+     ],
+     "subnetTypes": {
+       "Type1": 24,
+       "Type2": 24,
+       // ... (repeat for Types 3-10)
+     }
+   }
+   ```
+
+2. Run the generate command with time tracking:
+   ```bash
+   time subnetter generate large-config.json -o large-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors or excessive memory usage
+- Output should contain all allocations (10 accounts × 5 regions × 3 AZs × 10 subnet types = 1500 allocations)
+- Execution time should be reasonable (under 30 seconds)
+
+### Not Enough Space Error Test
+
+**Objective**: Verify that appropriate errors are thrown when there's not enough address space.
+
+**Steps**:
+1. Create `not-enough-space-config.json`:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/22", // Small CIDR block
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1", "us-east-2", "us-west-1", "us-west-2"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24
+     }
+   }
+   ```
+
+2. Run the generate command:
+   ```bash
+   subnetter generate not-enough-space-config.json -o error-output.csv
+   ```
+
+**Expected Results**:
+- Command should fail with an error
+- Error message should indicate insufficient space
+- Error message should be clear and actionable
+
+## Output Validation
+
+### CSV Format Test
+
+**Objective**: Verify that the CSV output has the correct format and content.
+
+**Steps**:
+1. Use one of the previous test configurations.
+2. Run the generate command:
+   ```bash
+   subnetter generate subnet-sizes-config.json -o csv-format-output.csv
+   ```
+3. Open the CSV file and validate its contents.
+
+**Expected Results**:
+- CSV file should have a header row with all expected columns:
+  - Account Name
+  - VPC Name
+  - Cloud Provider
+  - Region Name
+  - Availability Zone
+  - Region CIDR
+  - VPC CIDR
+  - AZ CIDR
+  - Subnet CIDR
+  - CIDR
+  - Subnet Role
+  - Usable IPs
+- Data rows should contain valid values for each column
+- CIDR blocks should be valid IPv4 CIDR notation
+- Usable IPs should be correctly calculated based on CIDR prefix length
+
+### No Overlapping CIDRs Test
+
+**Objective**: Verify that no CIDR blocks overlap in the output.
+
+**Steps**:
+1. Use a complex configuration with multiple accounts, regions, and subnet types.
+2. Run the generate command:
+   ```bash
+   subnetter generate multi-account-config.json -o overlap-test-output.csv
+   ```
+3. Analyze the output to check for overlapping CIDRs.
+
+**Expected Results**:
+- No CIDR blocks should overlap
+- Each allocation should have a unique CIDR block
+- CIDR blocks should be correctly nested according to the hierarchy (account > region > AZ > subnet)
+
+## Performance Testing
+
+### Command Execution Time Test
+
+**Objective**: Measure the execution time for different configuration sizes.
+
+**Steps**:
+1. Prepare configurations of different sizes:
+   - Small: 1 account, 1 region, 2 subnet types
+   - Medium: 5 accounts, 3 regions each, 5 subnet types
+   - Large: 10 accounts, 5 regions each, 10 subnet types
+2. Run the generate command with time measurement:
+   ```bash
+   time subnetter generate small-config.json -o small-output.csv
+   time subnetter generate medium-config.json -o medium-output.csv
+   time subnetter generate large-config.json -o large-output.csv
+   ```
+
+**Expected Results**:
+- Execution time should scale reasonably with configuration size
+- Large configurations should complete within a reasonable time (under 30 seconds)
+- No memory errors or excessive CPU usage
+
+### Memory Usage Test
+
+**Objective**: Monitor memory usage during execution.
+
+**Steps**:
+1. Use a large configuration.
+2. Run the generate command with memory monitoring:
+   ```bash
+   /usr/bin/time -v subnetter generate large-config.json -o memory-test-output.csv
+   ```
+
+**Expected Results**:
+- Memory usage should be reasonable (under 500MB for large configurations)
+- No memory leaks or excessive growth during execution
+
+## Cross-Platform Testing
+
+### Windows Compatibility Test
+
+**Objective**: Verify that the application works correctly on Windows.
+
+**Steps**:
+1. Install the application on a Windows system.
+2. Run basic commands:
+   ```powershell
+   subnetter --version
+   subnetter generate -c minimal-config.json -o windows-output.csv
+   ```
+
+**Expected Results**:
+- Commands should execute without errors
+- Output should be identical to that on Unix-based systems
+- File paths should be handled correctly
+
+### macOS Compatibility Test
+
+**Objective**: Verify that the application works correctly on macOS.
+
+**Steps**:
+1. Install the application on a macOS system.
+2. Run basic commands:
+   ```bash
+   subnetter --version
+   subnetter generate -c minimal-config.json -o macos-output.csv
+   ```
+
+**Expected Results**:
+- Commands should execute without errors
+- Output should be identical to that on other platforms
+
+### Linux Compatibility Test
+
+**Objective**: Verify that the application works correctly on Linux.
+
+**Steps**:
+1. Install the application on a Linux system.
+2. Run basic commands:
+   ```bash
+   subnetter --version
+   subnetter generate -c minimal-config.json -o linux-output.csv
+   ```
+
+**Expected Results**:
+- Commands should execute without errors
+- Output should be identical to that on other platforms
+
+## CLI Options Testing
+
+### Verbose Output Test
+
+**Objective**: Verify that the verbose output option works correctly.
+
+**Steps**:
+1. Run the generate command with verbose output:
+   ```bash
+   subnetter generate -c minimal-config.json -o verbose-output.csv --verbose
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output should include detailed logging information
+- Debug-level messages should be displayed
+- Internal allocation process should be visible
+
+### Custom Output File Test
+
+**Objective**: Verify that custom output file paths work correctly.
+
+**Steps**:
+1. Run the generate command with different output file paths:
+   ```bash
+   subnetter generate -c minimal-config.json -o ./output/custom-path.csv
+   subnetter generate -c minimal-config.json -o /tmp/absolute-path.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Output files should be created at the specified paths
+- Directory structure should be created if it doesn't exist
+
+### Help Option Test
+
+**Objective**: Verify that the help option works for all commands.
+
+**Steps**:
+1. Run help for different commands:
+   ```bash
+   subnetter --help
+   subnetter generate --help
+   subnetter validate --help
+   ```
+
+**Expected Results**:
+- Help text should be displayed for each command
+- Options should be clearly described
+- Usage examples should be provided
+
+## Integration Testing
+
+### NPM Package Integration Test
+
+**Objective**: Verify that the NPM package can be integrated into other projects.
+
+**Steps**:
+1. Create a new Node.js project.
+2. Install the Subnetter package:
+   ```bash
+   npm install subnetter
+   ```
+3. Create a simple script that uses the Subnetter API:
+   ```javascript
+   const { generateAllocations } = require('subnetter');
+   
+   const config = {
+     baseCidr: '10.0.0.0/8',
+     cloudProviders: ['aws'],
+     accounts: [
+       {
+         name: 'test-account',
+         clouds: {
+           aws: {
+             regions: ['us-east-1']
+           }
+         }
+       }
+     ],
+     subnetTypes: {
+       Public: 24,
+       Private: 26
+     }
+   };
+   
+   const allocations = generateAllocations(config);
+   console.log(`Generated ${allocations.length} allocations`);
+   ```
+4. Run the script:
+   ```bash
+   node script.js
+   ```
+
+**Expected Results**:
+- Script should execute without errors
+- Allocations should be generated correctly
+- API should be usable programmatically
+
+### Docker Container Test
+
+**Objective**: Verify that the application works correctly in a Docker container.
+
+**Steps**:
+1. Create a Dockerfile:
+   ```dockerfile
+   FROM node:18-alpine
+   RUN npm install -g subnetter
+   WORKDIR /app
+   COPY minimal-config.json .
+   ENTRYPOINT ["subnetter"]
+   ```
+2. Build and run the Docker image:
+   ```bash
+   docker build -t subnetter-test .
+   docker run -v $(pwd):/app subnetter-test generate -c minimal-config.json -o docker-output.csv
+   ```
+
+**Expected Results**:
+- Docker container should build and run without errors
+- Output file should be created and accessible from the host
+- Results should be identical to running directly on the host
+
+## Module Compatibility Testing
+
+### TypeScript Import Test
+
+**Objective**: Verify that the package can be imported in TypeScript projects.
+
+**Steps**:
+1. Create a new TypeScript project.
+2. Install the Subnetter package:
+   ```bash
+   npm install subnetter
+   ```
+3. Create a TypeScript file that imports and uses the package:
+   ```typescript
+   import { generateAllocations, Config } from 'subnetter';
+   
+   const config: Config = {
+     baseCidr: '10.0.0.0/8',
+     cloudProviders: ['aws'],
+     accounts: [
+       {
+         name: 'test-account',
+         clouds: {
+           aws: {
+             regions: ['us-east-1']
+           }
+         }
+       }
+     ],
+     subnetTypes: {
+       Public: 24,
+       Private: 26
+     }
+   };
+   
+   const allocations = generateAllocations(config);
+   console.log(`Generated ${allocations.length} allocations`);
+   ```
+4. Compile and run the TypeScript file:
+   ```bash
+   tsc test.ts
+   node test.js
+   ```
+
+**Expected Results**:
+- TypeScript should compile without errors
+- Types should be correctly defined and usable
+- Script should execute without errors
+
+### ESM Import Test
+
+**Objective**: Verify that the package can be imported in ESM projects.
+
+**Steps**:
+1. Create a new ESM project.
+2. Install the Subnetter package:
+   ```bash
+   npm install subnetter
+   ```
+3. Create an ESM file that imports and uses the package:
+   ```javascript
+   import { generateAllocations } from 'subnetter';
+   
+   const config = {
+     baseCidr: '10.0.0.0/8',
+     cloudProviders: ['aws'],
+     accounts: [
+       {
+         name: 'test-account',
+         clouds: {
+           aws: {
+             regions: ['us-east-1']
+           }
+         }
+       }
+     ],
+     subnetTypes: {
+       Public: 24,
+       Private: 26
+     }
+   };
+   
+   const allocations = generateAllocations(config);
+   console.log(`Generated ${allocations.length} allocations`);
+   ```
+4. Run the ESM file:
+   ```bash
+   node --experimental-modules test.mjs
+   ```
+
+**Expected Results**:
+- ESM import should work without errors
+- Script should execute without errors
+
+## Regression Testing
+
+### Previous Version Compatibility Test
+
+**Objective**: Verify that configurations from previous versions still work.
+
+**Steps**:
+1. Create a configuration file using the format from a previous version:
+   ```json
+   {
+     "baseCidr": "10.0.0.0/8",
+     "cloudProviders": ["aws"],
+     "accounts": [
+       {
+         "name": "test-account",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24,
+       "Private": 26
+     }
+   }
+   ```
+2. Run the generate command:
+   ```bash
+   subnetter generate -c legacy-config.json -o legacy-output.csv
+   ```
+
+**Expected Results**:
+- Command should complete without errors
+- Legacy configuration format should be accepted and processed correctly
+- Output should be identical to using the new format
+
+### Fixed Bug Verification Test
+
+**Objective**: Verify that previously fixed bugs remain fixed.
+
+**Steps**:
+1. Create configurations that would have triggered known bugs in previous versions.
+2. Run the generate command with these configurations.
+
+**Expected Results**:
+- Command should complete without errors
+- Previously fixed bugs should not reappear
+
+## Test Reporting
+
+### Test Results Summary
+
+After completing all manual tests, create a summary report with the following information:
+
+1. **Test Coverage**:
+   - Number of tests executed
+   - Number of tests passed/failed
+   - Areas covered by testing
+
+2. **Issues Found**:
+   - Description of any issues found
+   - Steps to reproduce
+   - Severity assessment
+
+3. **Performance Metrics**:
+   - Execution time for different configuration sizes
+   - Memory usage statistics
+
+4. **Compatibility Assessment**:
+   - Platform compatibility results
+   - Module integration results
+
+5. **Recommendations**:
+   - Suggested improvements
+   - Areas requiring additional testing
+
+This report will help track the application's quality over time and identify areas for improvement.
+
+## Conclusion
+
+This manual testing guide provides a comprehensive approach to validating the functionality, performance, and reliability of the Subnetter application. By systematically working through these test cases, you can ensure that the application meets all requirements and handles edge cases appropriately.
+
+Remember to update this guide as new features are added or existing ones are modified to ensure continued test coverage. 

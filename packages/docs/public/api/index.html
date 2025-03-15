@@ -1,0 +1,223 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Subnetter API Documentation - v1.3.1</title><meta name="description" content="Documentation for Subnetter API Documentation"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-search"></use></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div><div class="field"><div id="tsd-toolbar-links"></div></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">Subnetter API Documentation - v1.3.1</a></div><div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h2>Subnetter API Documentation - v1.3.1</h2></div><div class="tsd-panel tsd-typography"><a id="md:subnetter---ipv4-cidr-allocation-tool" class="tsd-anchor"></a><h1><a href="#md:subnetter---ipv4-cidr-allocation-tool">Subnetter - IPv4 CIDR Allocation Tool</a></h1><p><a href="https://github.com/gangster/subnetter/actions/workflows/ci-cd.yml"><img src="https://github.com/gangster/subnetter/actions/workflows/ci-cd.yml/badge.svg" alt="CI/CD"></a>
+<a href="https://gangster.github.io/subnetter/"><img src="https://github.com/gangster/subnetter/actions/workflows/ci-cd.yml/badge.svg?branch=main&event=push" alt="Documentation"></a>
+<a href="https://gangster.github.io/subnetter/"><img src="https://img.shields.io/badge/docs-online-brightgreen.svg" alt="Docs Status"></a>
+<a href="https://github.com/gangster/subnetter/actions/workflows/ci-cd.yml"><img src="https://github.com/gangster/subnetter/actions/workflows/ci-cd.yml/badge.svg?branch=main&event=pull_request" alt="PR Checks"></a>
+<a href="https://codecov.io/gh/gangster/subnetter"><img src="https://codecov.io/gh/gangster/subnetter/branch/main/graph/badge.svg" alt="codecov"></a>
+<a href="https://www.npmjs.com/package/subnetter"><img src="https://img.shields.io/npm/v/subnetter.svg" alt="npm version"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></p>
+<p>A command-line tool for hierarchical IPv4 CIDR allocation across cloud infrastructure.</p>
+<a id="md:project-status" class="tsd-anchor"></a><h2><a href="#md:project-status">Project Status</a></h2><p>Subnetter is currently in active development. The core functionality for CIDR allocation is implemented and available through both the CLI and programmatic API. The project follows a monorepo structure with comprehensive test coverage and documentation.</p>
+<a id="md:project-structure" class="tsd-anchor"></a><h2><a href="#md:project-structure">Project Structure</a></h2><p>Subnetter is organized as a monorepo with multiple packages:</p>
+<ul>
+<li><strong>@subnetter/core</strong>: Core CIDR allocation engine and utilities</li>
+<li><strong>@subnetter/cli</strong>: Command-line interface for the tool</li>
+<li><strong>@subnetter/docs</strong>: Documentation site built with Astro and Starlight</li>
+</ul>
+<p>This modular design allows you to use the core functionality programmatically while also providing a convenient CLI and comprehensive documentation.</p>
+<a id="md:the-problem" class="tsd-anchor"></a><h2><a href="#md:the-problem">The Problem</a></h2><p>Managing IP address space in modern cloud environments presents several challenges:</p>
+<a id="md:ip-address-management-complexity" class="tsd-anchor"></a><h3><a href="#md:ip-address-management-complexity">IP Address Management Complexity</a></h3><ul>
+<li><strong>Manual allocation is error-prone</strong>: Hand-crafting CIDR blocks for hundreds of subnets across multiple regions leads to mistakes</li>
+<li><strong>Overlapping CIDRs cause connectivity issues</strong>: Without a systematic approach, IP conflicts can cause outages and security vulnerabilities</li>
+<li><strong>Multi-cloud environments multiply complexity</strong>: Each cloud provider requires its own network architecture, but needs to integrate with others</li>
+</ul>
+<a id="md:scaling-challenges" class="tsd-anchor"></a><h3><a href="#md:scaling-challenges">Scaling Challenges</a></h3><ul>
+<li><strong>Growing organizations quickly exhaust IP space</strong>: Without proper planning, organizations need painful re-IP projects as they grow</li>
+<li><strong>Future-proofing is difficult</strong>: Planning for expansion across regions, accounts, and cloud providers requires complex calculations</li>
+<li><strong>Consistent documentation is hard to maintain</strong>: Network diagrams and spreadsheets become outdated as infrastructure evolves</li>
+</ul>
+<a id="md:operational-overhead" class="tsd-anchor"></a><h3><a href="#md:operational-overhead">Operational Overhead</a></h3><ul>
+<li><strong>Tracking allocated CIDRs across teams</strong>: Different teams deploy resources in different regions with no central coordination</li>
+<li><strong>Limited visibility across environments</strong>: Network admins struggle to understand the global IP addressing picture</li>
+<li><strong>Automation integration requires structured data</strong>: Infrastructure-as-code tools need consistent, predictable IP allocation</li>
+</ul>
+<p>Subnetter solves these problems through automated, hierarchical CIDR allocation that ensures consistency, prevents overlaps, documents all allocations, and scales with your organization—whether you&#39;re managing a single VPC or hundreds of accounts across multiple cloud providers.</p>
+<a id="md:features" class="tsd-anchor"></a><h2><a href="#md:features">Features</a></h2><a id="md:implemented-features" class="tsd-anchor"></a><h3><a href="#md:implemented-features">Implemented Features</a></h3><ul>
+<li><strong>Hierarchical IPv4 CIDR Allocation</strong>: Allocate IP address ranges in a hierarchical manner (account → region → availability zone → subnet)</li>
+<li><strong>Multi-Cloud Provider Support</strong>: Support for AWS, Azure, and GCP with provider-specific region naming conventions</li>
+<li><strong>Flexible Configuration System</strong>: JSON/YAML configuration files with Zod schema validation</li>
+<li><strong>Deterministic Allocation</strong>: Same input configuration always produces the same allocation results</li>
+<li><strong>CSV Output Format</strong>: Generate allocations in CSV format for easy integration with other tools</li>
+<li><strong>Comprehensive Error Handling</strong>: Clear error messages for configuration issues and allocation failures</li>
+<li><strong>Provider-Specific Filtering</strong>: Filter allocation results by cloud provider</li>
+<li><strong>Variable Subnet Sizing</strong>: Configure different prefix lengths for different subnet types based on workload requirements</li>
+<li><strong>Account-Level Overrides</strong>: Specify different base CIDRs for specific accounts or cloud providers</li>
+<li><strong>Command-Line Interface</strong>: Simple CLI for generating and validating allocations</li>
+<li><strong>Programmatic API</strong>: Use core functionality in your own applications</li>
+</ul>
+<a id="md:planned-features" class="tsd-anchor"></a><h3><a href="#md:planned-features">Planned Features</a></h3><ul>
+<li><strong>IPv6 Support</strong>: Extend allocation capabilities to IPv6 address space</li>
+<li><strong>Web Interface</strong>: Provide a web-based UI for configuration and visualization</li>
+<li><strong>Terraform/CloudFormation Integration</strong>: Direct integration with infrastructure-as-code tools</li>
+<li><strong>Custom Naming Conventions</strong>: Allow customization of naming patterns for subnets and other resources</li>
+<li><strong>Visualization Tools</strong>: Generate network diagrams from allocation results</li>
+</ul>
+<a id="md:documentation" class="tsd-anchor"></a><h2><a href="#md:documentation">Documentation</a></h2><p>The project documentation includes user guides, architecture overview, CIDR primer, and API reference. You can access the full documentation at:</p>
+<p>📚 <strong><a href="https://gangster.github.io/subnetter/">Subnetter Documentation</a></strong></p>
+<p>The documentation includes:</p>
+<ul>
+<li><a href="https://gangster.github.io/subnetter/user-guide">User Guide</a></li>
+<li><a href="https://gangster.github.io/subnetter/architecture">Architecture</a></li>
+<li><a href="https://gangster.github.io/subnetter/cidr-primer">CIDR Primer</a></li>
+<li><a href="https://gangster.github.io/subnetter/api/overview">API Reference</a></li>
+<li><a href="https://gangster.github.io/subnetter/example-scenarios">Example Scenarios</a></li>
+</ul>
+<a id="md:installation" class="tsd-anchor"></a><h2><a href="#md:installation">Installation</a></h2><pre><code class="language-bash"><span class="hl-0"># Install globally</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">install</span><span class="hl-2"> </span><span class="hl-4">-g</span><span class="hl-2"> </span><span class="hl-3">subnetter</span><br/><br/><span class="hl-0"># Or use with npx</span><br/><span class="hl-1">npx</span><span class="hl-2"> </span><span class="hl-3">subnetter</span>
+</code><button>Copy</button></pre>
+<a id="md:prerequisites" class="tsd-anchor"></a><h3><a href="#md:prerequisites">Prerequisites</a></h3><ul>
+<li><strong>Node.js</strong>: ^18.18.0 || ^20.9.0 || &gt;=21.1.0</li>
+<li><strong>npm or yarn</strong>: For package installation</li>
+</ul>
+<a id="md:development-setup" class="tsd-anchor"></a><h2><a href="#md:development-setup">Development Setup</a></h2><a id="md:package-manager" class="tsd-anchor"></a><h3><a href="#md:package-manager">Package Manager</a></h3><p>This project uses Yarn exclusively as the package manager with a zero-install configuration:</p>
+<ul>
+<li>Yarn binary is included in the repository (<code>.yarn/releases/yarn-sources.cjs</code>)</li>
+<li>No global Yarn installation is required</li>
+<li>The project uses Yarn Workspaces for monorepo management</li>
+</ul>
+<p>To work with this repository:</p>
+<pre><code class="language-bash"><span class="hl-0"># Clone the repository</span><br/><span class="hl-1">git</span><span class="hl-2"> </span><span class="hl-3">clone</span><span class="hl-2"> </span><span class="hl-3">https://github.com/gangster/subnetter.git</span><br/><span class="hl-1">cd</span><span class="hl-2"> </span><span class="hl-3">subnetter</span><br/><br/><span class="hl-0"># Use the included Yarn version</span><br/><span class="hl-1">./yarn</span><span class="hl-2"> </span><span class="hl-3">install</span><br/><br/><span class="hl-0"># Build all packages</span><br/><span class="hl-1">./yarn</span><span class="hl-2"> </span><span class="hl-3">build</span>
+</code><button>Copy</button></pre>
+<a id="md:build-system" class="tsd-anchor"></a><h3><a href="#md:build-system">Build System</a></h3><p>The project uses TypeScript&#39;s project references for a fast, reliable build process:</p>
+<ul>
+<li>Root <code>tsconfig.json</code> references individual package configurations</li>
+<li>Each package has its own <code>tsconfig.json</code> with specific settings</li>
+<li>CommonJS module format is used for compatibility</li>
+</ul>
+<p>Build commands:</p>
+<pre><code class="language-bash"><span class="hl-0"># Build all packages</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">build</span><br/><br/><span class="hl-0"># Build specific packages</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">build:core</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">build:cli</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">build:docs</span><br/><br/><span class="hl-0"># Development mode with watch</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">dev</span>
+</code><button>Copy</button></pre>
+<a id="md:typescript-configuration" class="tsd-anchor"></a><h3><a href="#md:typescript-configuration">TypeScript Configuration</a></h3><ul>
+<li><strong>Target</strong>: ES2022</li>
+<li><strong>Module</strong>: CommonJS</li>
+<li><strong>Configuration Files</strong>:<ul>
+<li><code>tsconfig.json</code>: Main configuration</li>
+<li><code>tsconfig.cjs.json</code>: CommonJS-specific configuration</li>
+<li><code>tsconfig.eslint.json</code>: Extended configuration for linting</li>
+</ul>
+</li>
+</ul>
+<a id="md:testing-framework" class="tsd-anchor"></a><h3><a href="#md:testing-framework">Testing Framework</a></h3><ul>
+<li>Jest is used for testing with TypeScript support</li>
+<li>Tests are organized by package and type (unit, integration, e2e)</li>
+</ul>
+<a id="md:usage" class="tsd-anchor"></a><h2><a href="#md:usage">Usage</a></h2><a id="md:generate-allocations" class="tsd-anchor"></a><h3><a href="#md:generate-allocations">Generate Allocations</a></h3><pre><code class="language-bash"><span class="hl-1">subnetter</span><span class="hl-2"> </span><span class="hl-3">generate</span><span class="hl-2"> </span><span class="hl-4">--config</span><span class="hl-2"> </span><span class="hl-3">config.json</span><span class="hl-2"> </span><span class="hl-4">--output</span><span class="hl-2"> </span><span class="hl-3">allocations.csv</span>
+</code><button>Copy</button></pre>
+<p>Options:</p>
+<ul>
+<li><code>--config, -c</code>: Path to configuration file (required, supports JSON or YAML formats)</li>
+<li><code>--output, -o</code>: Path to output CSV file (default: allocations.csv)</li>
+<li><code>--provider, -p</code>: Filter results by cloud provider</li>
+<li><code>--base-cidr, -b</code>: Override base IPv4 CIDR block</li>
+<li><code>--verbose, -v</code>: Enable verbose logging</li>
+<li><code>--log-level, -l</code>: Set log level (silent, error, warn, info, debug, trace)</li>
+<li><code>--no-color</code>: Disable colored output</li>
+<li><code>--timestamps</code>: Include timestamps in log output</li>
+</ul>
+<a id="md:validate-configuration" class="tsd-anchor"></a><h3><a href="#md:validate-configuration">Validate Configuration</a></h3><pre><code class="language-bash"><span class="hl-1">subnetter</span><span class="hl-2"> </span><span class="hl-3">validate</span><span class="hl-2"> </span><span class="hl-4">--config</span><span class="hl-2"> </span><span class="hl-3">config.json</span>
+</code><button>Copy</button></pre>
+<p>Options:</p>
+<ul>
+<li><code>--config, -c</code>: Path to configuration file (required, supports JSON or YAML formats)</li>
+<li><code>--verbose, -v</code>: Enable verbose logging</li>
+<li><code>--log-level, -l</code>: Set log level (silent, error, warn, info, debug, trace)</li>
+<li><code>--no-color</code>: Disable colored output</li>
+<li><code>--timestamps</code>: Include timestamps in log output</li>
+</ul>
+<a id="md:show-version" class="tsd-anchor"></a><h3><a href="#md:show-version">Show Version</a></h3><pre><code class="language-bash"><span class="hl-1">subnetter</span><span class="hl-2"> </span><span class="hl-4">--version</span>
+</code><button>Copy</button></pre>
+<a id="md:configuration-format" class="tsd-anchor"></a><h2><a href="#md:configuration-format">Configuration Format</a></h2><p>The configuration file should be a JSON file that follows this structure:</p>
+<pre><code class="language-json"><span class="hl-2">{</span><br/><span class="hl-2">  </span><span class="hl-5">&quot;baseCidr&quot;</span><span class="hl-2">: </span><span class="hl-3">&quot;10.0.0.0/8&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">&quot;prefixLengths&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;account&quot;</span><span class="hl-2">: </span><span class="hl-6">16</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;region&quot;</span><span class="hl-2">: </span><span class="hl-6">20</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;az&quot;</span><span class="hl-2">: </span><span class="hl-6">22</span><br/><span class="hl-2">  },</span><br/><span class="hl-2">  </span><span class="hl-5">&quot;cloudProviders&quot;</span><span class="hl-2">: [</span><span class="hl-3">&quot;aws&quot;</span><span class="hl-2">, </span><span class="hl-3">&quot;azure&quot;</span><span class="hl-2">, </span><span class="hl-3">&quot;gcp&quot;</span><span class="hl-2">],</span><br/><span class="hl-2">  </span><span class="hl-5">&quot;accounts&quot;</span><span class="hl-2">: [</span><br/><span class="hl-2">    {</span><br/><span class="hl-2">      </span><span class="hl-5">&quot;name&quot;</span><span class="hl-2">: </span><span class="hl-3">&quot;test-account&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">      </span><span class="hl-5">&quot;clouds&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">        </span><span class="hl-5">&quot;aws&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">          </span><span class="hl-5">&quot;regions&quot;</span><span class="hl-2">: [</span><span class="hl-3">&quot;us-east-1&quot;</span><span class="hl-2">, </span><span class="hl-3">&quot;us-west-2&quot;</span><span class="hl-2">]</span><br/><span class="hl-2">        },</span><br/><span class="hl-2">        </span><span class="hl-5">&quot;azure&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">          </span><span class="hl-5">&quot;regions&quot;</span><span class="hl-2">: [</span><span class="hl-3">&quot;eastus&quot;</span><span class="hl-2">, </span><span class="hl-3">&quot;westus&quot;</span><span class="hl-2">]</span><br/><span class="hl-2">        }</span><br/><span class="hl-2">      }</span><br/><span class="hl-2">    }</span><br/><span class="hl-2">  ],</span><br/><span class="hl-2">  </span><span class="hl-5">&quot;subnetTypes&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;Public&quot;</span><span class="hl-2">: </span><span class="hl-6">24</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;Private&quot;</span><span class="hl-2">: </span><span class="hl-6">26</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-5">&quot;Data&quot;</span><span class="hl-2">: </span><span class="hl-6">28</span><br/><span class="hl-2">  }</span><br/><span class="hl-2">}</span>
+</code><button>Copy</button></pre>
+<a id="md:required-fields" class="tsd-anchor"></a><h3><a href="#md:required-fields">Required Fields</a></h3><ul>
+<li><code>baseCidr</code>: The base CIDR block from which all subnets will be allocated.</li>
+<li><code>cloudProviders</code>: An array of cloud providers to generate subnets for.</li>
+<li><code>accounts</code>: An array of account configurations.</li>
+<li><code>subnetTypes</code>: Object defining subnet types and their prefix lengths.</li>
+</ul>
+<a id="md:optional-fields" class="tsd-anchor"></a><h3><a href="#md:optional-fields">Optional Fields</a></h3><ul>
+<li><code>prefixLengths</code>: Optional object to override the default prefix lengths for different levels of the hierarchy.</li>
+</ul>
+<!-- Documentation updated: 2025-03-15 -->
+
+<a id="md:output-format" class="tsd-anchor"></a><h2><a href="#md:output-format">Output Format</a></h2><p>The tool generates a CSV file with the following columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Account Name</td>
+<td>The name of the account</td>
+</tr>
+<tr>
+<td>VPC Name</td>
+<td>The name of the VPC (derived from account)</td>
+</tr>
+<tr>
+<td>Cloud Provider</td>
+<td>The cloud provider (aws, azure, gcp)</td>
+</tr>
+<tr>
+<td>Region Name</td>
+<td>The name of the region</td>
+</tr>
+<tr>
+<td>Availability Zone</td>
+<td>The name of the availability zone (e.g., us-east-1a)</td>
+</tr>
+<tr>
+<td>Region CIDR</td>
+<td>The CIDR block for the region</td>
+</tr>
+<tr>
+<td>VPC CIDR</td>
+<td>The CIDR block for the VPC</td>
+</tr>
+<tr>
+<td>AZ CIDR</td>
+<td>The CIDR block for the availability zone</td>
+</tr>
+<tr>
+<td>Subnet CIDR</td>
+<td>The CIDR block for the subnet</td>
+</tr>
+<tr>
+<td>CIDR</td>
+<td>Duplicate of Subnet CIDR for compatibility</td>
+</tr>
+<tr>
+<td>Subnet Role</td>
+<td>The type/role of the subnet</td>
+</tr>
+<tr>
+<td>Usable IPs</td>
+<td>The number of usable IP addresses</td>
+</tr>
+</tbody></table>
+<p>Example output:</p>
+<pre><code><span class="hl-7">Account</span><span class="hl-2"> </span><span class="hl-7">Name</span><span class="hl-2">,</span><span class="hl-8">VPC</span><span class="hl-2"> </span><span class="hl-7">Name</span><span class="hl-2">,</span><span class="hl-7">Cloud</span><span class="hl-2"> </span><span class="hl-7">Provider</span><span class="hl-2">,</span><span class="hl-7">Region</span><span class="hl-2"> </span><span class="hl-7">Name</span><span class="hl-2">,</span><span class="hl-7">Availability</span><span class="hl-2"> </span><span class="hl-7">Zone</span><span class="hl-2">,</span><span class="hl-7">Region</span><span class="hl-2"> </span><span class="hl-8">CIDR</span><span class="hl-2">,</span><span class="hl-8">VPC</span><span class="hl-2"> </span><span class="hl-8">CIDR</span><span class="hl-2">,</span><span class="hl-8">AZ</span><span class="hl-2"> </span><span class="hl-8">CIDR</span><span class="hl-2">,</span><span class="hl-7">Subnet</span><span class="hl-2"> </span><span class="hl-8">CIDR</span><span class="hl-2">,</span><span class="hl-8">CIDR</span><span class="hl-2">,</span><span class="hl-7">Subnet</span><span class="hl-2"> </span><span class="hl-7">Role</span><span class="hl-2">,</span><span class="hl-7">Usable</span><span class="hl-2"> </span><span class="hl-7">IPs</span><br/><span class="hl-7">innovation</span><span class="hl-2">-</span><span class="hl-7">test</span><span class="hl-2">,</span><span class="hl-7">innovation</span><span class="hl-2">-</span><span class="hl-7">test</span><span class="hl-2">-</span><span class="hl-7">vpc</span><span class="hl-2">,</span><span class="hl-7">aws</span><span class="hl-2">,</span><span class="hl-7">us</span><span class="hl-2">-</span><span class="hl-7">east</span><span class="hl-2">-</span><span class="hl-6">1</span><span class="hl-2">,</span><span class="hl-7">us</span><span class="hl-2">-</span><span class="hl-7">east</span><span class="hl-2">-1</span><span class="hl-7">a</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">20</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">16</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">24</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">28</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">28</span><span class="hl-2">,</span><span class="hl-7">Public</span><span class="hl-2">,</span><span class="hl-6">14</span><br/><span class="hl-7">innovation</span><span class="hl-2">-</span><span class="hl-7">test</span><span class="hl-2">,</span><span class="hl-7">innovation</span><span class="hl-2">-</span><span class="hl-7">test</span><span class="hl-2">-</span><span class="hl-7">vpc</span><span class="hl-2">,</span><span class="hl-7">aws</span><span class="hl-2">,</span><span class="hl-7">us</span><span class="hl-2">-</span><span class="hl-7">east</span><span class="hl-2">-</span><span class="hl-6">1</span><span class="hl-2">,</span><span class="hl-7">us</span><span class="hl-2">-</span><span class="hl-7">east</span><span class="hl-2">-1</span><span class="hl-7">a</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">20</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">16</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.0</span><span class="hl-2">/</span><span class="hl-6">24</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.16</span><span class="hl-2">/</span><span class="hl-6">28</span><span class="hl-2">,</span><span class="hl-6">10.0</span><span class="hl-2">.</span><span class="hl-6">0.16</span><span class="hl-2">/</span><span class="hl-6">28</span><span class="hl-2">,</span><span class="hl-7">Private</span><span class="hl-2">,</span><span class="hl-6">14</span>
+</code><button>Copy</button></pre>
+<a id="md:programmatic-usage" class="tsd-anchor"></a><h2><a href="#md:programmatic-usage">Programmatic Usage</a></h2><p>You can also use the tool programmatically in your Node.js applications:</p>
+<pre><code class="language-javascript"><span class="hl-0">// Import from the core package</span><br/><span class="hl-4">const</span><span class="hl-2"> { </span><span class="hl-8">loadConfig</span><span class="hl-2">, </span><span class="hl-8">CidrAllocator</span><span class="hl-2">, </span><span class="hl-8">writeAllocationsToCsv</span><span class="hl-2"> } = </span><span class="hl-1">require</span><span class="hl-2">(</span><span class="hl-3">&#39;@subnetter/core&#39;</span><span class="hl-2">);</span><br/><br/><span class="hl-4">async</span><span class="hl-2"> </span><span class="hl-4">function</span><span class="hl-2"> </span><span class="hl-1">generateAllocations</span><span class="hl-2">() {</span><br/><span class="hl-2">  </span><span class="hl-9">try</span><span class="hl-2"> {</span><br/><span class="hl-2">    </span><span class="hl-0">// Load configuration (JSON or YAML formats are supported)</span><br/><span class="hl-2">    </span><span class="hl-4">const</span><span class="hl-2"> </span><span class="hl-8">config</span><span class="hl-2"> = </span><span class="hl-1">loadConfig</span><span class="hl-2">(</span><span class="hl-3">&#39;config.json&#39;</span><span class="hl-2">); </span><span class="hl-0">// or &#39;config.yaml&#39;</span><br/><span class="hl-2">    </span><br/><span class="hl-2">    </span><span class="hl-0">// Generate allocations</span><br/><span class="hl-2">    </span><span class="hl-4">const</span><span class="hl-2"> </span><span class="hl-8">allocator</span><span class="hl-2"> = </span><span class="hl-4">new</span><span class="hl-2"> </span><span class="hl-1">CidrAllocator</span><span class="hl-2">(</span><span class="hl-7">config</span><span class="hl-2">);</span><br/><span class="hl-2">    </span><span class="hl-4">const</span><span class="hl-2"> </span><span class="hl-8">allocations</span><span class="hl-2"> = </span><span class="hl-7">allocator</span><span class="hl-2">.</span><span class="hl-1">generateAllocations</span><span class="hl-2">();</span><br/><span class="hl-2">    </span><br/><span class="hl-2">    </span><span class="hl-7">console</span><span class="hl-2">.</span><span class="hl-1">log</span><span class="hl-2">(</span><span class="hl-3">`Generated </span><span class="hl-4">${</span><span class="hl-7">allocations</span><span class="hl-10">.</span><span class="hl-7">length</span><span class="hl-4">}</span><span class="hl-3"> subnet allocations`</span><span class="hl-2">);</span><br/><span class="hl-2">    </span><br/><span class="hl-2">    </span><span class="hl-0">// Write to CSV</span><br/><span class="hl-2">    </span><span class="hl-9">await</span><span class="hl-2"> </span><span class="hl-1">writeAllocationsToCsv</span><span class="hl-2">(</span><span class="hl-7">allocations</span><span class="hl-2">, </span><span class="hl-3">&#39;allocations.csv&#39;</span><span class="hl-2">);</span><br/><span class="hl-2">    </span><span class="hl-7">console</span><span class="hl-2">.</span><span class="hl-1">log</span><span class="hl-2">(</span><span class="hl-3">&#39;Allocations written to CSV&#39;</span><span class="hl-2">);</span><br/><span class="hl-2">  } </span><span class="hl-9">catch</span><span class="hl-2"> (</span><span class="hl-7">error</span><span class="hl-2">) {</span><br/><span class="hl-2">    </span><span class="hl-7">console</span><span class="hl-2">.</span><span class="hl-1">error</span><span class="hl-2">(</span><span class="hl-3">&#39;Error:&#39;</span><span class="hl-2">, </span><span class="hl-7">error</span><span class="hl-2">.</span><span class="hl-7">message</span><span class="hl-2">);</span><br/><span class="hl-2">  }</span><br/><span class="hl-2">}</span><br/><br/><span class="hl-1">generateAllocations</span><span class="hl-2">();</span>
+</code><button>Copy</button></pre>
+<p>For more advanced programmatic usage, see the <a href="https://gangster.github.io/subnetter/api/overview">API Reference</a>.</p>
+<a id="md:documentation-1" class="tsd-anchor"></a><h2><a href="#md:documentation-1">Documentation</a></h2><p>Comprehensive documentation is available in the online documentation site:</p>
+<ul>
+<li><strong>Developer Guide</strong>: Detailed information for developers who want to understand, modify, or extend the codebase.</li>
+<li><strong>CIDR Primer</strong>: An educational document explaining IP addressing concepts relevant to Subnetter.</li>
+<li><strong>Troubleshooting Guide</strong>: Solutions for common issues encountered when using Subnetter.</li>
+<li><strong>Example Scenarios</strong>: Hypothetical examples of how organizations could use Subnetter to solve complex IP addressing challenges.</li>
+<li><strong>API Reference</strong>: Detailed reference for developers who want to use Subnetter programmatically.</li>
+</ul>
+<a id="md:contributing" class="tsd-anchor"></a><h2><a href="#md:contributing">Contributing</a></h2><p>Contributions are welcome! Please see our Developer Guide in the documentation site for information on setting up your development environment, coding standards, and the contribution process.</p>
+<a id="md:testing" class="tsd-anchor"></a><h2><a href="#md:testing">Testing</a></h2><p>Subnetter uses a comprehensive test suite organized by packages:</p>
+<ul>
+<li><strong>Package Tests</strong>: Each package (<code>core</code>, <code>cli</code>) contains its own tests in the <code>tests/</code> directory</li>
+<li><strong>End-to-End Tests</strong>: Integration tests that verify the complete workflow are located in <code>__tests__/e2e/</code></li>
+</ul>
+<p>To run tests:</p>
+<pre><code class="language-bash"><span class="hl-0"># Run all package tests</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">test</span><br/><br/><span class="hl-0"># Run tests with coverage for all packages</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">test:coverage</span><br/><br/><span class="hl-0"># Run end-to-end tests</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">test:e2e</span><br/><br/><span class="hl-0"># Merge coverage reports from different test runs</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">test:coverage:merge</span><br/><br/><span class="hl-0"># Run tests for a specific package</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">workspace</span><span class="hl-2"> </span><span class="hl-3">@subnetter/core</span><span class="hl-2"> </span><span class="hl-3">test</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">workspace</span><span class="hl-2"> </span><span class="hl-3">@subnetter/cli</span><span class="hl-2"> </span><span class="hl-3">test</span><br/><br/><span class="hl-0"># Run linting across all packages</span><br/><span class="hl-1">yarn</span><span class="hl-2"> </span><span class="hl-3">lint</span>
+</code><button>Copy</button></pre>
+<a id="md:license" class="tsd-anchor"></a><h2><a href="#md:license">License</a></h2><p>MIT</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-index-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><h4 class="uppercase">Member Visibility</h4><form><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></form></div><div class="tsd-theme-toggle"><h4 class="uppercase">Theme</h4><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-index-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#md:subnetter---ipv4-cidr-allocation-tool"><span>Subnetter -<wbr/> IPv4 CIDR <wbr/>Allocation <wbr/>Tool</span></a><ul><li><a href="#md:project-status"><span>Project <wbr/>Status</span></a></li><li><a href="#md:project-structure"><span>Project <wbr/>Structure</span></a></li><li><a href="#md:the-problem"><span>The <wbr/>Problem</span></a></li><li><ul><li><a href="#md:ip-address-management-complexity"><span>IP <wbr/>Address <wbr/>Management <wbr/>Complexity</span></a></li><li><a href="#md:scaling-challenges"><span>Scaling <wbr/>Challenges</span></a></li><li><a href="#md:operational-overhead"><span>Operational <wbr/>Overhead</span></a></li></ul></li><li><a href="#md:features"><span>Features</span></a></li><li><ul><li><a href="#md:implemented-features"><span>Implemented <wbr/>Features</span></a></li><li><a href="#md:planned-features"><span>Planned <wbr/>Features</span></a></li></ul></li><li><a href="#md:documentation"><span>Documentation</span></a></li><li><a href="#md:installation"><span>Installation</span></a></li><li><ul><li><a href="#md:prerequisites"><span>Prerequisites</span></a></li></ul></li><li><a href="#md:development-setup"><span>Development <wbr/>Setup</span></a></li><li><ul><li><a href="#md:package-manager"><span>Package <wbr/>Manager</span></a></li><li><a href="#md:build-system"><span>Build <wbr/>System</span></a></li><li><a href="#md:typescript-configuration"><span>Type<wbr/>Script <wbr/>Configuration</span></a></li><li><a href="#md:testing-framework"><span>Testing <wbr/>Framework</span></a></li></ul></li><li><a href="#md:usage"><span>Usage</span></a></li><li><ul><li><a href="#md:generate-allocations"><span>Generate <wbr/>Allocations</span></a></li><li><a href="#md:validate-configuration"><span>Validate <wbr/>Configuration</span></a></li><li><a href="#md:show-version"><span>Show <wbr/>Version</span></a></li></ul></li><li><a href="#md:configuration-format"><span>Configuration <wbr/>Format</span></a></li><li><ul><li><a href="#md:required-fields"><span>Required <wbr/>Fields</span></a></li><li><a href="#md:optional-fields"><span>Optional <wbr/>Fields</span></a></li></ul></li><li><a href="#md:output-format"><span>Output <wbr/>Format</span></a></li><li><a href="#md:programmatic-usage"><span>Programmatic <wbr/>Usage</span></a></li><li><a href="#md:documentation-1"><span>Documentation</span></a></li><li><a href="#md:contributing"><span>Contributing</span></a></li><li><a href="#md:testing"><span>Testing</span></a></li><li><a href="#md:license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="index.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="assets/icons.svg#icon-1"></use></svg><span>Subnetter API Documentation - v1.3.1</span></a><ul class="tsd-small-nested-navigation" id="tsd-nav-container" data-base="."><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

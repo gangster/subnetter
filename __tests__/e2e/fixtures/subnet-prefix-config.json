@@ -1,0 +1,35 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "subnet-test",
+      "baseCidr": "10.0.0.0/16",
+      "regions": [
+        "us-east-1"
+      ]
+    }
+  ],
+  "cloudProviders": [
+    "aws"
+  ],
+  "subnetTypes": [
+    {
+      "name": "public",
+      "prefixLength": 26
+    },
+    {
+      "name": "private",
+      "prefixLength": 24
+    },
+    {
+      "name": "database",
+      "prefixLength": 28
+    }
+  ],
+  "prefixLengths": {
+    "region": 20,
+    "az": 22,
+    "subnet": 24
+  },
+  "overrides": []
+}

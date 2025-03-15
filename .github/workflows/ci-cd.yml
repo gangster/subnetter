@@ -1,0 +1,297 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Add explicit permissions needed for all operations
+permissions:
+  contents: write      # Needed for pushing tags and creating releases
+  issues: write        # Needed for creating issues
+  pull-requests: write # Needed for commenting on PRs
+  packages: write      # Needed for publishing to GitHub Packages
+
+jobs:
+  # PR validation job - only runs on PRs
+  validate-pr:
+    name: Validate PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for package-lock.json
+        id: check_lock
+        run: |
+          # Find all package-lock.json files recursively
+          FOUND_FILES=$(find . -name "package-lock.json" -type f | tr '\n' ' ')
+          
+          if [ -n "$FOUND_FILES" ]; then
+            echo "Error: package-lock.json file(s) found at: $FOUND_FILES"
+            echo "This project uses Yarn exclusively. Please remove all package-lock.json files."
+            
+            # Check if this is a Dependabot PR
+            if [ "${{ github.actor }}" == "dependabot[bot]" ]; then
+              echo ""
+              echo "********************************************************************"
+              echo "* This is a Dependabot PR! You need to manually run the fix workflow *"
+              echo "* Go to Actions > 'Manually Fix Dependabot PR' and run with PR #${{ github.event.pull_request.number }} *"
+              echo "********************************************************************"
+            fi
+            
+            exit 1
+          else
+            echo "No package-lock.json files found. Good job!"
+          fi
+      
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+        
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v5
+        
+      - name: Check dependency redundancy
+        run: npx depcheck . || true
+
+  # PR test job - runs only on PRs and depends on validation
+  test-pr:
+    name: Test PR
+    if: github.event_name == 'pull_request'
+    needs: validate-pr
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [20.x]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+      
+      - name: Lint
+        run: yarn lint
+      
+      - name: Build
+        run: yarn build
+      
+      - name: Run tests with coverage
+        run: yarn test --coverage --no-cache
+      
+      - name: Run E2E tests
+        run: yarn test:e2e
+      
+      - name: Merge coverage reports
+        run: |
+          mkdir -p ./coverage/merged
+          chmod +x ./scripts/merge-coverage.sh
+          ./scripts/merge-coverage.sh
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/merged/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: false
+
+  # Main branch test job - only runs on push to main
+  test-main:
+    name: Test Main Branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [20.x]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+      
+      - name: Lint
+        run: yarn lint
+      
+      - name: Build
+        run: yarn build
+      
+      - name: Run tests with coverage
+        run: yarn test --coverage --no-cache
+      
+      - name: Run E2E tests
+        run: yarn test:e2e
+      
+      - name: Merge coverage reports
+        run: |
+          mkdir -p ./coverage/merged
+          chmod +x ./scripts/merge-coverage.sh
+          ./scripts/merge-coverage.sh
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/merged/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: false
+
+  # Check if a release is needed
+  check-release:
+    name: Check if Release Needed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test-main
+    outputs:
+      release_needed: ${{ steps.check.outputs.release_needed }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+      
+      - name: Check if release is needed
+        id: check
+        run: |
+          # Get the latest tag
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          
+          if [ "$LATEST_TAG" = "none" ]; then
+            echo "No tags found, release needed"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check commits since the latest tag
+          COMMITS=$(git log $LATEST_TAG..HEAD --format="%s")
+          
+          # Check if there are any feat: or fix: commits, or breaking changes
+          if echo "$COMMITS" | grep -E '^(feat|fix)(\(.+\))?:' > /dev/null || echo "$COMMITS" | grep -E 'BREAKING CHANGE' > /dev/null; then
+            echo "Found commits that would trigger a release"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No commits found that would trigger a release"
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Release job - only runs on push to main after tests pass and if release is needed
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check-release.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+    needs: [test-main, check-release]
+    
+    # Add a concurrency group to ensure only one release job runs at a time
+    concurrency: 
+      group: release
+      cancel-in-progress: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'yarn'
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+      
+      - name: Build
+        run: yarn build
+      
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  # Documentation job - only runs on push to main when docs files change
+  docs:
+    name: Build and Deploy Docs
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn install --no-immutable
+      
+      - name: Build TypeScript project
+        run: yarn build:core && yarn build:cli
+      
+      - name: Build Astro documentation site (includes TypeDoc generation)
+        run: yarn build:docs
+      
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: packages/docs/dist
+          target-folder: docs
+          clean: true 

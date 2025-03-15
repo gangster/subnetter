@@ -1,0 +1,28 @@
+/**
+ * InternalLink component for handling internal links correctly with base path
+ * 
+ * Usage:
+ * ```astro
+ * <InternalLink href="/user-guide">User Guide</InternalLink>
+ * ```
+ */
+
+// Get the site base path from Astro.site
+const basePath = '/subnetter';
+
+interface Props {
+  href: string;
+  class?: string;
+}
+
+const { href, class: className } = Astro.props;
+
+// Add the base path to the href if it doesn't already have it
+// and if it's not an external link or anchor link
+const fullHref = href.startsWith('http') || href.startsWith('#') || href.startsWith(basePath)
+  ? href
+  : `${basePath}${href}`;
+
+<a href={fullHref} class={className}>
+  <slot />
+</a> 

@@ -1,0 +1,7 @@
+Account Name,VPC Name,Cloud Provider,Region Name,Availability Zone,Region CIDR,VPC CIDR,AZ CIDR,Subnet CIDR,CIDR,Subnet Role,Usable IPs
+test-account,test-account-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/24,10.0.0.0/24,10.0.0.0/26,Public,62
+test-account,test-account-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/8,10.0.0.0/24,10.0.0.64/26,10.0.0.64/28,Private,14
+test-account,test-account-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.1.0/24,10.0.1.0/24,10.0.1.0/26,Public,62
+test-account,test-account-vpc,aws,us-east-1,us-east-1b,10.0.0.0/20,10.0.0.0/8,10.0.1.0/24,10.0.1.64/26,10.0.1.64/28,Private,14
+test-account,test-account-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.2.0/24,10.0.2.0/24,10.0.2.0/26,Public,62
+test-account,test-account-vpc,aws,us-east-1,us-east-1c,10.0.0.0/20,10.0.0.0/8,10.0.2.0/24,10.0.2.64/26,10.0.2.64/28,Private,14

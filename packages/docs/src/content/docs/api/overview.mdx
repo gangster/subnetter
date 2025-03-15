@@ -1,0 +1,64 @@
+---
+title: Overview
+description: "Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase."
+---
+
+# Subnetter API Reference
+
+Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase.
+
+## Packages
+
+Subnetter is organized as a monorepo with multiple packages:
+
+- **[@subnetter/core](/subnetter/api/modules/core_src.html)**: Core CIDR allocation engine and utilities
+- **[@subnetter/cli](/subnetter/api/modules/cli_src.html)**: Command-line interface (primarily for internal use)
+
+## Key Components
+
+### Core Package
+
+The core package provides the main functionality:
+
+- **[CidrAllocator](/subnetter/api/classes/core_src.CidrAllocator.html)**: Main class for hierarchical CIDR allocation
+- **[loadConfig](/subnetter/api/functions/core_src.loadConfig.html)**: Load and parse configuration files
+- **[validateConfig](/subnetter/api/functions/core_src.validateConfig.html)**: Validate configuration objects
+- **[writeAllocationsToCsv](/subnetter/api/functions/core_src.writeAllocationsToCsv.html)**: Write allocation results to CSV
+
+### Data Types
+
+Important interfaces:
+
+- **[Config](/subnetter/api/interfaces/core_src.Config.html)**: Configuration for CIDR allocation
+- **[Allocation](/subnetter/api/interfaces/core_src.Allocation.html)**: Represents a complete subnet allocation
+- **[Account](/subnetter/api/interfaces/core_src.Account.html)**: Account configuration
+- **[SubnetType](/subnetter/api/interfaces/core_src.SubnetType.html)**: Subnet type definition
+
+## Example Usage
+
+```javascript
+const { loadConfig, CidrAllocator, writeAllocationsToCsv } = require('@subnetter/core');
+
+async function generateAllocations() {
+  try {
+    // Load configuration
+    const config = loadConfig('config.json');
+    
+    // Generate allocations
+    const allocator = new CidrAllocator(config);
+    const allocations = allocator.generateAllocations();
+    
+    console.log(`Generated ${allocations.length} subnet allocations`);
+    
+    // Write to CSV
+    await writeAllocationsToCsv(allocations, 'allocations.csv');
+    console.log('Allocations written to CSV');
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+generateAllocations();
+```
+
+For complete API documentation, navigate to the [Generated API Documentation](/subnetter/api/index.html). 

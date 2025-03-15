@@ -1,0 +1,279 @@
+---
+title: CI/CD Pipeline
+description: "A comprehensive guide to the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the Subnetter project."
+---
+
+# CI/CD Pipeline
+
+This document provides a comprehensive overview of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the Subnetter project. The pipeline automates building, testing, and releasing the project using GitHub Actions.
+
+## Overview
+
+The Subnetter project implements a robust CI/CD pipeline consisting of several GitHub Actions workflows:
+
+1. **Pull Request CI Workflow** - Validates code changes in pull requests
+2. **CI and Release Workflow** - Tests code and creates releases when code is merged to main
+3. **Pull Request Checks** - Validates pull requests before merging
+4. **Documentation Publishing** - Deploys documentation to GitHub Pages
+5. **Dependabot** - Keeps dependencies up-to-date with automated pull requests
+
+The pipelines are designed to ensure code quality, maintain test coverage, and automate the release process.
+
+## Pull Request CI Workflow
+
+The Pull Request Continuous Integration workflow is defined in `.github/workflows/ci.yml` and runs when a pull request is opened or updated to validate code changes before they are merged.
+
+### Pull Request CI Workflow Jobs
+
+The CI workflow includes the following steps:
+
+1. **Build and Test**: Builds the project and runs tests on multiple platforms (Ubuntu and macOS).
+   - Uses matrix builds with Node.js 20.x
+   - Caches dependencies for faster builds
+   - Installs all dependencies with Yarn
+   - Ensures Babel dependencies are installed
+   - Runs linting checks
+   - Builds the project
+   - Runs unit tests with coverage
+   - Runs end-to-end tests
+   - Merges coverage reports
+   - Uploads coverage to Codecov
+   - Runs security audit
+   - Checks bundle size
+
+### Pull Request CI Configuration
+
+```yaml
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [20.x]
+      fail-fast: false
+```
+
+## Pull Request Checks
+
+The Pull Request Checks workflow, defined in `.github/workflows/pull-request.yml`, runs additional validation steps specifically for pull requests to ensure they meet quality standards before being merged.
+
+### Pull Request Checks Jobs
+
+This workflow includes these key steps:
+
+1. **Validate**:
+   - Checks that package-lock.json is not committed (Yarn-only project)
+   - Installs dependencies
+   - Lints commit messages using commitlint
+   - Checks for redundant dependencies using depcheck
+
+### Integration with GitHub
+
+Pull request checks are integrated with GitHub's branch protection rules to ensure all checks pass before allowing merges to the main branch. This protects the main branch from code that might break the build or not meet the project's quality standards.
+
+## CI and Release Process
+
+The CI and Release workflow, defined in `.github/workflows/release.yml`, runs when code is pushed to the main branch. This workflow first runs tests on multiple platforms, and if all tests pass, it automatically creates new releases based on commit messages following the conventional commits format.
+
+### CI and Release Process Jobs
+
+This workflow includes two main jobs:
+
+1. **Test**:
+   - Runs on multiple platforms (Ubuntu and macOS)
+   - Checks out the repository
+   - Sets up Node.js
+   - Installs dependencies
+   - Runs linting checks
+   - Builds the project
+   - Runs unit tests with coverage
+   - Runs end-to-end tests
+
+2. **Release** (only runs if all tests pass):
+   - Checks out the repository with full history
+   - Sets up Node.js with GitHub Packages registry configuration
+   - Installs dependencies
+   - Builds the project
+   - Sets up semantic-release with necessary plugins
+   - Configures npm for GitHub Packages
+   - Executes the release process to publish packages to GitHub Packages
+
+This workflow ensures that releases are only created and published when all tests pass on all supported platforms, providing high confidence in each release.
+
+### Semantic Versioning
+
+The release process follows semantic versioning (SemVer) principles:
+- **Patch version** (1.0.x): Incremented for bug fixes
+- **Minor version** (1.x.0): Incremented for new features
+- **Major version** (x.0.0): Incremented for breaking changes
+
+### Release Configuration
+
+The semantic-release configuration automatically:
+- Determines the next version number
+- Generates release notes
+- Updates the changelog
+- Creates a GitHub release
+- Publishes packages to GitHub Packages
+
+The version determination is based on commit messages:
+- `fix:` commits trigger a patch release
+- `feat:` commits trigger a minor release
+- `feat!:`, `fix!:` or commits with `BREAKING CHANGE:` in the body trigger a major release
+
+## Documentation Publishing
+
+The Documentation Publishing workflow, defined in `.github/workflows/publish-docs.yml`, automatically builds and deploys the documentation site to GitHub Pages when documentation files or other relevant files are changed.
+
+### Documentation Publishing Jobs
+
+This workflow includes these steps:
+
+1. **Build and Deploy**:
+   - Checks out the repository
+   - Sets up Node.js
+   - Installs dependencies
+   - Ensures Babel dependencies are installed
+   - Builds the TypeScript projects
+   - Runs tests
+   - Builds the Astro documentation site (including TypeDoc API docs)
+   - Deploys the built documentation to GitHub Pages
+
+### Documentation Triggers
+
+The documentation workflow is triggered by:
+- Pushes to the `main` branch that change documentation-related files
+- Manual trigger through the GitHub Actions UI (workflow_dispatch)
+
+## Dependabot Configuration
+
+Dependabot is configured to automatically create pull requests for dependency updates. The configuration is defined in `.github/dependabot.yml`.
+
+### Dependabot Settings
+
+Dependabot monitors:
+- **npm dependencies** in root and package folders
+  - Checks weekly for updates
+  - Groups minor and patch updates
+  - Limits the number of open PRs
+  - Ignores major TypeScript updates and internal workspace packages
+- **GitHub Actions** in workflow files
+  - Checks weekly for updates
+  - Limits to 3 open PRs
+
+### Dependabot PR Automation
+
+To ensure compatibility with our Yarn-based workflow, we've implemented automated solutions for Dependabot pull requests:
+
+1. **Automatic package-lock.json Removal**: A dedicated GitHub Actions workflow (`dependabot-fix.yml`) automatically removes any `package-lock.json` files created by Dependabot and commits the changes. This workflow runs whenever a Dependabot PR is opened or updated.
+
+2. **PR Commenting**: The workflow adds a comment to the PR to notify that the fix has been applied.
+
+3. **Manual Fix Workflow**: For Dependabot PRs that weren't automatically fixed, we provide a manual fix workflow (`fix-dependabot-manually.yml`) that can be triggered from the Actions tab. This workflow:
+   - Takes a PR number as input
+   - Checks out the PR branch
+   - Removes any package-lock.json files
+   - Commits and pushes the changes
+   - Comments on the PR
+
+4. **Enhanced Error Messages**: If a Dependabot PR fails the validation check, the error message provides specific information about which package-lock.json files were found and instructions for using the manual fix workflow.
+
+These processes ensure that Dependabot PRs don't fail the "Check for package-lock.json" validation step in our CI pipeline, even though Dependabot tends to use npm by default when updating dependencies.
+
+## Package Publishing
+
+The project uses GitHub Packages as its package registry. The packages are published automatically as part of the release process when changes are pushed to the main branch and all tests pass.
+
+### GitHub Packages Configuration
+
+The release workflow is configured to publish packages to GitHub Packages:
+
+1. **Registry Configuration**:
+   - The Node.js setup includes registry-url pointing to `https://npm.pkg.github.com`
+   - The scope is set to `@gangster`
+
+2. **Authentication**:
+   - An .npmrc file is created during the workflow with the GitHub token
+   - The NODE_AUTH_TOKEN environment variable is set for npm publishing
+
+3. **Package Setup**:
+   - Each package has a publishConfig section in its package.json
+   - Access is set to public
+   - The registry is configured to GitHub Packages
+
+### Published Packages
+
+The following packages are published:
+- `@subnetter/core`: Core IP allocation functionality
+- `@subnetter/cli`: Command-line interface
+
+## Local Development and CI
+
+When developing locally, you can run the same checks that will be performed in the CI pipeline:
+
+```bash
+# Run linting
+yarn lint
+
+# Run tests
+yarn test
+
+# Check test coverage
+yarn test:coverage
+
+# Run end-to-end tests
+yarn test:e2e
+```
+
+This ensures your changes will pass CI checks before you push them.
+
+## Troubleshooting CI/CD Issues
+
+### Common CI Failures
+
+1. **Linting errors**:
+   - Run `yarn lint` locally to identify and fix issues
+   - Many linting errors can be automatically fixed with `yarn lint:fix`
+
+2. **Test failures**:
+   - Check the CI logs to see which tests are failing
+   - Run the specific failing tests locally to debug
+   - Make sure all tests pass locally before pushing
+
+3. **Build failures**:
+   - Ensure all TypeScript errors are fixed
+   - Check for missing dependencies
+   - Verify project configuration files
+
+4. **Coverage threshold failures**:
+   - Add tests for uncovered code
+   - Run `yarn test:coverage` locally to identify coverage gaps
+
+5. **Release failures**:
+   - Verify that commits follow the conventional commit format
+   - Check GitHub token permissions are set correctly
+   - Ensure the package.json is properly configured for publishing
+
+## Future CI/CD Improvements
+
+The following improvements are planned for the CI/CD pipeline:
+
+1. **Performance optimization** - Further reduce build and test times
+2. **Windows builds** - Add Windows to the build matrix
+3. **Docker integration** - Add container building and publishing
+4. **End-to-end testing enhancements** - Further expand the E2E test suite
+5. **Integration with other cloud services** - Add deployment options to cloud providers
+
+## Conclusion
+
+The CI/CD pipeline is a critical part of the Subnetter project, ensuring code quality, automating testing, and streamlining the release process. By leveraging GitHub Actions and other tools, we maintain a consistent and reliable development workflow that helps the project deliver high-quality software.
+
+For more information about contributing to the project, see the [Developer Guide](../../developer-guide/) and [Contribution Guidelines](../../developer-guide/#contribution-guidelines). 
