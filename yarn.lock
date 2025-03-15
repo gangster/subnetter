@@ -3222,6 +3222,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@semantic-release/exec@npm:^7.0.3":
+  version: 7.0.3
+  resolution: "@semantic-release/exec@npm:7.0.3"
+  dependencies:
+    "@semantic-release/error": "npm:^4.0.0"
+    aggregate-error: "npm:^3.0.0"
+    debug: "npm:^4.0.0"
+    execa: "npm:^9.0.0"
+    lodash-es: "npm:^4.17.21"
+    parse-json: "npm:^8.0.0"
+  peerDependencies:
+    semantic-release: ">=24.1.0"
+  checksum: 10/401d800d0f63fdd4acbeb3066a28ecfcde5b23b2dc6586ce192dc0a210d549320dc9e69cd16fe78a8a1a6d084129bf460eec35dc4a5266f951050eace28b0a58
+  languageName: node
+  linkType: hard
+
 "@semantic-release/git@npm:^10.0.1":
   version: 10.0.1
   resolution: "@semantic-release/git@npm:10.0.1"
@@ -3487,10 +3503,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@subnetter/cli@workspace:packages/cli"
   dependencies:
-    "@subnetter/core": "npm:^1.0.0"
+    "@subnetter/core": "npm:1.0.0"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.10"
-    chalk: "npm:^4.1.2"
+    chalk: "npm:^5.4.1"
     commander: "npm:^13.1.0"
     csv-writer: "npm:^1.6.0"
     ts-node: "npm:^10.9.2"
@@ -3499,7 +3515,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@subnetter/core@npm:^1.0.0, @subnetter/core@workspace:packages/core":
+"@subnetter/core@npm:1.0.0, @subnetter/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@subnetter/core@workspace:packages/core"
   dependencies:
@@ -3508,7 +3524,7 @@ __metadata:
     "@types/node": "npm:^22.13.10"
     "@typescript-eslint/eslint-plugin": "npm:^8.25.0"
     "@typescript-eslint/parser": "npm:^8.25.0"
-    chalk: "npm:^4.1.2"
+    chalk: "npm:^5.4.1"
     csv-writer: "npm:^1.6.0"
     eslint: "npm:^9.20.1"
     ipaddr.js: "npm:^2.2.0"
@@ -5212,13 +5228,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:4.1.2":
-  version: 4.1.2
-  resolution: "chalk@npm:4.1.2"
-  dependencies:
-    ansi-styles: "npm:^4.1.0"
-    supports-color: "npm:^7.1.0"
-  checksum: 10/cb3f3e594913d63b1814d7ca7c9bafbf895f75fbf93b92991980610dfd7b48500af4e3a5d4e3a8f337990a96b168d7eb84ee55efdce965e2ee8efc20f8c8f139
+"chalk@npm:5.4.1":
+  version: 5.4.1
+  resolution: "chalk@npm:5.4.1"
+  checksum: 10/29df3ffcdf25656fed6e95962e2ef86d14dfe03cd50e7074b06bad9ffbbf6089adbb40f75c00744d843685c8d008adaf3aed31476780312553caf07fa86e5bc7
   languageName: node
   linkType: hard
 
@@ -14983,6 +14996,7 @@ __metadata:
     "@commitlint/config-conventional": "npm:^18.4.3"
     "@semantic-release/changelog": "npm:^6.0.3"
     "@semantic-release/commit-analyzer": "npm:^13.0.1"
+    "@semantic-release/exec": "npm:^7.0.3"
     "@semantic-release/git": "npm:^10.0.1"
     "@semantic-release/github": "npm:^11.0.1"
     "@semantic-release/release-notes-generator": "npm:^14.0.3"
@@ -14992,7 +15006,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.25.0"
     babel-jest: "npm:^29.7.0"
     bundlesize: "npm:^0.18.2"
-    chalk: "npm:^4.1.2"
+    chalk: "npm:^5.4.1"
     csv-writer: "npm:^1.6.0"
     depcheck: "npm:^1.4.7"
     eslint: "npm:^9.20.1"
