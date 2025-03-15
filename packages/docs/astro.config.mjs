@@ -40,6 +40,7 @@ export default defineConfig({
 					label: 'Technical Reference',
 					items: [
 						{ label: 'Architecture', link: '/architecture' },
+						{ label: 'Project Roadmap', link: '/roadmap' },
 						{ label: 'API Overview', link: '/api/overview' },
 					],
 				},

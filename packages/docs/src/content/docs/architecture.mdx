@@ -664,61 +664,14 @@ Key extension areas:
 
 > **Current Implementation Status**: The core architecture supports extensibility in principle, but the formal extension interfaces and plugin system are still in development. Currently, extending the tool would require modifying the source code rather than using established extension points.
 
-### 7.2 Planned Enhancements
+### 7.2 Future Development
 
-Future enhancements include:
+This architecture document describes the current design of the Subnetter tool and outlines potential extensibility points. For a detailed view of which features are currently implemented, partially implemented, or planned for future releases, please refer to our [Project Roadmap](/roadmap).
 
-<MermaidDiagram chart={`flowchart LR
-    current[Current System] --> |"will add"| ipv6[IPv6 Support]
-    current --> |"will add"| web[Web Interface]
-    current --> |"will add"| iac[Terraform Integration]
-    current --> |"will add"| viz[Visualization Tools]
-    current --> |"will enhance"| logging[Advanced Logging]
-    current --> |"will enhance"| providers[Multi-Cloud Support]
-    current --> |"will add"| plugins[Plugin System]
-    current --> |"will enhance"| testing[Comprehensive Testing]
-    
-    linkStyle 0,1,2,3,4,5,6,7 stroke:#36BCF7,stroke-width:2px;
-    
-    style current fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
-    style ipv6 fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
-    style web fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
-    style iac fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
-    style viz fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
-    style logging fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
-    style providers fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
-    style plugins fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
-    style testing fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333`} />
+The roadmap includes:
+- Current implementation status of all features
+- Development priorities and timeline
+- Planned release schedule
+- Information on how to contribute to future development
 
-1. **IPv6 support**: Extend the tool to handle IPv6 allocations
-2. **Visualization**: Add graphical representation of the CIDR hierarchy
-3. **Infrastructure as Code integration**: Generate Terraform, CloudFormation, or other IaC outputs
-4. **Web interface**: Provide a web-based UI for configuration and visualization
-5. **Advanced Logging**: Implement the full structured logging system with performance metrics
-6. **Enhanced Multi-Cloud Support**: Complete Azure and GCP integration and add support for other providers
-7. **Plugin System**: Develop a formal plugin architecture for extending the tool without modifying source code
-8. **Comprehensive Testing**: Expand test coverage including integration tests and end-to-end scenarios
-
-### 7.3 Implementation Roadmap
-
-The following table summarizes the current implementation status of key features:
-
-| Feature | Status | Details |
-|---------|--------|---------|
-| Core CIDR Allocation | ✅ Implemented | The basic hierarchical allocation algorithm is fully functional |
-| AWS Provider Support | ✅ Implemented | AWS region and AZ handling is complete |
-| Configuration Validation | ✅ Implemented | Schema validation using Zod is functional |
-| CSV Output | ✅ Implemented | Basic CSV output format is available |
-| Azure Provider Support | 🟨 Partial | Basic support with some limitations |
-| GCP Provider Support | 🟨 Partial | Basic support with some limitations |
-| Schema Evolution | 🟨 Partial | Basic normalization of older formats, but limited |
-| Error Handling | 🟨 Partial | Basic error types defined, but not the full recovery system |
-| Logging | 🟨 Partial | Basic logging, not the full structured system |
-| CLI Interface | ✅ Implemented | Core commands are functional |
-| Testing Coverage | 🟨 Partial | Unit tests exist, but integration and E2E tests are limited |
-| Extension Points | 🟠 Planned | Architecture supports extension but formal interfaces not yet implemented |
-| IaC Outputs | 🟠 Planned | Only CSV output currently implemented |
-| Plugin System | 🟠 Planned | Not yet implemented |
-| Web Interface | 🟠 Planned | Not yet implemented |
-| IPv6 Support | 🟠 Planned | Not yet implemented |
-| Visualization | 🟠 Planned | Not yet implemented |
+As the project evolves, this architecture document will be updated to reflect major architectural changes and enhancements.

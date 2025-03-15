@@ -1,0 +1,162 @@
+---
+title: Project Roadmap
+description: Current implementation status and future plans for the Subnetter tool
+---
+
+import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+# Subnetter Project Roadmap
+
+This document outlines the current implementation status of Subnetter's features and the planned enhancements for future releases. It serves as a guide for users and contributors to understand the project's direction and priorities.
+
+## Current Implementation Status
+
+The following table summarizes the current implementation status of key features:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Core CIDR Allocation | ✅ Implemented | The basic hierarchical allocation algorithm is fully functional |
+| AWS Provider Support | ✅ Implemented | AWS region and AZ handling is complete |
+| Configuration Validation | ✅ Implemented | Schema validation using Zod is functional |
+| CSV Output | ✅ Implemented | Basic CSV output format is available |
+| CLI Interface | ✅ Implemented | Core commands are functional |
+| Azure Provider Support | 🟨 Partial | Basic support with some limitations |
+| GCP Provider Support | 🟨 Partial | Basic support with some limitations |
+| Schema Evolution | 🟨 Partial | Basic normalization of older formats, but limited |
+| Error Handling | 🟨 Partial | Basic error types defined, but not the full recovery system |
+| Logging | 🟨 Partial | Basic logging, not the full structured system |
+| Testing Coverage | 🟨 Partial | Unit tests exist, but integration and E2E tests are limited |
+| Extension Points | 🟠 Planned | Architecture supports extension but formal interfaces not yet implemented |
+| IaC Outputs | 🟠 Planned | Only CSV output currently implemented |
+| Plugin System | 🟠 Planned | Not yet implemented |
+| Web Interface | 🟠 Planned | Not yet implemented |
+| IPv6 Support | 🟠 Planned | Not yet implemented |
+| Visualization | 🟠 Planned | Not yet implemented |
+
+## Development Priorities
+
+<MermaidDiagram chart={`flowchart LR
+    current[Current System] --> |"High"| providers[Enhanced Multi-Cloud Support]
+    current --> |"High"| testing[Comprehensive Testing]
+    current --> |"Medium"| logging[Advanced Logging]
+    current --> |"Medium"| iac[Terraform Integration]
+    current --> |"Medium"| viz[Visualization Tools]
+    current --> |"Low"| plugins[Plugin System]
+    current --> |"Low"| ipv6[IPv6 Support]
+    current --> |"Low"| web[Web Interface]
+    
+    linkStyle 0,1,2,3,4,5,6,7 stroke:#36BCF7,stroke-width:2px;
+    
+    style current fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style providers fill:#ff9999,stroke:#b85450,stroke-width:2px,color:#333333
+    style testing fill:#ff9999,stroke:#b85450,stroke-width:2px,color:#333333
+    style logging fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333
+    style iac fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333
+    style viz fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333
+    style plugins fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333
+    style ipv6 fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333
+    style web fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333`} />
+
+## Planned Enhancements
+
+### High Priority
+
+1. **Enhanced Multi-Cloud Support**
+   - Complete Azure integration with full AZ mapping
+   - Improve GCP support with better zone handling
+   - Add consistent provider detection across all cloud platforms
+   - Estimated timeline: Q3 2023
+
+2. **Comprehensive Testing**
+   - Expand unit test coverage to 90%+
+   - Implement integration tests for all major components
+   - Add end-to-end tests for common use cases
+   - Integrate with CI/CD pipeline for continuous validation
+   - Estimated timeline: Q3 2023
+
+### Medium Priority
+
+3. **Advanced Logging System**
+   - Implement structured JSON logging
+   - Add performance metrics
+   - Enable configurable log levels
+   - Add context-aware logging throughout the system
+   - Estimated timeline: Q4 2023
+
+4. **Infrastructure as Code Integration**
+   - Add Terraform HCL output format
+   - Support CloudFormation template generation
+   - Create Pulumi/CDK integration hooks
+   - Estimated timeline: Q4 2023
+
+5. **Visualization Tools**
+   - Add graphical representation of CIDR hierarchies
+   - Create interactive visualization in CLI
+   - Generate diagrams for documentation
+   - Estimated timeline: Q1 2024
+
+### Low Priority
+
+6. **Plugin System**
+   - Create formal extension interface
+   - Support custom allocation strategies
+   - Enable third-party output formats
+   - Provide integration points for external tools
+   - Estimated timeline: Q2 2024
+
+7. **IPv6 Support**
+   - Extend the tool to handle IPv6 allocations
+   - Support dual-stack configurations
+   - Add IPv6-specific validation rules
+   - Estimated timeline: Q2 2024
+
+8. **Web Interface**
+   - Create web-based UI for configuration
+   - Provide interactive CIDR visualization
+   - Enable sharing and collaboration features
+   - Estimated timeline: Q3 2024
+
+## Release Roadmap
+
+The following outlines our planned release schedule:
+
+### v1.0 (Current Stable)
+- Core CIDR allocation functionality
+- AWS provider support
+- Basic configuration validation
+- CSV output format
+- Command-line interface
+
+### v1.1 (Q3 2023)
+- Enhanced Azure and GCP support
+- Improved error handling
+- Expanded test coverage
+- Better schema validation
+
+### v1.2 (Q4 2023)
+- Advanced logging system
+- Terraform HCL output
+- CloudFormation output
+- Performance optimizations
+
+### v2.0 (Q1 2024)
+- Visualization tools
+- Complete multi-cloud support
+- Comprehensive documentation
+- Refactored core architecture
+
+### v2.x (Q2-Q3 2024)
+- Plugin system
+- IPv6 support
+- Web interface
+- Enhanced collaboration features
+
+## Contributing to the Roadmap
+
+We welcome community input on our roadmap priorities. If you'd like to contribute to any of these planned features or suggest new ones, please:
+
+1. Check the [GitHub issues](https://github.com/gangster/subnetter/issues) to see if your idea is already being discussed
+2. Submit a feature request with a clear description of the proposed enhancement
+3. Consider contributing code if you're interested in implementing any planned features
+
+For more details on how to contribute, please see our [Developer Guide](/developer-guide). 
