@@ -346,9 +346,12 @@ The project uses GitHub Actions for CI/CD:
     ci --> |"runs"| tests[Run Tests]
     tests --> |"generates"| coverage[Generate Coverage]
     tests --> |"triggers"| release[Semantic Release]
-    tests --> |"builds"| docs[Build & Deploy Docs]
+    tests --> |"builds"| docs[Build Docs]
+    docs --> |"configures"| pages[Configure Pages]
+    pages --> |"uploads"| artifact[Upload Artifact]
+    artifact --> |"deploys"| ghpages[Deploy to GitHub Pages]
     
-    linkStyle 0,1,2,3,4,5 stroke:#36BCF7,stroke-width:2px;
+    linkStyle 0,1,2,3,4,5,6,7,8 stroke:#36BCF7,stroke-width:2px;
     
     style pr fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
     style push fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
@@ -356,12 +359,17 @@ The project uses GitHub Actions for CI/CD:
     style tests fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
     style coverage fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
     style release fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
-    style docs fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+    style docs fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style pages fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style artifact fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style ghpages fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
 
 1. **Build**: Compile TypeScript code
 2. **Test**: Run unit and integration tests
 3. **Lint**: Check code style and quality
-4. **Publish**: Publish packages to npm (on release)
+4. **Document**: Generate API documentation with TypeDoc
+5. **Publish**: Publish packages to npm (on release)
+6. **Deploy**: Deploy documentation to GitHub Pages using official GitHub Actions
 
 ## Planned Enhancements
 
