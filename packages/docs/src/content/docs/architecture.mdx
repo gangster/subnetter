@@ -394,6 +394,768 @@ Future enhancements may include:
 3. **Infrastructure as Code integration**: Generate Terraform, CloudFormation, or other IaC outputs
 4. **Web interface**: Provide a web-based UI for configuration and visualization
 
+## Cloud Provider Detection
+
+Although Subnetter is designed to be cloud-agnostic, it includes specialized logic to handle differences between major cloud providers (AWS, Azure, GCP). The provider detection system allows for region-specific optimizations and provider-specific naming conventions.
+
+<MermaidDiagram chart={`flowchart TD
+    input[Region Name] --> detect[Provider Detector]
+    detect --> check{Pattern Match?}
+    check -->|AWS Pattern| aws[AWS Provider]
+    check -->|Azure Pattern| azure[Azure Provider]
+    check -->|GCP Pattern| gcp[GCP Provider]
+    check -->|Unknown| default[Default Provider]
+    
+    aws --> naming[Provider-Specific Naming]
+    azure --> naming
+    gcp --> naming
+    default --> naming
+    
+    naming --> az[AZ Generation]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10 stroke:#36BCF7,stroke-width:2px;
+    
+    style input fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style detect fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style check fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style aws fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style azure fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style gcp fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style default fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style naming fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
+    style az fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333`} />
+
+Key components:
+
+1. **RegionDetector**: A utility that identifies the cloud provider based on region name patterns
+   - AWS regions typically follow `us-east-1`, `eu-west-2` patterns
+   - Azure regions follow `eastus`, `westeurope` patterns
+   - GCP regions follow `us-central1`, `europe-west1` patterns
+
+2. **AzHelper**: Provider-specific logic for generating availability zone names
+   - For AWS: Appends letters to region names (e.g., `us-east-1a`, `us-east-1b`)
+   - For Azure: Uses numbered availability zones (e.g., `1`, `2`, `3`)
+   - For GCP: Uses zone letters (e.g., `us-central1-a`, `us-central1-b`)
+
+3. **Default Fallback**: If a region doesn't match known patterns, AWS is used as the default provider
+
+The cloud provider detection system is implemented in:
+- `packages/core/src/utils/region-detector.ts`: Pattern matching logic
+- `packages/core/src/allocator/utils/cloud/provider.ts`: Provider detector class
+- `packages/core/src/allocator/utils/cloud/az.ts`: AZ naming based on provider
+
+This detection mechanism enables the allocator to generate appropriate availability zone names and apply provider-specific networking constraints without requiring explicit provider configuration.
+
+## Validation Rules and Constraints
+
+The configuration validation system enforces a set of rules to ensure that inputs will result in valid and practical CIDR allocations. These constraints are implemented as a schema using Zod in `packages/core/src/config/schema.ts`.
+
+<MermaidDiagram chart={`flowchart TD
+    config[Config Object] --> validator[Config Validator]
+    validator --> basecidr[Base CIDR Validation]
+    validator --> subnet[Subnet Types Validation]
+    validator --> account[Account Validation]
+    validator --> prefix[Prefix Lengths Validation]
+    
+    basecidr --> cidr{Valid CIDR?}
+    cidr -->|Yes| next1[Continue]
+    cidr -->|No| error1[Error]
+    
+    subnet --> stype{Valid Subnet Types?}
+    stype -->|Yes| next2[Continue]
+    stype -->|No| error2[Error]
+    
+    prefix --> plen{Valid Prefix Lengths?}
+    plen -->|Yes| next3[Continue]
+    plen -->|No| error3[Error]
+    
+    account --> acct{Valid Accounts?}
+    acct -->|Yes| next4[Continue]
+    acct -->|No| error4[Error]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 stroke:#36BCF7,stroke-width:2px;
+    
+    style config fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style validator fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style basecidr fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style subnet fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style account fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style prefix fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style cidr fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style stype fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style plen fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style acct fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style next1 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next2 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next3 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next4 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error1 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error2 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error3 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error4 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+Key validation rules:
+
+1. **CIDR Format**:
+   - Base CIDR must be a valid IPv4 CIDR block (e.g., `10.0.0.0/8`)
+   - Custom account CIDRs must also be valid IPv4 CIDR blocks
+   - CIDR validation uses regex: `/^([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2])$/`
+
+2. **Prefix Length Constraints**:
+   - Account prefix must be between 8 and 28
+   - Region prefix must be between 16 and 28
+   - AZ prefix must be between 19 and 28
+   - Subnet prefix must be between 20 and 29
+   - Hierarchical constraint: `account < region < az < subnet`
+
+3. **Account Validation**:
+   - Account names must not be empty
+   - Each account must have at least one region defined
+   - Account names must be unique
+
+4. **Subnet Types**:
+   - Must be defined as an object with type names as keys and prefix lengths as values
+   - Each subnet type must have a unique name
+   - Prefix length must be a number between 20 and 29
+
+5. **Space Allocation**:
+   - The system validates that there is enough address space for the requested allocation
+   - For example, if you request 5 accounts with a /16 prefix, your base CIDR must be at least a /11
+
+These validation rules help prevent configuration errors that would lead to impossible or invalid allocations, ensuring that the CIDR allocator can successfully generate non-overlapping network blocks.
+
+## Logging and Observability
+
+Subnetter includes a structured logging system to provide visibility into the allocation process and aid in debugging. The logging system is based on a custom logger implementation that supports different log levels and context information.
+
+<MermaidDiagram chart={`flowchart LR
+    app[Application Code] --> |"uses"| logger[Logger]
+    logger --> |"filters by"| level[Log Level]
+    level --> trace[TRACE]
+    level --> debug[DEBUG]
+    level --> info[INFO]
+    level --> warn[WARN]
+    level --> error[ERROR]
+    
+    trace --> output[Log Output]
+    debug --> output
+    info --> output
+    warn --> output
+    error --> output
+    
+    config[Configuration] --> |"configures"| logger
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12 stroke:#36BCF7,stroke-width:2px;
+    
+    style app fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style logger fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style level fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style config fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style trace fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style debug fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style info fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style warn fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style output fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333`} />
+
+### Logging System Features
+
+1. **Log Levels**: The logger supports five levels of verbosity:
+   - `ERROR`: Critical issues that prevent the tool from functioning
+   - `WARN`: Potential issues that don't prevent operation but might need attention
+   - `INFO`: Standard operational information (default level)
+   - `DEBUG`: Detailed information for troubleshooting
+   - `TRACE`: Very detailed trace information for deep debugging
+
+2. **Contextual Logging**: Each log entry includes:
+   - Timestamp
+   - Log level
+   - Source component
+   - Message
+   - Optional additional context data
+
+3. **Source Attribution**: Loggers are created with a specific source name, allowing messages to be traced to their originating component:
+
+```typescript
+const logger = createLogger('CidrAllocator');
+logger.info('Starting allocation process');
+```
+
+4. **Configuration**: The logging system can be configured through:
+   - Environment variables (`LOG_LEVEL`)
+   - Programmatic configuration via `configureLogger()`
+   - CLI arguments (`--log-level`)
+
+The logging system is implemented in `packages/core/src/utils/logger.ts` and is used throughout the codebase to provide visibility into the allocation process.
+
+### Key Observability Points
+
+Key points in the system that are logged include:
+
+1. **Configuration Loading**: Log information about the loaded configuration file
+2. **Validation Results**: Log validation errors and warnings
+3. **Allocation Steps**: Log the progress of the allocation process
+4. **Output Generation**: Log information about the generated output
+
+Observability best practices when using Subnetter:
+
+1. Use `--log-level debug` for more detailed information during troubleshooting
+2. Check warnings, as they may indicate potential issues even if the allocation succeeds
+3. For large configurations, consider piping output to a log file: `subnetter generate --log-level debug > allocation.log`
+
+## Algorithm Complexity and Performance
+
+Understanding the computational complexity of Subnetter's allocation algorithms is important for managing expectations when working with large configurations.
+
+<MermaidDiagram chart={`flowchart TB
+    n[Number of Accounts] & r[Regions per Account] & a[AZs per Region] & s[Subnets per AZ] --> complexity[Overall Complexity]
+    complexity --> time[Time Complexity]
+    complexity --> space[Space Complexity]
+    
+    time --> |"O(n × r × a × s)"| result1[Linear to Input Size]
+    space --> |"O(n × r × a × s)"| result2[Linear to Output Size]
+    
+    linkStyle 0,1,2,3,4,5,6 stroke:#36BCF7,stroke-width:2px;
+    
+    style n fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style r fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style a fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style s fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style complexity fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style time fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style space fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style result1 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style result2 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+### Time Complexity
+
+The time complexity of the CIDR allocation algorithm is linear with respect to the number of allocations:
+
+`O(n × r × a × s)` where:
+- `n` = number of accounts
+- `r` = average number of regions per account
+- `a` = average number of availability zones per region
+- `s` = average number of subnet types
+
+The allocation process follows a hierarchical pattern:
+1. For each account: `O(n)`
+2. For each region in the account: `O(r)`
+3. For each AZ in the region: `O(a)`
+4. For each subnet type in the AZ: `O(s)`
+
+### Key Performance Considerations
+
+1. **CIDR Subdivision Operations**: Each level of the hierarchy involves CIDR subdivision operations that are constant time `O(1)` but involve complex subnet calculations.
+
+2. **Validation Checks**: Throughout the allocation process, validation checks are performed to ensure CIDRs don't overlap, which adds a small overhead.
+
+3. **Memory Usage**: For large configurations, memory usage scales linearly with the number of allocations.
+
+4. **Performance Bottlenecks**:
+   - Very large configurations (hundreds of accounts or thousands of subnets)
+   - Complex CIDR calculations for unusual prefix length combinations
+   - Configuration validation for deeply nested structures
+
+### Benchmarks
+
+Typical performance characteristics on modern hardware:
+
+| Configuration Size | Accounts | Regions | AZs | Subnet Types | Approximate Time |
+|-------------------|----------|---------|-----|--------------|------------------|
+| Small             | 1-5      | 2-3     | 2-3 | 3-5          | < 100ms          |
+| Medium            | 5-20     | 3-10    | 3   | 4-8          | 100-500ms        |
+| Large             | 20-100   | 5-20    | 3   | 5-10         | 0.5-2s           |
+| Very Large        | 100+     | 20+     | 3+  | 10+          | 2s+              |
+
+### Optimization Strategies
+
+1. **Efficient Schema Validation**: The schema validation is optimized to fail fast on invalid configurations.
+
+2. **Caching**: The system caches intermediate CIDR calculations to avoid redundant computations.
+
+3. **Single-pass Allocation**: The allocation algorithm is designed to make a single pass through the configuration hierarchy.
+
+4. **Tracking Optimizations**: The CIDR tracking system uses efficient data structures to minimize lookup times.
+
+## Error Recovery Strategies
+
+Subnetter is designed with robust error handling to help users diagnose and recover from common issues. The error handling approach is built around detailed error messages, context-rich errors, and actionable recovery recommendations.
+
+<MermaidDiagram chart={`flowchart TD
+    error[Error Occurs] --> type{Error Type}
+    
+    type -->|"ConfigValidationError"| config[Configuration Error]
+    type -->|"CidrError"| cidr[CIDR Calculation Error]
+    type -->|"AllocationError"| alloc[Allocation Error]
+    type -->|"OutputError"| output[Output Error]
+    
+    config --> configRecovery[Validation Feedback]
+    cidr --> cidrRecovery[CIDR Recommendations]
+    alloc --> allocRecovery[Allocation Guidance]
+    output --> outputRecovery[Output Retry Options]
+    
+    configRecovery & cidrRecovery & allocRecovery & outputRecovery --> retry[User Corrects Issue]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12 stroke:#36BCF7,stroke-width:2px;
+    
+    style error fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style type fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style config fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style cidr fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style alloc fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style output fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style configRecovery fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style cidrRecovery fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style allocRecovery fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style outputRecovery fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style retry fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333`} />
+
+### Common Error Types and Recovery Strategies
+
+1. **Configuration Validation Errors**
+   - **Issue**: Schema validation failures
+   - **Recovery**:
+     - Detailed error messages point to the exact field with the issue
+     - Zod validation provides expected type/format information
+     - Run with `--validate-only` flag to check configuration without attempting allocation
+
+2. **CIDR Calculation Errors**
+   - **Issue**: Invalid CIDR operations (e.g., subnet doesn't fit in parent)
+   - **Recovery**:
+     - Check prefix lengths in hierarchy
+     - Ensure base CIDR is large enough for allocation
+     - Use larger CIDR blocks or reduce the number of allocations
+
+3. **Allocation Errors**
+   - **Issue**: Not enough space for requested allocations
+   - **Recovery**:
+     - Increase base CIDR size
+     - Adjust prefix lengths to use less space
+     - Reduce number of accounts/regions/AZs
+
+4. **Output Errors**
+   - **Issue**: Problems writing output files
+   - **Recovery**:
+     - Check permissions for output directory
+     - Verify disk space
+     - Use stdout output (`-o -`) instead of file
+
+### Built-in Error Handling Features
+
+1. **Contextual Errors**: All errors include context about where they occurred
+   ```
+   Error allocating CIDR for region 'us-east-1' in account 'prod':
+   Not enough space in parent CIDR '10.0.0.0/16' for 3 subnets with prefix length 24
+   ```
+
+2. **Recovery Suggestions**: Many errors include actionable suggestions
+   ```
+   Consider using a larger base CIDR (e.g., /15 instead of /16)
+   or reducing the number of subnets/regions
+   ```
+
+3. **Validation-Only Mode**: Run with `--validate-only` to check configuration without allocation
+
+4. **Verbose Mode**: Use `--log-level debug` to get detailed information about each step
+
+### Example Recovery Scenarios
+
+1. **Not Enough Space**:
+   ```
+   Error: Not enough space in parent CIDR '10.0.0.0/8' for 256 accounts with prefix length /16
+   ```
+   Recovery: Either reduce the number of accounts or use a smaller prefix length for accounts (e.g., /18)
+
+2. **Invalid CIDR Format**:
+   ```
+   Error: Invalid CIDR format: '10.0.0/8' at config.baseCidr
+   ```
+   Recovery: Fix the CIDR format to include all octets: '10.0.0.0/8'
+
+3. **Overlapping CIDRs**:
+   ```
+   Error: Account 'prod' CIDR '10.0.0.0/16' overlaps with account 'dev' CIDR '10.0.0.0/17'
+   ```
+   Recovery: Use non-overlapping CIDRs for custom account CIDR assignments
+
+## Configuration Examples
+
+To illustrate how the system works with real-world configurations, this section provides concrete examples of input configurations and their resulting allocations. These examples demonstrate different features and use cases of the Subnetter tool.
+
+### Basic Single-Account Configuration
+
+This simple configuration allocates CIDRs for a single account with two regions:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "regions": ["us-east-1", "us-west-2"]
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 27,
+    "Data": 28
+  }
+}
+```
+
+**Resulting Allocations:**
+
+| Account    | Region    | AZ          | Subnet Type | CIDR           |
+|------------|-----------|-------------|-------------|----------------|
+| production | us-east-1 | us-east-1a  | Public      | 10.0.0.0/26    |
+| production | us-east-1 | us-east-1a  | Private     | 10.0.0.64/27   |
+| production | us-east-1 | us-east-1a  | Data        | 10.0.0.96/28   |
+| production | us-east-1 | us-east-1b  | Public      | 10.0.1.0/26    |
+| production | us-east-1 | us-east-1b  | Private     | 10.0.1.64/27   |
+| production | us-east-1 | us-east-1b  | Data        | 10.0.1.96/28   |
+| production | us-west-2 | us-west-2a  | Public      | 10.0.16.0/26   |
+| production | us-west-2 | us-west-2a  | Private     | 10.0.16.64/27  |
+| production | us-west-2 | us-west-2a  | Data        | 10.0.16.96/28  |
+| production | us-west-2 | us-west-2b  | Public      | 10.0.17.0/26   |
+| production | us-west-2 | us-west-2b  | Private     | 10.0.17.64/27  |
+| production | us-west-2 | us-west-2b  | Data        | 10.0.17.96/28  |
+
+### Multi-Account Multi-Cloud Configuration
+
+This configuration demonstrates allocating for multiple accounts across different cloud providers:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        },
+        "azure": {
+          "baseCidr": "172.16.0.0/12",
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "development",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-2"]
+        },
+        "gcp": {
+          "regions": ["us-central1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 27,
+    "Data": 28
+  }
+}
+```
+
+Conceptual output (abbreviated for clarity):
+
+| Account     | Cloud | Region      | AZ           | Subnet Type | CIDR           |
+|-------------|-------|-------------|--------------|-------------|----------------|
+| production  | aws   | us-east-1   | us-east-1a   | Public      | 10.0.0.0/26    |
+| production  | aws   | us-west-2   | us-west-2a   | Public      | 10.0.16.0/26   |
+| production  | azure | eastus      | 1            | Public      | 172.16.0.0/26  |
+| production  | azure | westeurope  | 1            | Public      | 172.16.16.0/26 |
+| development | aws   | us-east-2   | us-east-2a   | Public      | 10.1.0.0/26    |
+| development | gcp   | us-central1 | us-central1-a| Public      | 10.1.16.0/26   |
+
+### Custom CIDR Configuration
+
+This example shows a configuration with custom CIDR blocks for specific accounts:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "cidr": "10.0.0.0/16",
+      "regions": ["us-east-1", "us-west-2"]
+    },
+    {
+      "name": "staging",
+      "cidr": "10.1.0.0/16",
+      "regions": ["us-east-1"]
+    },
+    {
+      "name": "development",
+      "regions": ["us-east-1"]
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 27,
+    "Data": 28
+  }
+}
+```
+
+In this example:
+- Production and staging have explicit CIDR assignments
+- Development uses the next available CIDR block (10.2.0.0/16)
+
+These examples illustrate how the allocation system works with different configuration scenarios, showing the hierarchical allocation pattern from base CIDR through accounts, regions, availability zones, and subnets.
+
+## Schema Evolution and Backwards Compatibility
+
+As Subnetter evolves, the configuration schema may need to change to support new features. The project follows a set of principles to ensure backward compatibility and smooth transitions between versions.
+
+<MermaidDiagram chart={`flowchart LR
+    v1[Schema v1] --> |"extends"| v2[Schema v2]
+    v2 --> |"extends"| v3[Schema v3]
+    
+    oldConfig[Old Config] --> converter[Schema Converter]
+    converter --> newConfig[New Config]
+    
+    oldConfig --> validator[Validator with Backwards Compatibility]
+    validator --> normalization[Normalization]
+    normalization --> allocation[Allocation]
+    
+    linkStyle 0,1,2,3,4,5,6 stroke:#36BCF7,stroke-width:2px;
+    
+    style v1 fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style v2 fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style v3 fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style oldConfig fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style converter fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style newConfig fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style validator fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style normalization fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style allocation fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+### Backward Compatibility Principles
+
+1. **Additive Schema Changes**: New fields are added in a way that doesn't break existing configurations
+   - New fields include default values or are optional
+   - Required fields are not added in minor versions
+
+2. **Schema Versioning**: Major schema changes increment the major version
+   - Version 1.x.x: Basic schema with account-region-AZ hierarchy
+   - Version 2.x.x: Added multi-cloud support
+   - Future versions will follow semantic versioning
+
+3. **Format Normalization**: Config formats are normalized internally
+   - Example: The subnet types format changed from array to object format, but both are supported
+   - Normalizers convert legacy formats to current internal representations
+
+4. **Deprecation Cycle**: Changes follow a deprecation cycle:
+   1. New format introduced with backward compatibility
+   2. Warning logs for deprecated format usage
+   3. Removal of support for deprecated format in a future major version
+
+### Example Schema Evolution
+
+Here's an example of how the subnet types schema evolved:
+
+**Original Format (Array):**
+```json
+"subnetTypes": [
+  { "name": "Public", "prefixLength": 26 },
+  { "name": "Private", "prefixLength": 27 },
+  { "name": "Data", "prefixLength": 28 }
+]
+```
+
+**Current Format (Object):**
+```json
+"subnetTypes": {
+  "Public": 26,
+  "Private": 27,
+  "Data": 28
+}
+```
+
+The system supports both formats through a normalization function that converts the array format to the object format internally before processing.
+
+### Migration Utilities
+
+To help users migrate between schema versions, Subnetter provides:
+
+1. **Validation Mode**: Use `--validate-only` to check if a configuration is valid
+2. **Verbose Mode**: Use `--log-level debug` to get warnings about deprecated formats
+3. **Migration Examples**: Documentation includes examples of migrating between formats
+
+### Future Evolution Strategy
+
+As the schema continues to evolve, Subnetter will maintain these principles:
+
+1. **Document All Changes**: Clear documentation for each schema change
+2. **Provide Migration Paths**: Tools and examples for migrating configurations
+3. **Follow Semantic Versioning**: Breaking changes only in major versions
+4. **Automatic Format Detection**: Support for multiple formats where possible
+
+## Extensibility Points
+
+Subnetter is designed with several extensibility points to allow for customization and extension without modifying the core codebase. This section highlights the key areas where the system can be extended.
+
+<MermaidDiagram chart={`flowchart TD
+    core[Core System] --> |"extends"| outputFormats[New Output Formats]
+    core --> |"extends"| providers[Additional Cloud Providers]
+    core --> |"extends"| integrations[External Integrations]
+    core --> |"extends"| customPrefixes[Custom Prefix Strategies]
+    
+    outputFormats --> |"examples"| terraform[Terraform Output]
+    outputFormats --> |"examples"| cloudformation[CloudFormation Output]
+    
+    providers --> |"examples"| alibaba[Alibaba Cloud]
+    providers --> |"examples"| oracle[Oracle Cloud]
+    
+    integrations --> |"examples"| ci[CI/CD Integration]
+    integrations --> |"examples"| iac[IaC Tools]
+    
+    customPrefixes --> |"examples"| dynamic[Dynamic Sizing]
+    customPrefixes --> |"examples"| custom[Custom Hierarchies]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11 stroke:#36BCF7,stroke-width:2px;
+    
+    style core fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style outputFormats fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style providers fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style integrations fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style customPrefixes fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style terraform fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style cloudformation fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style alibaba fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style oracle fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style ci fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style iac fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style dynamic fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style custom fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333`} />
+
+### 1. Output Format Extensions
+
+The current system outputs CSV files, but the architecture allows for additional output formats:
+
+- **Implementation Point**: Extend the output module by creating a new writer class
+- **Key File**: `packages/core/src/output/`
+- **Interface**: `OutputWriter` interface (similar to CSVWriter)
+- **Potential Extensions**:
+  - Terraform HCL output
+  - CloudFormation template output
+  - Pulumi/CDK code generation
+  - JSON/YAML output formats
+
+Example extension pattern:
+```typescript
+export class TerraformWriter implements OutputWriter {
+  writeAllocations(allocations: Allocation[], outputPath: string): void {
+    // Transform allocations to Terraform HCL
+    // Write to output file
+  }
+}
+```
+
+### 2. Cloud Provider Extensions
+
+The system currently supports AWS, Azure, and GCP, but can be extended to support additional cloud providers:
+
+- **Implementation Point**: Extend the cloud provider detection and AZ naming systems
+- **Key Files**: 
+  - `packages/core/src/utils/region-detector.ts`
+  - `packages/core/src/allocator/utils/cloud/provider.ts`
+  - `packages/core/src/allocator/utils/cloud/az.ts`
+- **Potential Extensions**:
+  - Oracle Cloud Infrastructure
+  - Alibaba Cloud
+  - IBM Cloud
+  - Custom private clouds
+
+Example extension pattern:
+```typescript
+// Add to region detector
+export function detectCloudProviderFromRegion(region: string): CloudProvider {
+  // Existing providers...
+  
+  // New provider
+  if (region.match(/^oci-[a-z]+-[0-9]+$/)) {
+    return CloudProvider.OCI;
+  }
+  
+  return CloudProvider.UNKNOWN;
+}
+
+// Add to AZ helper
+class AzHelper {
+  // Existing methods...
+  
+  private getOciAzNames(region: string, count: number): string[] {
+    // Implement OCI-specific AZ naming
+  }
+}
+```
+
+### 3. Custom Allocation Strategies
+
+The allocation strategy can be extended or customized:
+
+- **Implementation Point**: Extend or replace the core allocator classes
+- **Key Files**:
+  - `packages/core/src/allocator/core/allocator.ts`
+  - `packages/core/src/allocator/core/region.ts`
+  - `packages/core/src/allocator/core/subnet.ts`
+- **Potential Extensions**:
+  - Dynamic prefix length calculation based on subnet requirements
+  - Custom allocation hierarchies (e.g., adding a "cluster" level)
+  - Specialized allocation for specific use cases (e.g., Kubernetes optimized)
+
+### 4. CLI Extensions
+
+The CLI can be extended with additional commands:
+
+- **Implementation Point**: Add new commands to the CLI
+- **Key File**: `packages/cli/src/index.ts`
+- **Potential Extensions**:
+  - Conversion utilities between config formats
+  - Visualization commands
+  - Validation and testing utilities
+
+### 5. Integration Points for External Tools
+
+The system provides integration points for external tools:
+
+- **Core Library**: `@subnetter/core` exports key functions and classes
+- **Configuration Schema**: Can be imported and used by external tools
+- **Output Processing**: The allocation output can be consumed by external systems
+
+### Implementation Guidance
+
+When extending Subnetter, consider these guidelines:
+
+1. **Maintain Backwards Compatibility**: Extensions should not break existing functionality
+2. **Follow Core Patterns**: Use the same patterns and conventions as the core code
+3. **Document Extensions**: Provide clear documentation for any extensions
+4. **Test Thoroughly**: Create unit and integration tests for extensions
+5. **Consider Contributing**: Useful extensions may be candidates for contribution to the main project
+
+By leveraging these extensibility points, users can adapt Subnetter to their specific needs and integrate it with their existing workflows and toolchains.
+
 ## CIDR Allocation Hierarchy
 
 <MermaidDiagram chart={`graph TD
