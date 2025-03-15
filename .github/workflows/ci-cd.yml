@@ -59,7 +59,7 @@ jobs:
         run: yarn install --no-immutable
         
       - name: Lint commit messages
-        uses: wagoid/commitlint-github-action@v5
+        uses: wagoid/commitlint-github-action@v6
         
       - name: Check dependency redundancy
         run: npx depcheck . || true
