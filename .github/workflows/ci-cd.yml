@@ -110,7 +110,7 @@ jobs:
           ./scripts/merge-coverage.sh
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage/merged/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -162,7 +162,7 @@ jobs:
           ./scripts/merge-coverage.sh
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage/merged/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
