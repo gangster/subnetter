@@ -65,16 +65,16 @@ describe('Streamlined Configuration End-to-End Test', () => {
       
       // Verify subnet prefix lengths are correct
       const publicSubnets = allocations.filter(a => a.subnetRole === 'Public');
-      expect(publicSubnets[0].cidr).toMatch(/\/26$/);
+      expect(publicSubnets[0].subnetCidr).toMatch(/\/26$/);
       
       const privateSubnets = allocations.filter(a => a.subnetRole === 'Private');
-      expect(privateSubnets[0].cidr).toMatch(/\/27$/);
+      expect(privateSubnets[0].subnetCidr).toMatch(/\/27$/);
       
       const dataSubnets = allocations.filter(a => a.subnetRole === 'Data');
-      expect(dataSubnets[0].cidr).toMatch(/\/28$/);
+      expect(dataSubnets[0].subnetCidr).toMatch(/\/28$/);
       
       const managementSubnets = allocations.filter(a => a.subnetRole === 'Management');
-      expect(managementSubnets[0].cidr).toMatch(/\/29$/);
+      expect(managementSubnets[0].subnetCidr).toMatch(/\/29$/);
     } catch (error) {
       throw error;
     }

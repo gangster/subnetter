@@ -211,7 +211,7 @@ describe('CIDR Management Suite', () => {
                 const allocator = new CidrAllocator(config);
                 const allocations = allocator.generateAllocations();
                 expect(allocations.length).toBeGreaterThan(0);
-                expect(allocations[0].cidr).toBeDefined();
+                expect(allocations[0].subnetCidr).toBeDefined();
             });
             it('should generate allocations for a configuration with account-specific CIDR', () => {
                 const config = {
@@ -242,8 +242,8 @@ describe('CIDR Management Suite', () => {
                 const allocator = new CidrAllocator(config);
                 const allocations = allocator.generateAllocations();
                 expect(allocations.length).toBeGreaterThan(0);
-                expect(allocations[0].cidr).toBeDefined();
-                expect(allocations[0].cidr).toContain('10.0.');
+                expect(allocations[0].subnetCidr).toBeDefined();
+                expect(allocations[0].subnetCidr).toContain('10.0.');
             });
             it('should support subnet-type-specific prefix lengths', () => {
                 // Create a config with subnet-type-specific prefix lengths

@@ -128,7 +128,7 @@ describe('SubnetAllocator', () => {
       // Assert
       expect(result).toEqual(['10.0.0.64/26', '10.0.0.128/26', '10.0.0.192/26']);
       expect(allocations.length).toBe(1);
-      expect(allocations[0].cidr).toBe('10.0.0.0/26');
+      expect(allocations[0].subnetCidr).toBe('10.0.0.0/26');
       expect(cidrTracker.isAllocated('10.0.0.0/26')).toBe(true);
     });
     

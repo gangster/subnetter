@@ -43,7 +43,6 @@ interface Allocation {
   'VPC CIDR': string;
   'AZ CIDR': string;
   'Subnet CIDR': string;
-  'CIDR': string;
   'Subnet Role': string;
   'Usable IPs': string;
   [key: string]: string;
@@ -677,22 +676,22 @@ describe('Production Configuration E2E Tests', () => {
 
     // Check subnet sizes
     for (const subnet of publicSubnets) {
-      expect(subnet.CIDR).toMatch(/\/24$/); // Public subnets should be /24
+      expect(subnet['Subnet CIDR']).toMatch(/\/24$/); // Public subnets should be /24
       expect(parseInt(subnet['Usable IPs'])).toBe(254); // /24 gives 254 usable IPs
     }
 
     for (const subnet of privateSubnets) {
-      expect(subnet.CIDR).toMatch(/\/25$/); // Private subnets should be /25
+      expect(subnet['Subnet CIDR']).toMatch(/\/25$/); // Private subnets should be /25
       expect(parseInt(subnet['Usable IPs'])).toBe(126); // /25 gives 126 usable IPs
     }
 
     for (const subnet of dataSubnets) {
-      expect(subnet.CIDR).toMatch(/\/26$/); // Data subnets should be /26
+      expect(subnet['Subnet CIDR']).toMatch(/\/26$/); // Data subnets should be /26
       expect(parseInt(subnet['Usable IPs'])).toBe(62); // /26 gives 62 usable IPs
     }
 
     for (const subnet of mgmtSubnets) {
-      expect(subnet.CIDR).toMatch(/\/27$/); // Management subnets should be /27
+      expect(subnet['Subnet CIDR']).toMatch(/\/27$/); // Management subnets should be /27
       expect(parseInt(subnet['Usable IPs'])).toBe(30); // /27 gives 30 usable IPs
     }
 
@@ -703,7 +702,7 @@ describe('Production Configuration E2E Tests', () => {
       if (!azGroups[az]) {
         azGroups[az] = [];
       }
-      azGroups[az].push(subnet.CIDR);
+      azGroups[az].push(subnet['Subnet CIDR']);
     }
 
     // Check each AZ for overlapping CIDRs

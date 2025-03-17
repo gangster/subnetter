@@ -69,9 +69,9 @@ describe('New Streamlined Configuration End-to-End Test', () => {
     
     // Verify prefix lengths
     const publicSubnets = allocations.filter(a => a.subnetRole === 'Public');
-    expect(publicSubnets[0].cidr.split('/')[1]).toBe('26');
+    expect(publicSubnets[0].subnetCidr.split('/')[1]).toBe('26');
     
     const privateSubnets = allocations.filter(a => a.subnetRole === 'Private');
-    expect(privateSubnets[0].cidr.split('/')[1]).toBe('27');
+    expect(privateSubnets[0].subnetCidr.split('/')[1]).toBe('27');
   });
 }); 

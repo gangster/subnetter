@@ -66,13 +66,12 @@ describe('Domain Models', () => {
         vpcCidr: '10.0.0.0/16',
         azCidr: '10.0.0.0/24',
         subnetCidr: '10.0.0.0/28',
-        cidr: '10.0.0.0/28',
         subnetRole: 'Public',
         usableIps: 14
       };
       
       expect(allocation.accountName).toBe('innovation-test');
-      expect(allocation.subnetCidr).toBe(allocation.cidr); // Should be identical
+      expect(allocation.subnetCidr).toBe('10.0.0.0/28');
       expect(allocation.usableIps).toBe(14);
     });
   });

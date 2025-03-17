@@ -261,16 +261,15 @@ The tool generates a CSV file with the following columns:
 | VPC CIDR          | The CIDR block for the VPC                 |
 | AZ CIDR           | The CIDR block for the availability zone   |
 | Subnet CIDR       | The CIDR block for the subnet              |
-| CIDR              | Duplicate of Subnet CIDR for compatibility |
 | Subnet Role       | The type/role of the subnet                |
 | Usable IPs        | The number of usable IP addresses          |
 
 Example output:
 
 ```
-Account Name,VPC Name,Cloud Provider,Region Name,Availability Zone,Region CIDR,VPC CIDR,AZ CIDR,Subnet CIDR,CIDR,Subnet Role,Usable IPs
-innovation-test,innovation-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/16,10.0.0.0/24,10.0.0.0/28,10.0.0.0/28,Public,14
-innovation-test,innovation-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/16,10.0.0.0/24,10.0.0.16/28,10.0.0.16/28,Private,14
+Account Name,VPC Name,Cloud Provider,Region Name,Availability Zone,Region CIDR,VPC CIDR,AZ CIDR,Subnet CIDR,Subnet Role,Usable IPs
+innovation-test,innovation-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/16,10.0.0.0/24,10.0.0.0/28,Public,14
+innovation-test,innovation-test-vpc,aws,us-east-1,us-east-1a,10.0.0.0/20,10.0.0.0/16,10.0.0.0/24,10.0.0.16/28,Private,14
 ```
 
 ## Programmatic Usage

@@ -22,7 +22,6 @@ describe('CSV Writer', () => {
       vpcCidr: '10.0.0.0/16',
       azCidr: '10.0.0.0/24',
       subnetCidr: '10.0.0.0/28',
-      cidr: '10.0.0.0/28',
       subnetRole: 'Public',
       usableIps: 14
     },
@@ -36,7 +35,6 @@ describe('CSV Writer', () => {
       vpcCidr: '10.1.0.0/16',
       azCidr: '10.1.0.0/24',
       subnetCidr: '10.1.0.0/28',
-      cidr: '10.1.0.0/28',
       subnetRole: 'Private',
       usableIps: 14
     }
@@ -83,7 +81,6 @@ describe('CSV Writer', () => {
           { id: 'vpcCidr', title: 'VPC CIDR' },
           { id: 'azCidr', title: 'AZ CIDR' },
           { id: 'subnetCidr', title: 'Subnet CIDR' },
-          { id: 'cidr', title: 'CIDR' },
           { id: 'subnetRole', title: 'Subnet Role' },
           { id: 'usableIps', title: 'Usable IPs' }
         ])

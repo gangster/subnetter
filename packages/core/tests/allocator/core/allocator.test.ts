@@ -48,7 +48,7 @@ describe('CidrAllocator', () => {
       expect(allocation).toHaveProperty('regionName');
       expect(allocation).toHaveProperty('availabilityZone');
       expect(allocation).toHaveProperty('subnetRole');
-      expect(allocation).toHaveProperty('cidr');
+      expect(allocation).toHaveProperty('subnetCidr');
       expect(allocation).toHaveProperty('usableIps');
     });
 
@@ -72,7 +72,7 @@ describe('CidrAllocator', () => {
       const allocations = allocator.generateAllocations();
       
       // The baseCidr should be used for the account
-      expect(allocations.some(a => a.cidr.startsWith('172.16'))).toBe(true);
+      expect(allocations.some(a => a.subnetCidr.startsWith('172.16'))).toBe(true);
     });
 
     test('should correctly use prefix lengths from config', () => {
@@ -81,11 +81,11 @@ describe('CidrAllocator', () => {
       
       // Public subnets should have prefix length 26
       const publicSubnets = allocations.filter(a => a.subnetRole === 'Public');
-      expect(publicSubnets.every(s => s.cidr.endsWith('/26'))).toBe(true);
+      expect(publicSubnets.every(s => s.subnetCidr.endsWith('/26'))).toBe(true);
       
       // Private subnets should have prefix length 27
       const privateSubnets = allocations.filter(a => a.subnetRole === 'Private');
-      expect(privateSubnets.every(s => s.cidr.endsWith('/27'))).toBe(true);
+      expect(privateSubnets.every(s => s.subnetCidr.endsWith('/27'))).toBe(true);
     });
 
     test('should throw AllocationError when not enough space for regions', () => {

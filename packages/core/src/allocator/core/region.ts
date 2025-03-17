@@ -136,7 +136,7 @@ export class RegionAllocator {
           
           // Process each subnet type
           for (const subnetType of subnetTypes) {
-            // Create allocation
+            // Create a new allocation
             const allocation: Allocation = {
               accountName,
               vpcName,
@@ -146,8 +146,7 @@ export class RegionAllocator {
               regionCidr,
               vpcCidr: baseCidr,
               azCidr,
-              subnetCidr: '', // Will be calculated below
-              cidr: '', // Legacy field, same as subnetCidr
+              subnetCidr: '',
               subnetRole: subnetType.name,
               usableIps: 0 // Will be calculated below
             };
@@ -160,7 +159,6 @@ export class RegionAllocator {
               // Calculate the subnet CIDR
               const subnetCidrs = subdivideIpv4Cidr(azCidr, subnetPrefix);
               allocation.subnetCidr = subnetCidrs[0];
-              allocation.cidr = subnetCidrs[0]; // Legacy field
               
               // Calculate usable IPs
               allocation.usableIps = calculateUsableIps(allocation.subnetCidr);

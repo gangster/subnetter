@@ -170,8 +170,7 @@ export class SubnetAllocator {
         regionCidr,
         vpcCidr,
         azCidr,
-        subnetCidr,
-        cidr: allocatedCidr,
+        subnetCidr: allocatedCidr,
         subnetRole: type,
         usableIps
       });

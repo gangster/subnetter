@@ -38,7 +38,6 @@ export async function writeAllocationsToCsv(allocations: Allocation[], outputPat
       { id: 'vpcCidr', title: 'VPC CIDR' },
       { id: 'azCidr', title: 'AZ CIDR' },
       { id: 'subnetCidr', title: 'Subnet CIDR' },
-      { id: 'cidr', title: 'CIDR' }, // Legacy field for backward compatibility
       { id: 'subnetRole', title: 'Subnet Role' },
       { id: 'usableIps', title: 'Usable IPs' }
     ];

@@ -60,7 +60,6 @@ export interface Allocation {
   vpcCidr: string;
   azCidr: string;
   subnetCidr: string;
-  cidr: string; // Duplicate of subnetCidr for compatibility
   subnetRole: string;
   usableIps: number;
 }
