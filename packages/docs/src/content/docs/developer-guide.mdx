@@ -82,8 +82,8 @@ subnetter/
 
 ### Prerequisites
 
-- Node.js (v18 or later, v22+ recommended)
-- Yarn (the project uses Yarn via the yarn releases file)
+- Node.js (^18.18.0 || ^20.9.0 || >=21.1.0)
+- Yarn (the project uses Yarn Berry 4.7.0 via the yarn releases file)
 
 ### Installing and Configuring Yarn
 
@@ -207,193 +207,60 @@ This configuration provides several benefits:
 - **Simplified onboarding**: New contributors don't need to install Yarn separately
 - **Workspace management**: Packages can reference each other and share dependencies
 
-### Using Yarn Commands
+### Getting Started
 
-Since the Yarn binary is included in the repository, always use `./yarn` instead of `yarn` when running commands from the project root:
+Follow these steps to set up your development environment:
 
 ```bash
+# Clone the repository
+git clone https://github.com/gangster/subnetter.git
+cd subnetter
+
 # Install dependencies
 ./yarn install
 
 # Build all packages
 ./yarn build
 
-# Run tests
+# Run tests to ensure everything works
 ./yarn test
 ```
 
-When inside the repository, you can also set up a shell alias to simplify commands:
-
-```bash
-alias y="./yarn"
-```
-
-Then use `y` for all Yarn commands:
-
-```bash
-y build
-y test
-```
-
-### Package Versioning and Dependencies
-
-All packages in the monorepo share the same version number, currently `1.3.1`. This synchronized versioning approach simplifies release management and ensures compatibility between packages.
-
-#### Version Management
-
-1. **Root package.json**: Contains the main version:
-   ```json
-   {
-     "name": "subnetter",
-     "version": "1.3.1",
-     // ...
-   }
-   ```
-
-2. **Workspace packages**: Each has its own version that matches the root:
-   ```json
-   {
-     "name": "@subnetter/core",
-     "version": "1.3.1",
-     // ...
-   }
-   ```
-
-3. **Automatic updates**: The `update-versions.js` script ensures versions stay synchronized.
-
-#### Dependencies Between Packages
-
-Workspace packages can depend on each other:
-
-```json
-// packages/cli/package.json
-{
-  "dependencies": {
-    "@subnetter/core": "1.3.1",
-    // ...
-  }
-}
-```
-
-This allows direct imports between packages without publishing to npm first:
-
-```typescript
-// In packages/cli/src/index.ts
-import { CidrAllocator } from '@subnetter/core';
-```
-
-#### External Dependencies
-
-Dependencies at the root level are available to all packages. Package-specific dependencies are defined in each package's `package.json`.
-
-The project uses dependency resolution to handle conflicts and ensure consistent versions:
-
-```json
-// Root package.json
-"resolutions": {
-  "esbuild": "0.19.8",
-  "chalk": "4.1.2",
-  "strip-ansi": "6.0.1",
-  "string-width": "4.2.3",
-  "ansi-styles": "4.3.0",
-  "is-fullwidth-code-point": "3.0.0",
-  "emoji-regex": "8.0.0",
-  "eastasianwidth": "0.2.0"
-}
-```
-
-### Setting Up Your Development Environment
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/gangster/subnetter.git
-   cd subnetter
-   ```
-
-2. Install dependencies:
-   ```bash
-   yarn install
-   ```
-
-3. Build the packages:
-   ```bash
-   yarn build
-   ```
-
-4. Run tests to verify your setup:
-   ```bash
-   yarn test
-   ```
-
 ## Build Process
 
-Subnetter uses TypeScript for all packages, with a build process that compiles the TypeScript code to JavaScript.
+Subnetter uses TypeScript's project references for a structured, efficient build process.
+
+### Understanding TypeScript Project References
+
+Project references allow dependencies between TypeScript projects:
+
+1. The root `tsconfig.json` configures shared settings and references other packages
+2. Each package has its own `tsconfig.json` that extends the root configuration
+3. When you build a package, TypeScript automatically builds its dependencies first
+
+This provides faster builds, proper encapsulation, and better organization.
 
 ### Building the Project
 
-The Subnetter project uses TypeScript's project references for efficient and reliable builds:
-
 ```bash
-# Install dependencies first
-./yarn install
-
 # Build all packages
 ./yarn build
+
+# Build individual packages
+./yarn build:cidr-utils
+./yarn build:core
+./yarn build:cli
+./yarn build:docs
+
+# Clean build artifacts
+./yarn clean
 ```
 
-#### TypeScript Project References
+### Package-Specific Build Scripts
 
-The project uses TypeScript's project references to manage the build process:
+Each package has its own build scripts defined in its `package.json`:
 
-1. **Root Configuration**: The root `tsconfig.json` defines shared compiler options and references to package-specific configs:
-   ```json
-   {
-     "compilerOptions": {
-       "target": "ES2022",
-       "module": "CommonJS",
-       "strict": true,
-       // ... other options
-     },
-     "references": [
-       { "path": "./packages/core" },
-       { "path": "./packages/cli" }
-     ]
-   }
-   ```
-
-2. **Package-Specific Configurations**: Each package has its own `tsconfig.json`:
-   ```json
-   // packages/core/tsconfig.json
-   {
-     "extends": "../../tsconfig.json",
-     "compilerOptions": {
-       "outDir": "./dist",
-       // ... package-specific options
-     },
-     "include": ["src/**/*"]
-   }
-   ```
-
-3. **BuildInfo Files**: Incremental builds are enabled, generating `.tsbuildinfo` files to track dependencies and changes.
-
-#### Build Scripts
-
-The build system is orchestrated through npm scripts defined in `package.json`:
-
-```json
-"scripts": {
-  "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
-  "build": "yarn build:core && yarn build:cli",
-  "build:core": "yarn workspace @subnetter/core build",
-  "build:cli": "yarn workspace @subnetter/cli build",
-  "build:docs": "yarn workspace @subnetter/docs build",
-  "dev": "tsc -b --watch"
-}
-```
-
-Each package also has its own build scripts:
-
-- **Core Package**: Basic TypeScript compilation
+- **Core Package**: Simple TypeScript compilation
   ```json
   "scripts": {
     "build": "tsc -b",
@@ -419,7 +286,8 @@ Each package also has its own build scripts:
 #### Build Process Flow
 
 1. When you run `yarn build`, it builds packages in the correct dependency order:
-   - First the core package is built (`@subnetter/core`)
+   - First the cidr-utils package is built (`@subnetter/cidr-utils`)
+   - Then the core package is built (`@subnetter/core`), which depends on cidr-utils
    - Then the CLI package (`@subnetter/cli`), which depends on core
    - Documentation can be built separately
 
@@ -758,21 +626,167 @@ To add a new output format:
 
 ## CI/CD Pipeline
 
-The project uses GitHub Actions for continuous integration and deployment. For a comprehensive overview of the CI/CD pipeline, including workflows for testing, building, releasing, and documentation publishing, see the [CI/CD Pipeline documentation](../../project/ci-cd-pipeline/).
+Subnetter uses GitHub Actions for continuous integration and deployment:
 
-The CI/CD pipeline:
-- Automatically builds and tests code on multiple platforms (Ubuntu and macOS)
-- Validates pull requests before merging
-- Creates releases based on conventional commits
-- Publishes packages to GitHub Packages
-- Deploys documentation to GitHub Pages
-- Keeps dependencies up-to-date via Dependabot
+### Workflow Overview
 
-You can run the same checks locally that run in the CI pipeline using the commands documented in the [Testing](#testing) section.
+The main CI/CD pipeline is defined in `.github/workflows/ci-cd.yml` and includes:
 
-### Package Publication
+1. **Validating Pull Requests**:
+   - Checks for package-lock.json files (using yarn instead)
+   - Validates commit messages follow conventional commits
 
-The project is set up to automatically publish packages to the npm registry when a new version is released. This is handled by the CI/CD pipeline.
+2. **Testing**:
+   - Linting 
+   - Building all packages
+   - Running unit tests
+   - Running end-to-end tests
+
+3. **Releasing**:
+   - Automatic version bumping based on commit types
+   - Publishing to GitHub Packages
+
+4. **Documentation**:
+   - Building and deploying to GitHub Pages
+
+### Environment Configuration
+
+The CI/CD pipeline runs on GitHub-hosted runners with the following configuration:
+
+- **Node.js**: Version 20.x
+- **Operating System**: Ubuntu Latest
+- **Package Manager**: Yarn Berry
+
+### Workflow Triggers
+
+The workflow is triggered by:
+
+- **Pull Requests** to the `main` branch
+- **Pushes** to the `main` branch
+
+### Workflow Jobs
+
+1. **validate-pr**:
+   - Validates PR structure and commits
+   - Checks that package-lock.json is not present
+   - Ensures commit messages follow conventional commit format
+
+2. **test-pr**:
+   - Runs on pull requests after validation
+   - Sets up Node.js 20.x and Yarn
+   - Runs linting
+   - Builds all packages
+   - Executes unit tests and E2E tests
+
+3. **test-main**:
+   - Similar to test-pr but runs on pushes to main
+   - Required for the release process
+
+4. **check-release**:
+   - Determines if a release is needed based on commit messages
+   - Runs after tests pass on the main branch
+
+5. **release**:
+   - Creates a new release if required
+   - Automatically bumps version based on commit types
+   - Publishes packages to GitHub Packages
+
+6. **docs**:
+   - Builds and deploys documentation to GitHub Pages
+   - Triggered by changes to documentation files on main
+
+### Example Workflow Configuration
+
+```yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Additional steps...
+
+  test-pr:
+    needs: validate-pr
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Testing steps...
+
+  # Additional jobs...
+```
+
+### Debugging CI/CD Issues
+
+If you encounter CI/CD pipeline failures:
+
+1. Check the GitHub Actions logs for detailed error information
+2. Ensure your local environment matches the CI environment (Node.js 20.x)
+3. Run tests locally with `yarn test` to reproduce issues
+4. For release failures, check commit message formats and versioning
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Build Errors
+
+**Problem**: TypeScript build errors in dependencies.
+**Solution**: 
+```bash
+# Clean build artifacts and rebuild
+./yarn clean
+./yarn build
+```
+
+**Problem**: Unable to resolve dependencies between packages.
+**Solution**: Check package.json references and ensure the dependency tree is correct.
+
+#### Test Failures
+
+**Problem**: Tests pass locally but fail in CI.
+**Solution**: Ensure you're using Node.js 20.x locally to match the CI environment.
+
+**Problem**: Flaky tests that sometimes pass, sometimes fail.
+**Solution**: Investigate race conditions or timing issues in the tests.
+
+#### Linting Issues
+
+**Problem**: ESLint or Prettier errors.
+**Solution**: 
+```bash
+# Fix linting issues automatically where possible
+./yarn lint:fix
+```
+
+#### Release Issues
+
+**Problem**: Release not triggered despite merged PR.
+**Solution**: Ensure at least one commit follows the conventional commit format that triggers a version bump.
+
+## Additional Resources
+
+- [TypeScript Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
+- [Yarn Workspaces Documentation](https://yarnpkg.com/features/workspaces)
+- [Conventional Commits Specification](https://www.conventionalcommits.org/)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
 
 ## Working with the CIDR Utilities Package
 
@@ -846,17 +860,17 @@ When adding new functionality to the CIDR utils package:
 4. Export the new functions in the `index.ts` file
 5. Update dependencies (if needed) in the core and CLI packages
 
-### CI/CD Considerations
+### Build Considerations
 
 The `cidr-utils` package sits at the bottom of the dependency tree, so it needs to be built first:
 
 ```bash
 # Build cidr-utils first
-yarn workspace @subnetter/cidr-utils build
+./yarn build:cidr-utils
 
 # Then build dependent packages
-yarn workspace @subnetter/core build
-yarn workspace @subnetter/cli build
+./yarn build:core
+./yarn build:cli
 ```
 
-The CI/CD pipeline is configured to build packages in the correct order automatically. 
+The CI/CD pipeline is configured to build packages in the correct order automatically.
