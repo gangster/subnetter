@@ -1,0 +1,17 @@
+{
+  "baseCidr": "0.0.0.0/0",
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "test-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 1
+  }
+} 

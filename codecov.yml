@@ -1,0 +1,49 @@
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+  # Disable the status checks that Codecov creates on pull requests
+  status_metrics_enabled: false
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+        base: auto
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+ignore:
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/*.d.ts"
+  - "**/__tests__/**"
+  - "packages/docs/**"
+  
+# Fix to ensure CodeCov correctly processes the coverage reports
+fixes:
+  - "::packages/core/src/"  # Map paths from coverage reports to repo paths
+  - "::packages/cli/src/" 

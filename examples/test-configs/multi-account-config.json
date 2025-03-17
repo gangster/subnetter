@@ -1,0 +1,31 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "dev-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "prod-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 28
+  }
+} 

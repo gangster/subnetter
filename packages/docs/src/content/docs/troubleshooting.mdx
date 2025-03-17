@@ -1,0 +1,391 @@
+---
+title: Troubleshooting Guide
+description: "Practical solutions for common issues encountered when using Subnetter, including quick fixes for configuration problems, allocation failures, and integration challenges."
+---
+
+This guide provides practical solutions for common issues encountered when using the Subnetter tool, focusing on actionable steps to resolve problems quickly.
+
+:::note
+For detailed information about error types, error codes, and the error handling system architecture, see the [Error Handling](/error-handling/) documentation.
+:::
+
+## Table of Contents
+- [Configuration Issues](#configuration-issues)
+- [Allocation Failures](#allocation-failures)
+- [CLI Issues](#cli-issues)
+- [Integration Issues](#integration-issues)
+- [Performance Optimization](#performance-optimization)
+- [Advanced Troubleshooting](#advanced-troubleshooting)
+
+## Configuration Issues
+
+### Invalid CIDR Format
+
+**Problem**: Configuration validation fails with "Invalid IPv4 CIDR format" message.
+
+**Solution**: Ensure your CIDR blocks use the correct format (e.g., "10.0.0.0/8"). Check:
+- IP address portion has four octets separated by periods
+- Each octet is a number between 0 and 255
+- The prefix length (after /) is between 0 and 32
+
+**Example**:
+```json
+"baseCidr": "10.0.0.0/8"  // Correct
+"baseCidr": "10.0/8"      // Incorrect: Incomplete IP address
+"baseCidr": "10.0.0.0-24" // Incorrect: Wrong delimiter
+```
+
+### Missing Required Fields
+
+**Problem**: Configuration validation fails with messages about missing required fields.
+
+**Solution**: Ensure your configuration includes all required fields:
+- `baseCidr`: The base CIDR block
+- `cloudProviders`: Array of cloud provider names
+- `accounts`: Array of account configurations
+- `subnetTypes`: Array of subnet type definitions
+
+**Example of minimal valid configuration**:
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "example-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24
+  }
+}
+```
+
+### Invalid Account Configuration
+
+**Problem**: Configuration validation fails with errors about account configuration.
+
+**Solution**: Ensure each account has:
+- A non-empty `name` property
+- A `clouds` object with at least one cloud provider configuration
+- Each cloud provider configuration must have a `regions` array
+
+**Example**:
+```json
+"accounts": [
+  {
+    "name": "example-account",  // Required
+    "clouds": {           // Required
+      "aws": {                  // Must match a provider in cloudProviders
+        "regions": ["us-east-1"] // Required, must be non-empty
+      }
+    }
+  }
+]
+```
+
+### Cloud Provider Mismatch
+
+**Problem**: Configuration validation fails with "Provider not found in cloudProviders array".
+
+**Solution**: Ensure that every provider referenced in account configurations is included in the `cloudProviders` array.
+
+**Example**:
+```json
+"cloudProviders": ["aws", "azure"],  // Defines allowed providers
+"accounts": [
+  {
+    "name": "example-account",
+    "clouds": {
+      "aws": {                      // OK, matches cloudProviders
+        "regions": ["us-east-1"]
+      },
+      "gcp": {                      // Error, not in cloudProviders
+        "regions": ["us-central1"]
+      }
+    }
+  }
+]
+```
+
+## Allocation Failures
+
+### Not Enough Space for Subnets
+
+**Problem**: Allocation fails with "Not enough space for subnets" or similar message.
+
+**Solution**: The base CIDR is too small for the requested allocations. Try:
+1. Starting with a larger CIDR block (smaller prefix length)
+2. Reducing the number of accounts, regions, or subnets
+3. Using more efficient prefix lengths at different levels
+
+**Example**: If you have many regions, change the region prefix from /20 to /19 to double the space per region:
+```json
+"prefixLengths": {
+  "account": 16,
+  "region": 19,  // Changed from 20 to 19
+  "az": 22
+}
+```
+
+### Overlapping CIDRs
+
+**Problem**: CIDRs are overlapping when using account-specific base CIDRs.
+
+**Solution**: Ensure account-specific CIDRs don't overlap with each other or the global base CIDR.
+
+**Example of non-overlapping CIDRs**: 
+```json
+"accounts": [
+  {
+    "name": "Account1",
+    "clouds": {
+      "aws": {
+        "baseCidr": "10.0.0.0/16",  // Non-overlapping
+        "regions": ["us-east-1"]
+      }
+    }
+  },
+  {
+    "name": "Account2",
+    "clouds": {
+      "aws": {
+        "baseCidr": "10.1.0.0/16",  // Non-overlapping
+        "regions": ["us-east-1"]
+      }
+    }
+  }
+]
+```
+
+**Example of overlapping CIDRs (problematic)**:
+```json
+"accounts": [
+  {
+    "name": "Account1",
+    "clouds": {
+      "aws": {
+        "baseCidr": "10.0.0.0/16",
+        "regions": ["us-east-1"]
+      }
+    }
+  },
+  {
+    "name": "Account2",
+    "clouds": {
+      "aws": {
+        "baseCidr": "10.0.128.0/17",  // Overlaps with Account1
+        "regions": ["us-east-1"]
+      }
+    }
+  }
+]
+```
+
+### Prefix Length Errors
+
+**Problem**: Allocation fails with "New prefix length must be greater than current prefix length".
+
+**Solution**: Ensure that subnet prefix lengths are greater than their parent AZ prefix length.
+
+**Example**:
+```json
+"prefixLengths": {
+  "az": 22  // AZ prefix length is /22
+},
+"subnetTypes": {
+  "Public": 24,  // OK: 24 > 22
+  "Private": 20  // Error: 20 < 22
+}
+```
+
+## CLI Issues
+
+### Command Not Found
+
+**Problem**: "Command not found" when trying to run Subnetter.
+
+**Solution**: Check:
+1. Global installation: `npm install -g subnetter`
+2. Path to the binary if installed locally
+3. Using npx: `npx subnetter [command]`
+
+### Invalid Command Syntax
+
+**Problem**: CLI reports "Unknown command" or "Missing required argument".
+
+**Solution**: Check the command syntax:
+
+```bash
+# Generate command
+subnetter generate <config-file> --output <output-file>
+
+# Validate command
+subnetter validate <config-file>
+
+# Version command
+subnetter --version
+```
+
+### Output File Permission Issues
+
+**Problem**: Error writing to output file.
+
+**Solution**: Ensure:
+1. The directory for the output file exists
+2. You have write permissions for the output file location
+3. The file is not locked by another process
+
+### Base CIDR Override Issues
+
+**Problem**: When using the `--base-cidr` override option, you receive errors or unexpected allocations.
+
+**Solution**:
+
+1. **Ensure the override CIDR is valid**: Verify that your CIDR notation is correctly formatted (e.g., `10.0.0.0/8`).
+
+   ```bash
+   # Correct format
+   subnetter generate -c config.json --base-cidr 10.0.0.0/8
+   
+   # Incorrect formats
+   subnetter generate -c config.json --base-cidr 10.0.0/8  # Missing octet
+   subnetter generate -c config.json --base-cidr 10.0.0.0   # Missing prefix
+   ```
+
+2. **Check that the override CIDR is large enough**: The override CIDR must be large enough to accommodate all your allocations.
+
+   ```bash
+   # If you have many accounts/regions, ensure your base CIDR is large enough
+   # For example, use a /16 or larger if you only have a few subnets
+   subnetter generate -c config.json --base-cidr 192.168.0.0/16
+   ```
+
+3. **Verify compatibility with existing configurations**: If your configuration file has account-specific overrides, they will take precedence over the global base CIDR for those accounts.
+
+4. **Debug with verbose output**: Use the `--verbose` flag to see detailed information about the allocation process.
+
+   ```bash
+   subnetter generate -c config.json --base-cidr 10.0.0.0/8 --verbose
+   ```
+
+**Common Error Messages**:
+
+- `"Insufficient address space for allocation"`: The specified CIDR is too small for your configuration.
+- `"Invalid IPv4 CIDR format"`: The CIDR format is incorrect; verify syntax.
+- `"Cannot override account-specific CIDR"`: An account has its own CIDR specification that conflicts.
+
+## Integration Issues
+
+### Terraform Integration
+
+**Problem**: Difficulty using Subnetter output with Terraform.
+
+**Solution**: Use the CSV output with Terraform's `local-exec` provisioner or pre-process it:
+
+```hcl
+resource "null_resource" "generate_cidrs" {
+  provisioner "local-exec" {
+    command = "subnetter generate config.json --output allocations.csv"
+  }
+}
+
+data "local_file" "cidrs" {
+  depends_on = [null_resource.generate_cidrs]
+  filename   = "allocations.csv"
+}
+
+locals {
+  cidrs = csvdecode(data.local_file.cidrs.content)
+}
+
+# Use the CIDR allocations in your resources
+resource "aws_vpc" "example" {
+  for_each = {
+    for row in local.cidrs : "${row["Account Name"]}-${row["Region Name"]}" => row
+    if row["Cloud Provider"] == "aws" && row["Subnet Role"] == "Public"
+  }
+  
+  cidr_block = each.value["VPC CIDR"]
+  tags = {
+    Name = "${each.value["Account Name"]}-vpc"
+  }
+}
+```
+
+### AWS CloudFormation Integration
+
+**Problem**: Need to use Subnetter allocations in CloudFormation templates.
+
+**Solution**: Generate a CloudFormation parameters file from the Subnetter output:
+
+```bash
+# Generate allocations
+subnetter generate config.json --output allocations.csv
+
+# Convert to CloudFormation parameters (using jq)
+jq -R 'split("\n") | .[1:] | map(split(",")) | map(select(length > 1)) | map({
+  (.[0] + .[3] + "VpcCidr"): { "Type": "String", "Default": .[6] },
+  (.[0] + .[3] + .[4] + .[10] + "SubnetCidr"): { "Type": "String", "Default": .[8] }
+}) | add' allocations.csv > cf-parameters.json
+```
+
+## Performance Optimization
+
+### Slow Allocation for Large Configurations
+
+**Problem**: Allocation takes a long time for configurations with many accounts, regions, or subnets.
+
+**Solution**:
+1. Use explicit prefix lengths instead of letting the tool calculate them
+2. Break down your configuration into smaller files by cloud provider or account group
+3. Filter results by provider if you only need allocations for one cloud
+
+**Example of explicit prefix lengths**:
+```json
+"prefixLengths": {
+  "account": 16,
+  "region": 20,
+  "az": 24,
+  "subnet": 28
+}
+```
+
+### Memory Usage Issues
+
+**Problem**: High memory usage when processing very large configurations.
+
+**Solution**:
+1. Process one cloud provider at a time using the `--provider` filter
+2. Use smaller configuration files
+3. Increase the available memory if running in a constrained environment
+
+## Advanced Troubleshooting
+
+### Debugging Configuration Issues
+
+For complex configuration issues, you can validate your configuration without generating allocations:
+
+```bash
+subnetter validate config.json
+```
+
+This will check your configuration format and report any issues without attempting to allocate CIDRs.
+
+### Verbose Output
+
+For more detailed information about what's happening during allocation, use the verbose flag:
+
+```bash
+subnetter generate config.json --output allocations.csv --verbose
+```
+
+### Advanced Logging Options
+
+Subnetter v1.1.0+ includes enhanced logging capabilities with different log levels to help you troubleshoot issues more effectively:
+```

@@ -1,0 +1,229 @@
+---
+title: Configuration Reference
+description: "Detailed schema reference for the Subnetter configuration file format."
+---
+
+This document provides comprehensive details on the Subnetter configuration schema, explaining all available options and their purposes.
+
+## Configuration Schema
+
+The configuration file must follow this schema:
+
+```typescript
+interface Config {
+  /**
+   * The base CIDR block to allocate subnets from
+   * @example "10.0.0.0/8"
+   */
+  baseCidr: string;
+
+  /**
+   * Optional prefix lengths for different levels of the hierarchy
+   */
+  prefixLengths?: {
+    account?: number;
+    region?: number;
+    az?: number;
+  };
+
+  /**
+   * List of cloud providers to support
+   * @example ["aws", "azure", "gcp"]
+   */
+  cloudProviders: string[];
+
+  /**
+   * Account configurations
+   */
+  accounts: Account[];
+
+  /**
+   * Default subnet types with their prefix lengths
+   * @example { "Public": 24, "Private": 23, "Database": 25 }
+   */
+  subnetTypes: Record<string, number>;
+}
+
+interface Account {
+  /**
+   * Name of the account
+   * @example "production"
+   */
+  name: string;
+
+  /**
+   * Cloud-specific configurations
+   */
+  clouds: Record<string, CloudConfig>;
+}
+
+interface CloudConfig {
+  /**
+   * Optional base CIDR for this cloud provider within the account
+   * If not provided, it will be auto-allocated from the account's allocation
+   * @example "10.0.0.0/16"
+   */
+  baseCidr?: string;
+
+  /**
+   * List of regions to create subnets in
+   * @example ["us-east-1", "eu-west-1"]
+   */
+  regions: string[];
+
+  /**
+   * Optional list of specific availability zones to use
+   * If not provided, defaults will be used based on the cloud provider
+   * @example ["us-east-1a", "us-east-1b", "us-east-1c"]
+   */
+  availabilityZones?: Record<string, string[]>;
+
+  /**
+   * Optional subnet types specific to this cloud provider
+   * If not provided, the global subnetTypes will be used
+   * @example { "Public": 24, "Private": 23, "Database": 25 }
+   */
+  subnetTypes?: Record<string, number>;
+}
+```
+
+## Required Fields
+
+The following fields are required in all configurations:
+
+- **baseCidr**: The top-level IPv4 CIDR block from which all subnets will be allocated
+- **cloudProviders**: Array of cloud provider names (e.g., "aws", "azure", "gcp")
+- **accounts**: Array of account configurations
+- **subnetTypes**: Object mapping subnet type names to their prefix lengths
+
+## Optional Fields
+
+These fields can be omitted, and defaults will be used:
+
+- **prefixLengths**: Customize the hierarchy levels for CIDR allocation
+  - Default is based on the base CIDR and number of accounts/regions
+
+## Configuration Example
+
+Here's an example of a complete configuration file:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"],
+          "availabilityZones": {
+            "us-east-1": ["us-east-1a", "us-east-1b", "us-east-1c"]
+          }
+        },
+        "azure": {
+          "regions": ["eastus", "westus2", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "staging",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 23,
+    "Database": 25,
+    "Management": 26
+  }
+}
+```
+
+## Configuration Best Practices
+
+When creating your configuration file, consider these recommended practices:
+
+1. **Start with a large CIDR block** (e.g., /8 or /12) to accommodate future growth
+2. **Use consistent prefix lengths** across environments to simplify management
+3. **Plan for multi-cloud operations** even if you only use one provider initially
+4. **Map subnet types to workload requirements** by allocating larger blocks to applications requiring more IPs
+5. **Document your addressing scheme** for reference by network and cloud teams
+6. **Store configurations in version control** to track changes over time
+
+## Cloud-Specific Considerations
+
+### AWS
+
+- **Region format**: Use AWS region codes like "us-east-1", "eu-west-1"
+- **AZ format**: Use AWS AZ codes like "us-east-1a", "us-east-1b"
+- **VPC limits**: Default maximum of 5 VPCs per region (can be increased via AWS support)
+- **Subnet considerations**: AWS reserves the first 4 and last IP of each subnet
+
+### Azure
+
+- **Region format**: Use Azure region names like "eastus", "westeurope"
+- **AZ format**: Azure AZs are represented as numbers (1, 2, 3)
+- **VNET limits**: Up to 1000 VNets per subscription
+- **Subnet considerations**: Azure reserves the first 4 and last IP of each subnet
+
+### GCP
+
+- **Region format**: Use GCP region codes like "us-central1", "europe-west1"
+- **Zone format**: Use GCP zone codes like "us-central1-a", "us-central1-b"
+- **VPC limits**: Up to 15 VPC networks per project
+- **Subnet considerations**: GCP reserves the first 2 and last 2 IPs of each subnet
+
+## File Format Support
+
+Subnetter supports both JSON and YAML formats for configuration files:
+
+**YAML Example**:
+```yaml
+baseCidr: 10.0.0.0/8
+cloudProviders:
+  - aws
+  - azure
+accounts:
+  - name: production
+    clouds:
+      aws:
+        regions:
+          - us-east-1
+          - us-west-2
+# ...rest of configuration
+```
+
+**JSON Example**:
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws", "azure"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ]
+  // ...rest of configuration
+}
+```
+
+## See Also
+
+- [User Guide](/user-guide/) - For detailed usage instructions
+- [API Documentation](/api/overview/) - For programmatic usage
+- [Example Scenarios](/user-guide/#example-scenarios) - For real-world configuration examples 

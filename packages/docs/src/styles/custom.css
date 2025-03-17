@@ -1,0 +1,111 @@
+/* Custom styles for the Subnetter documentation */
+
+/* Link colors */
+:root {
+  --sl-color-text-accent: #a288e3;
+}
+
+/* Content links */
+a:not(.sidebar-link):not(.breadcrumb):not(.pagination-link) {
+  color: var(--sl-color-text-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:not(.sidebar-link):not(.breadcrumb):not(.pagination-link):hover {
+  text-decoration: underline;
+}
+
+a:not(.sidebar-link):not(.breadcrumb):not(.pagination-link):visited {
+  color: #8e74ce;
+}
+
+/* Sidebar links - making them white for better contrast on dark background */
+.sidebar-link, .sidebar-group-header {
+  color: white !important;
+}
+
+/* Mermaid diagram formatting for dark theme */
+.mermaid {
+  background-color: var(--sl-color-black);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+/* Node styles */
+.mermaid .node rect, .mermaid .node circle, .mermaid .node ellipse, .mermaid .node polygon, .mermaid .node path {
+  fill: var(--sl-color-gray-7);
+  stroke: var(--sl-color-accent);
+  stroke-width: 1.5px;
+}
+
+/* Text in nodes */
+.mermaid .node text {
+  fill: #ffffff;
+  font-weight: 500;
+}
+
+/* Edge and arrow styles */
+.mermaid .edgePath .path, .mermaid .flowchart-link {
+  stroke: var(--sl-color-accent-high);
+  stroke-width: 2px;
+}
+
+.mermaid .arrowheadPath {
+  fill: var(--sl-color-accent-high);
+}
+
+/* Edge labels */
+.mermaid .edgeLabel {
+  background-color: var(--sl-color-gray-7);
+  color: #ffffff;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--sl-color-accent);
+}
+
+/* Class diagram specific styles */
+.mermaid .classGroup rect {
+  fill: var(--sl-color-gray-7);
+  stroke: var(--sl-color-accent);
+}
+
+.mermaid .classGroup text {
+  fill: #ffffff;
+}
+
+/* Sequence diagram specific styles */
+.mermaid .actor {
+  fill: var(--sl-color-gray-7);
+  stroke: var(--sl-color-accent);
+}
+
+.mermaid .actor text {
+  fill: #ffffff;
+}
+
+/* Node type-specific colors */
+.mermaid .node.input rect, .mermaid .node.input circle, .mermaid .node.input ellipse, .mermaid .node.input polygon {
+  fill: var(--sl-color-gray-8);
+  stroke: var(--sl-color-accent-high);
+}
+
+.mermaid .node.output rect, .mermaid .node.output circle, .mermaid .node.output ellipse, .mermaid .node.output polygon {
+  fill: var(--sl-color-gray-7);
+  stroke: var(--sl-color-accent);
+}
+
+.mermaid .node.process rect, .mermaid .node.process circle, .mermaid .node.process ellipse, .mermaid .node.process polygon {
+  fill: var(--sl-color-gray-6);
+  stroke: var(--sl-color-accent-low);
+}
+
+/* Breadcrumbs and pagination */
+.breadcrumb, .pagination-link {
+  color: var(--sl-color-white);
+}
+
+.breadcrumb:hover, .pagination-link:hover {
+  color: var(--sl-color-text-accent);
+} 

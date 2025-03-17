@@ -1,0 +1,172 @@
+---
+title: Overview
+description: "Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase."
+---
+
+Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase.
+
+## Packages
+
+Subnetter is organized as a monorepo with multiple packages:
+
+- **[@subnetter/core](/subnetter/api/modules/core_src.html)**: Core CIDR allocation engine and utilities
+- **[@subnetter/cli](/subnetter/api/modules/cli_src.html)**: Command-line interface (primarily for internal use)
+- **@subnetter/cidr-utils**: Low-level CIDR utilities (can be used independently)
+
+For most programmatic use cases, you'll only need to work with the `@subnetter/core` package.
+
+## Key Components
+
+### Core Package
+
+The core package provides the main functionality:
+
+- **[CidrAllocator](/subnetter/api/classes/core_src.CidrAllocator.html)**: Main class for hierarchical CIDR allocation
+- **[loadConfig](/subnetter/api/functions/core_src.loadConfig.html)**: Load and parse configuration files
+- **[validateConfig](/subnetter/api/functions/core_src.validateConfig.html)**: Validate configuration objects
+- **[writeAllocationsToCsv](/subnetter/api/functions/core_src.writeAllocationsToCsv.html)**: Write allocation results to CSV
+
+### Data Types
+
+Important interfaces:
+
+- **[Config](/subnetter/api/interfaces/core_src.Config.html)**: Configuration for CIDR allocation
+- **[Allocation](/subnetter/api/interfaces/core_src.Allocation.html)**: Represents a complete subnet allocation
+- **[Account](/subnetter/api/interfaces/core_src.Account.html)**: Account configuration
+- **[SubnetType](/subnetter/api/interfaces/core_src.SubnetType.html)**: Subnet type definition
+
+## CIDR Utilities
+
+The `@subnetter/cidr-utils` package provides low-level utilities for IP address and CIDR manipulation. This package can be used independently if you only need basic CIDR functionality without the hierarchical allocation features.
+
+### Installation
+
+```bash
+npm install @subnetter/cidr-utils
+```
+
+### Key Utility Functions
+
+#### IP Address Manipulation
+
+```typescript
+import { 
+  ipv4ToNumber, 
+  numberToIpv4, 
+  createIpAddress 
+} from '@subnetter/cidr-utils';
+
+// Convert IP to number
+const num = ipv4ToNumber('192.168.1.1'); // 3232235777
+
+// Convert number to IP
+const ip = numberToIpv4(3232235777); // '192.168.1.1'
+
+// Create IP address object with multiple formats
+const ipObj = createIpAddress('192.168.1.1');
+console.log(ipObj.asNumber); // 3232235777
+console.log(ipObj.asString); // '192.168.1.1'
+console.log(ipObj.asOctets); // [192, 168, 1, 1]
+```
+
+#### CIDR Validation and Parsing
+
+```typescript
+import { 
+  isValidIpv4Cidr, 
+  validateIpv4Cidr,
+  parseIpv4Cidr
+} from '@subnetter/cidr-utils';
+
+// Simple validation
+const isValid = isValidIpv4Cidr('10.0.0.0/24'); // true
+
+// Validation with detailed error information
+try {
+  validateIpv4Cidr('10.0.0.0/33');
+} catch (error) {
+  console.error(error.message); // 'Invalid prefix length: 33 (must be between 0 and 32)'
+  console.error(error.type); // 'INVALID_PREFIX_LENGTH'
+}
+
+// Parse CIDR into components
+const parsed = parseIpv4Cidr('10.0.0.0/24');
+console.log(parsed.address); // '10.0.0.0'
+console.log(parsed.prefixLength); // 24
+```
+
+#### Subnet Calculations
+
+```typescript
+import { 
+  calculateNetworkAddress,
+  calculateBroadcastAddress,
+  calculateUsableIps,
+  isIpInCidr,
+  doCidrsOverlap
+} from '@subnetter/cidr-utils';
+
+// Calculate network address
+const network = calculateNetworkAddress('10.0.0.15/24'); // '10.0.0.0'
+
+// Calculate broadcast address
+const broadcast = calculateBroadcastAddress('10.0.0.0/24'); // '10.0.0.255'
+
+// Calculate usable IPs
+const usableIps = calculateUsableIps('10.0.0.0/24'); // 254
+
+// Check if IP is in CIDR
+const isInRange = isIpInCidr('10.0.0.5', '10.0.0.0/24'); // true
+
+// Check if CIDRs overlap
+const doOverlap = doCidrsOverlap('10.0.0.0/24', '10.0.0.128/25'); // true
+```
+
+#### Subnet Allocation
+
+```typescript
+import { 
+  subdivideIpv4Cidr,
+  findNextAvailableCidr
+} from '@subnetter/cidr-utils';
+
+// Divide a CIDR into smaller subnets
+const subnets = subdivideIpv4Cidr('10.0.0.0/24', 26);
+console.log(subnets); // ['10.0.0.0/26', '10.0.0.64/26', '10.0.0.128/26', '10.0.0.192/26']
+
+// Find next available CIDR given existing allocations
+const allocated = ['10.0.0.0/24', '10.0.1.0/24'];
+const next = findNextAvailableCidr('10.0.0.0/16', allocated, 24);
+console.log(next); // '10.0.2.0/24'
+```
+
+For comprehensive details on all available utilities, refer to the inline documentation in the source code.
+
+## Example Usage
+
+```javascript
+const { loadConfig, CidrAllocator, writeAllocationsToCsv } = require('@subnetter/core');
+
+async function generateAllocations() {
+  try {
+    // Load configuration
+    const config = loadConfig('config.json');
+    
+    // Generate allocations
+    const allocator = new CidrAllocator(config);
+    const allocations = allocator.generateAllocations();
+    
+    console.log(`Generated ${allocations.length} subnet allocations`);
+    
+    // Write to CSV
+    await writeAllocationsToCsv(allocations, 'allocations.csv');
+    console.log('Allocations written to CSV');
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+generateAllocations();
+```
+
+For complete API documentation, navigate to the [Generated API Documentation](/subnetter/api/index.html). 

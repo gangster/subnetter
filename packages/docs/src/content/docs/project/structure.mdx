@@ -1,0 +1,199 @@
+---
+title: Structure
+description: "This document provides an overview of the Subnetter project's structure, organization, and key files."
+---
+
+# Subnetter Project Structure
+
+This document provides an overview of the Subnetter project's structure, organization, and key files.
+
+## Repository Organization
+
+Subnetter is organized as a TypeScript monorepo using Yarn workspaces. This structure allows us to maintain multiple packages that are related but separately published and versioned. The monorepo approach provides several benefits:
+
+- **Shared Development**: All code is in one repository, making it easier to develop and test related packages
+- **Simplified Dependency Management**: Dependencies are installed once at the root level
+- **Atomic Commits**: Changes across multiple packages can be committed together
+- **Consistent Tooling**: All packages use the same development tools, linting rules, and testing frameworks
+
+## Root Directory Structure
+
+The root directory contains configuration files, documentation, and directories for packages and tests:
+
+```
+subnetter/
+├── __tests__/          # End-to-end tests
+├── .github/            # GitHub Actions workflows
+├── config/             # Build and configuration files
+├── coverage/           # Test coverage reports (generated)
+├── dist/               # Compiled output (generated)
+├── examples/           # Example configuration files
+├── node_modules/       # Dependencies (generated)
+├── packages/           # Contains all workspace packages
+├── scripts/            # Build and development scripts
+├── test-results/       # Test results output (generated)
+├── types/              # Global type definitions
+│
+├── .eslintrc.json      # ESLint configuration
+├── .gitignore          # Git ignore file
+├── .husky/             # Git hooks configuration
+├── .releaserc.json     # Semantic release configuration
+├── .yarnrc.yml         # Yarn configuration
+├── bundlesize.config.json # Bundle size limits configuration
+├── CHANGELOG.md        # Project changelog
+├── CODE_REVIEW.md      # Code review guidelines
+├── commitlint.config.js # Commit message linting rules
+├── eslint.config.js    # ESLint flat configuration
+├── jest.config.js      # Jest configuration for unit tests
+├── jest.e2e.config.js  # Jest configuration for E2E tests
+├── package.json        # Root package definition
+├── README.md           # Project overview
+├── REQUIREMENTS.md     # Project requirements
+├── tsconfig.eslint.json # TypeScript config for ESLint
+├── tsconfig.json       # Root TypeScript configuration
+└── yarn.lock           # Yarn lock file
+```
+
+## Packages
+
+The `packages` directory contains the core components of Subnetter:
+
+```
+packages/
+├── cidr-utils/         # Pure JavaScript/TypeScript utilities for CIDR operations
+│   ├── src/            # Source code
+│   │   ├── allocation/ # Subnet allocation utilities
+│   │   ├── error/      # Error handling classes
+│   │   ├── types/      # TypeScript type definitions
+│   │   ├── validation/ # CIDR validation utilities
+│   │   └── index.ts    # Public API exports
+│   ├── tests/          # Unit tests
+│   ├── dist/           # Compiled output (generated)
+│   ├── package.json    # Package definition
+│   └── tsconfig.json   # TypeScript configuration
+│
+├── core/               # Core CIDR allocation engine
+│   ├── src/            # Source code
+│   │   ├── allocator/  # CIDR allocation logic
+│   │   ├── config/     # Configuration loading and validation
+│   │   ├── models/     # TypeScript interfaces 
+│   │   ├── output/     # Output generation (CSV)
+│   │   └── index.ts    # Public API exports
+│   ├── tests/          # Unit tests
+│   ├── dist/           # Compiled output (generated)
+│   ├── package.json    # Package definition
+│   └── tsconfig.json   # TypeScript configuration
+│
+├── cli/               # Command-line interface
+│   ├── src/           # Source code
+│   │   ├── commands/  # CLI command implementations
+│   │   └── index.ts   # CLI entry point
+│   ├── tests/         # Unit tests
+│   ├── dist/          # Compiled output (generated)
+│   ├── package.json   # Package definition
+│   └── tsconfig.json  # TypeScript configuration
+│
+└── docs/              # Documentation site
+    ├── src/           # Source code
+    │   ├── content/   # Documentation content in MDX format
+    │   ├── components/ # Astro components
+    │   └── styles/    # CSS stylesheets
+    ├── public/        # Static assets
+    ├── dist/          # Compiled output (generated)
+    ├── package.json   # Package definition
+    └── astro.config.mjs # Astro configuration
+```
+
+### CIDR Utilities Package
+
+The `@subnetter/cidr-utils` package provides a pure JavaScript/TypeScript implementation for CIDR manipulation and subnet calculations. It serves as the foundation for the core package and can also be used independently:
+
+- **src/allocation/**: Contains subnet allocation utilities
+  - `subnet-allocator.ts`: Functions for finding and allocating available subnets
+  - `cidr-subdivision.ts`: Utilities for dividing CIDRs into smaller subnets
+
+- **src/error/**: Defines error handling for CIDR operations
+  - `cidr-error.ts`: Custom error classes with specific error types
+
+- **src/types/**: Contains TypeScript interfaces and type definitions
+  - `ip-address.ts`: Interface for IP address objects
+  - `cidr.ts`: Types for CIDR notation and operations
+
+- **src/validation/**: Contains validation utilities
+  - `cidr-validator.ts`: Functions for validating CIDR notation
+  - `ip-validator.ts`: Functions for validating IP addresses
+
+### Core Package
+
+The `@subnetter/core` package contains the core functionality for CIDR allocation, which now depends on the `@subnetter/cidr-utils` package. It's organized into several key directories:
+
+- **src/allocator/**: Contains the CIDR allocation engine and utility functions for CIDR operations
+  - `cidr-allocator.ts`: Main class for hierarchical allocation
+  - `cidr-calculator.ts`: Utility functions for CIDR math operations
+
+- **src/config/**: Handles loading and validating configuration files
+  - `loader.ts`: Loads and parses JSON and YAML configurations
+  - `schema.ts`: Defines the validation schema using Zod
+
+- **src/models/**: Contains TypeScript interfaces for the data model
+  - `types.ts`: Defines interfaces for configuration and allocation objects
+
+- **src/output/**: Handles generating output in various formats
+  - `csv-writer.ts`: Writes allocations to CSV files and provides filtering
+
+### CLI Package
+
+The `@subnetter/cli` package provides a command-line interface to the core package:
+
+- **src/index.ts**: The main entry point that sets up the CLI commands using Commander.js
+- **src/commands/**: Directory for command implementations (future organization)
+
+### Documentation Package
+
+The `@subnetter/docs` package contains the documentation site built with Astro and Starlight:
+
+- **src/content/docs/**: Documentation content in MDX format
+- **src/components/**: Astro components for the documentation site
+- **src/styles/**: CSS stylesheets for the documentation site
+- **public/**: Static assets like images and fonts
+- **astro.config.mjs**: Configuration for the Astro framework and Starlight theme
+
+## Tests
+
+The project uses Jest for testing, with tests organized at multiple levels:
+
+```
+__tests__/                    # Root tests directory
+└── e2e/                      # End-to-end tests
+    ├── fixtures/             # Test fixture files
+    ├── outputs/              # Test output (generated)
+    ├── subnetter.test.ts     # E2E tests for basic functionality
+    └── production-configuration.test.ts # Tests for complex configurations
+
+packages/cidr-utils/tests/    # CIDR utilities package unit tests
+packages/core/tests/          # Core package unit tests
+packages/cli/tests/           # CLI package unit tests
+```
+
+## CI/CD Workflows
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+```
+.github/workflows/
+├── ci-cd.yml                 # Main CI/CD workflow for testing, building and releasing
+├── pull-request.yml          # Workflow for validating pull requests
+└── publish-docs.yml          # Workflow for building and publishing documentation
+```
+
+## Configuration Files
+
+Key configuration files include:
+
+- **package.json**: Defines project dependencies, scripts, and workspace configuration
+- **tsconfig.json**: Root TypeScript configuration
+- **jest.config.js**: Jest configuration for unit tests
+- **jest.e2e.config.js**: Jest configuration for end-to-end tests
+- **eslint.config.js**: ESLint configuration for code quality
+- **.releaserc.json**: Configuration for semantic-release
+- **commitlint.config.js**: Configuration for commit message linting 

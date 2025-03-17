@@ -1,0 +1,66 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": [
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "accounts": [
+    {
+      "name": "geo-distribution-account",
+      "clouds": {
+        "aws": {
+          
+          "baseCidr": "10.120.0.0/16",
+          "regions": [
+            "us-west-2",
+            "us-east-1",
+            "eu-west-3",
+            "eu-central-1",
+            "ap-southeast-1",
+            "ap-northeast-1",
+            "sa-east-1",
+            "af-south-1"
+          ]
+        },
+        "azure": {
+          
+          "baseCidr": "10.121.0.0/16",
+          "regions": [
+            "westus2",
+            "eastus",
+            "francecentral",
+            "germanywestcentral",
+            "southeastasia",
+            "japaneast",
+            "brazilsouth",
+            "southafricanorth"
+          ]
+        },
+        "gcp": {
+          
+          "baseCidr": "10.122.0.0/16",
+          "regions": [
+            "us-west2",
+            "us-east1",
+            "europe-west3",
+            "europe-west4",
+            "asia-southeast1",
+            "asia-northeast1",
+            "southamerica-east1",
+            "asia-east1"
+          ]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26
+  }
+}

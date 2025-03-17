@@ -1,0 +1,32 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "cloud-dev",
+      "cloudConfigs": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1"]
+        },
+        "azure": {
+          "provider": "azure",
+          "regions": ["eastus"]
+        },
+        "gcp": {
+          "provider": "gcp",
+          "regions": ["us-central1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": [
+    { "name": "Public", "prefixLength": 26 },
+    { "name": "Private", "prefixLength": 27 }
+  ]
+} 

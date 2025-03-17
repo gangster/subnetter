@@ -1,0 +1,13 @@
+# Minimal YAML configuration
+baseCidr: 10.0.0.0/8
+cloudProviders:
+  - aws
+accounts:
+  - name: test-account
+    clouds:
+      aws:
+        regions:
+          - us-east-1
+subnetTypes:
+  Public: 24
+  Private: 26 

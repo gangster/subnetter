@@ -1,0 +1,258 @@
+---
+title: Subnetter Documentation
+description: A comprehensive tool for automated CIDR subnet allocation across cloud infrastructure
+template: splash
+hero:
+  tagline: Eliminate IP conflicts with automated, hierarchical CIDR allocation
+  actions:
+    - text: Get Started
+      link: /subnetter/user-guide/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/gangster/subnetter
+      icon: external
+---
+
+import { Card, CardGrid, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+## What is Subnetter?
+
+Subnetter is a specialized tool that automates the allocation of IPv4 CIDR blocks across cloud infrastructure environments. It eliminates the complexity and error-prone process of manual IP address management by providing deterministic, hierarchical, and conflict-free subnet allocation.
+
+<CardGrid>
+	<Card title="Multi-Cloud Support" icon="cloud-download">
+		Designed to work across AWS, Azure, GCP, and other cloud providers with consistent subnet allocation patterns.
+	</Card>
+
+	<Card title="Deterministic Results" icon="setting">
+		Generate the same IP allocations every time, allowing consistent environment rebuilds and disaster recovery.
+	</Card>
+
+	<Card title="Hierarchical Allocation" icon="list-format">
+		Allocates IP space logically through accounts → regions → availability zones → subnet types.
+	</Card>
+
+	<Card title="No IP Conflicts" icon="approve-check-circle">
+		Automatically prevents overlapping IP ranges across your entire infrastructure.
+	</Card>
+</CardGrid>
+
+## Why Subnetter?
+
+<CardGrid>
+  <Card title="Manual allocation is error-prone" icon="warning">
+    Hand-crafting CIDR blocks for hundreds of subnets leads to mistakes and overlaps.
+  </Card>
+  <Card title="Complex multi-cloud environments" icon="puzzle">
+    Each cloud provider requires its own network architecture but needs to integrate with others.
+  </Card>
+  <Card title="Growing organizations need planning" icon="rocket">
+    Without proper IP allocation strategy, organizations need painful re-IP projects as they scale.
+  </Card>
+  <Card title="Documentation becomes outdated" icon="document">
+    Network diagrams and spreadsheets quickly become outdated as infrastructure evolves.
+  </Card>
+</CardGrid>
+
+## How It Works
+
+Subnetter takes a hierarchical approach to IP allocation, dividing your IP space systematically across multiple cloud providers:
+
+<MermaidDiagram chart={`
+flowchart TD
+    BaseCIDR["Base CIDR\n10.0.0.0/8"] --> AWS["AWS\n10.0.0.0/12"]
+    BaseCIDR --> Azure["Azure\n10.16.0.0/12"]
+    BaseCIDR --> GCP["GCP\n10.32.0.0/12"]
+    
+    %% AWS branch
+    AWS --> AWSProd["Account: Production\n10.0.0.0/16"]
+    AWS --> AWSDev["Account: Development\n10.1.0.0/16"]
+    AWS --> AWSStage["Account: Staging\n10.2.0.0/16"]
+    
+    %% AWS Production Account
+    AWSProd --> AWSUsEast["Region: us-east-1\n10.0.0.0/20"]
+    AWSProd --> AWSUsWest["Region: us-west-2\n10.0.16.0/20"]
+    
+    AWSUsEast --> AWSUsEast1a["AZ: us-east-1a\n10.0.0.0/22"]
+    AWSUsEast --> AWSUsEast1b["AZ: us-east-1b\n10.0.4.0/22"]
+    
+    AWSUsWest --> AWSUsWest2a["AZ: us-west-2a\n10.0.16.0/22"]
+    AWSUsWest --> AWSUsWest2b["AZ: us-west-2b\n10.0.20.0/22"]
+    
+    AWSUsEast1a --> AWSPublic1["Subnet: Public\n10.0.0.0/24"]
+    AWSUsEast1a --> AWSPrivate1["Subnet: Private\n10.0.1.0/24"]
+    
+    %% Azure branch
+    Azure --> AzureProd["Account: Production\n10.16.0.0/16"]
+    Azure --> AzureDev["Account: Development\n10.17.0.0/16"]
+    Azure --> AzureStage["Account: Staging\n10.18.0.0/16"]
+    
+    %% Azure Production Account
+    AzureProd --> AzureEastUS["Region: eastus\n10.16.0.0/20"]
+    AzureProd --> AzureWestUS["Region: westus\n10.16.16.0/20"]
+    
+    AzureEastUS --> AzureEastUS1["AZ: eastus-1\n10.16.0.0/22"]
+    AzureEastUS --> AzureEastUS2["AZ: eastus-2\n10.16.4.0/22"]
+    
+    AzureWestUS --> AzureWestUS1["AZ: westus-1\n10.16.16.0/22"]
+    AzureWestUS --> AzureWestUS2["AZ: westus-2\n10.16.20.0/22"]
+    
+    AzureEastUS1 --> AzurePublic1["Subnet: Public\n10.16.0.0/24"]
+    AzureEastUS1 --> AzurePrivate1["Subnet: Private\n10.16.1.0/24"]
+    
+    %% GCP branch
+    GCP --> GCPProd["Account: Production\n10.32.0.0/16"]
+    GCP --> GCPDev["Account: Development\n10.33.0.0/16"]
+    GCP --> GCPStage["Account: Staging\n10.34.0.0/16"]
+    
+    %% GCP Production Account
+    GCPProd --> GCPUsEast["Region: us-east1\n10.32.0.0/20"]
+    GCPProd --> GCPUsWest["Region: us-west1\n10.32.16.0/20"]
+    
+    GCPUsEast --> GCPUsEast1b["AZ: us-east1-b\n10.32.0.0/22"]
+    GCPUsEast --> GCPUsEast1c["AZ: us-east1-c\n10.32.4.0/22"]
+    
+    GCPUsWest --> GCPUsWest1a["AZ: us-west1-a\n10.32.16.0/22"]
+    GCPUsWest --> GCPUsWest1b["AZ: us-west1-b\n10.32.20.0/22"]
+    
+    GCPUsEast1b --> GCPPublic1["Subnet: Public\n10.32.0.0/24"]
+    GCPUsEast1b --> GCPPrivate1["Subnet: Private\n10.32.1.0/24"]
+    
+    %% Styling
+    classDef baseCidr fill:#f5f5f5,stroke:#333,stroke-width:2px
+    classDef awsProvider fill:#FFEBEE,stroke:#D32F2F,stroke-width:2px
+    classDef azureProvider fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    classDef gcpProvider fill:#E8F5E9,stroke:#388E3C,stroke-width:2px
+    classDef account fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    classDef region fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    classDef az fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px
+    classDef subnet fill:#FFFDE7,stroke:#FBC02D,stroke-width:2px
+    
+    class BaseCIDR baseCidr
+    class AWS,AWSProd,AWSDev,AWSStage,AWSUsEast,AWSUsWest,AWSUsEast1a,AWSUsEast1b,AWSUsWest2a,AWSUsWest2b,AWSPublic1,AWSPrivate1 awsProvider
+    class Azure,AzureProd,AzureDev,AzureStage,AzureEastUS,AzureWestUS,AzureEastUS1,AzureEastUS2,AzureWestUS1,AzureWestUS2,AzurePublic1,AzurePrivate1 azureProvider
+    class GCP,GCPProd,GCPDev,GCPStage,GCPUsEast,GCPUsWest,GCPUsEast1b,GCPUsEast1c,GCPUsWest1a,GCPUsWest1b,GCPPublic1,GCPPrivate1 gcpProvider
+`} />
+
+### Multi-Cloud Hierarchical Allocation
+
+Subnetter allows you to manage your IP space across different cloud providers with a hierarchical approach:
+
+1. **Base CIDR**: Start with a single large CIDR block (e.g., 10.0.0.0/8)
+
+2. **Cloud Providers**: Divide the base CIDR into non-overlapping blocks for each cloud provider
+   - AWS: 10.0.0.0/12
+   - Azure: 10.16.0.0/12
+   - GCP: 10.32.0.0/12
+
+3. **Accounts**: Allocate provider-specific CIDRs to different accounts
+   - Production: 10.0.0.0/16 (AWS), 10.16.0.0/16 (Azure), 10.32.0.0/16 (GCP)
+   - Development: 10.1.0.0/16 (AWS), 10.17.0.0/16 (Azure), 10.33.0.0/16 (GCP)
+   - Staging: 10.2.0.0/16 (AWS), 10.18.0.0/16 (Azure), 10.34.0.0/16 (GCP)
+
+4. **Regions**: For each account and provider, allocate CIDRs to regions
+   - us-east-1: 10.0.0.0/20 (AWS)
+   - eastus: 10.16.0.0/20 (Azure)
+   - us-east1: 10.32.0.0/20 (GCP)
+
+5. **Availability Zones**: Divide region CIDRs among AZs
+   - us-east-1a: 10.0.0.0/22 (AWS)
+   - eastus-1: 10.16.0.0/22 (Azure)
+
+6. **Subnets**: Finally, create subnet CIDRs in each AZ based on type
+   - Public: 10.0.0.0/24 (AWS), 10.16.0.0/24 (Azure)
+   - Private: 10.0.1.0/24 (AWS), 10.16.1.0/24 (Azure)
+   - Data: 10.0.2.0/24 (AWS)
+
+Each step of this process is automated by Subnetter, ensuring consistent, non-overlapping CIDR allocation across your entire multi-cloud environment.
+
+## Quick Start
+
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    # Install globally
+    npm install -g subnetter
+    
+    # Generate allocations
+    subnetter generate --config config.json --output allocations.csv
+    ```
+  </TabItem>
+  <TabItem label="npx">
+    ```bash
+    # Run without installing
+    npx subnetter generate --config config.json --output allocations.csv
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    # Install globally
+    yarn global add subnetter
+    
+    # Generate allocations
+    subnetter generate --config config.json --output allocations.csv
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="tip">
+  For a minimal working example, check out the [example configuration files](https://github.com/gangster/subnetter/tree/main/examples) in the GitHub repository.
+</Aside>
+
+## Documentation Overview
+
+<CardGrid>
+  <Card title="User Guide" icon="open-book">
+    Comprehensive guide covering installation, configuration, usage examples, and best practices.
+    
+    [Read the User Guide](/subnetter/user-guide/)
+  </Card>
+  
+  <Card title="Configuration Reference" icon="setting">
+    Detailed schema reference for Subnetter configuration file format.
+    
+    [View Configuration Reference](/subnetter/configuration/)
+  </Card>
+  
+  <Card title="API Documentation" icon="document">
+    Reference for developers using Subnetter programmatically in their Node.js applications.
+    
+    [Browse API Docs](/subnetter/api/overview/)
+  </Card>
+  
+  <Card title="Troubleshooting" icon="warning">
+    Solutions for common issues encountered when using Subnetter.
+    
+    [Troubleshooting Guide](/subnetter/troubleshooting/)
+  </Card>
+</CardGrid>
+
+## Key Resources
+
+<CardGrid>
+  <Card title="CIDR Primer" icon="information">
+    Learn about CIDR notation and IP subnetting concepts.
+    
+    [Read CIDR Primer](/subnetter/cidr-primer/)
+  </Card>
+  
+  <Card title="Architecture" icon="puzzle">
+    Understand Subnetter's technical design and components.
+    
+    [View Architecture](/subnetter/architecture/)
+  </Card>
+  
+  <Card title="Developer Guide" icon="pencil">
+    Guidelines for contributing to the Subnetter codebase.
+    
+    [Developer Guide](/subnetter/developer-guide/)
+  </Card>
+  
+  <Card title="Error Handling" icon="error">
+    Detailed information about error types, codes, and handling.
+    
+    [Error Handling](/subnetter/error-handling/)
+  </Card>
+</CardGrid>

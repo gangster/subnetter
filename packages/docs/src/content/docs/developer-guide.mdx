@@ -1,0 +1,862 @@
+---
+title: Developer Guide
+description: "This guide provides comprehensive information for developers who want to understand, modify, or extend the Subnetter codebase."
+---
+
+This guide provides comprehensive information for developers who want to understand, modify, or extend the Subnetter codebase.
+
+## Table of Contents
+
+- [Project Structure](#project-structure)
+- [Development Setup](#development-setup)
+- [Build Process](#build-process)
+- [Development Workflow](#development-workflow)
+- [Testing](#testing)
+- [Code Style and Conventions](#code-style-and-conventions)
+- [Contribution Guidelines](#contribution-guidelines)
+- [Release Process](#release-process)
+- [Common Development Tasks](#common-development-tasks)
+- [CI/CD Pipeline](#ci-cd-pipeline)
+
+## Project Structure
+
+Subnetter is organized as a monorepo with multiple packages:
+
+```
+subnetter/
+├── packages/
+│   ├── core/         # Core CIDR allocation engine
+│   │   ├── src/
+│   │   │   ├── allocator/       # CIDR allocation logic
+│   │   │   ├── config/          # Configuration loading and validation
+│   │   │   ├── models/          # TypeScript interfaces
+│   │   │   ├── output/          # Output generation (CSV)
+│   │   │   └── index.ts         # Public API exports
+│   │   ├── tests/               # Unit tests for core
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── cli/          # Command-line interface
+│   │   ├── src/
+│   │   │   ├── commands/        # CLI command implementations
+│   │   │   └── index.ts         # CLI entry point
+│   │   ├── tests/               # Unit tests for CLI
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── cidr-utils/   # Low-level CIDR utilities
+│   │   ├── src/
+│   │   │   ├── calculator.ts    # CIDR calculations
+│   │   │   ├── ip.ts            # IP address manipulation
+│   │   │   ├── parser.ts        # CIDR parsing
+│   │   │   ├── subnet.ts        # Subnet allocation
+│   │   │   ├── types.ts         # TypeScript interfaces
+│   │   │   ├── validator.ts     # CIDR validation
+│   │   │   └── index.ts         # Public API exports
+│   │   ├── tests/               # Unit tests for utilities
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── docs/         # Documentation site
+│       ├── src/
+│       │   ├── content/         # Documentation content
+│       │   ├── components/      # Astro components
+│       │   └── styles/          # CSS stylesheets
+│       ├── public/              # Static assets
+│       ├── package.json
+│       └── astro.config.mjs     # Astro configuration
+│
+├── __tests__/        # End-to-end tests
+│   └── e2e/          # End-to-end test files
+│
+├── .github/          # GitHub Actions workflows
+├── config/           # Build and configuration files
+├── scripts/          # Utility scripts
+├── examples/         # Example configurations
+├── tsconfig.json     # Root TypeScript configuration
+├── package.json      # Root package.json with workspaces
+└── README.md         # Project documentation
+```
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js (v18 or later, v22+ recommended)
+- Yarn (the project uses Yarn via the yarn releases file)
+
+### Installing and Configuring Yarn
+
+This project uses Yarn with the zero-install configuration (yarn files are checked into the repository). We also use Yarn Workspaces to manage the monorepo structure. This section provides instructions for installing and configuring Yarn on various operating systems.
+
+#### macOS
+
+1. Install Node.js using Homebrew:
+   ```bash
+   brew install node@20
+   ```
+
+2. No need to install Yarn globally as the project uses Yarn from the `.yarn/releases` directory.
+
+3. Verify you can use Yarn in the project:
+   ```bash
+   # After cloning the repository
+   cd subnetter
+   ./yarn --version
+   ```
+
+#### Linux (Ubuntu/Debian)
+
+1. Install Node.js:
+   ```bash
+   # Add NodeSource repository
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   
+   # Install Node.js
+   sudo apt-get install -y nodejs
+   ```
+
+2. No need to install Yarn globally as the project uses Yarn from the `.yarn/releases` directory.
+
+#### Linux (Fedora/RHEL)
+
+1. Install Node.js:
+   ```bash
+   # Enable NodeSource repository
+   sudo dnf module enable nodejs:20
+   
+   # Install Node.js
+   sudo dnf install -y nodejs
+   ```
+
+2. No need to install Yarn globally as the project uses Yarn from the `.yarn/releases` directory.
+
+#### NixOS
+
+1. Add Node.js to your configuration:
+   
+   In your `configuration.nix`:
+   ```nix
+   environment.systemPackages = with pkgs; [
+     nodejs_20
+   ];
+   ```
+
+   Or if using home-manager, in your `home.nix`:
+   ```nix
+   home.packages = with pkgs; [
+     nodejs_20
+   ];
+   ```
+
+2. No need to install Yarn globally as the project uses Yarn from the `.yarn/releases` directory.
+
+#### Windows
+
+1. Install Node.js:
+   - Download the Node.js installer from [the official website](https://nodejs.org/)
+   - Run the installer and follow the installation wizard
+   - Make sure to check the box for "Automatically install the necessary tools"
+
+2. No need to install Yarn globally as the project uses Yarn from the `.yarn/releases` directory.
+
+#### WSL2 (Windows Subsystem for Linux)
+
+1. Install WSL2 if you haven't already:
+   ```powershell
+   # In PowerShell (Admin)
+   wsl --install
+   ```
+
+2. Install your preferred Linux distribution from the Microsoft Store
+
+3. Follow the Linux installation instructions above for your specific distribution
+
+#### Understanding the Yarn Zero-Install Configuration
+
+This project uses Yarn with "Zero-Install" configuration, meaning:
+
+1. The `.yarn/releases/yarn-sources.cjs` file is checked into the repository
+2. The `.yarnrc.yml` file configures Yarn with these key settings:
+   ```yaml
+   compressionLevel: mixed
+   
+   enableGlobalCache: false
+   
+   nodeLinker: node-modules
+   
+   yarnPath: .yarn/releases/yarn-sources.cjs
+   ```
+   
+   - `compressionLevel: mixed` optimizes the compression of dependencies
+   - `nodeLinker: node-modules` uses the classic node_modules resolution strategy
+   - `enableGlobalCache: false` ensures dependencies are stored project-locally 
+   - `yarnPath` specifies the location of the Yarn binary included in the repo
+
+3. The `package.json` configures workspaces:
+   ```json
+   "workspaces": [
+     "packages/*"
+   ]
+   ```
+
+This configuration provides several benefits:
+
+- **No global Yarn installation needed**: The project uses the version from `.yarn/releases`
+- **Deterministic builds**: Identical dependency installation across all environments
+- **Simplified onboarding**: New contributors don't need to install Yarn separately
+- **Workspace management**: Packages can reference each other and share dependencies
+
+### Using Yarn Commands
+
+Since the Yarn binary is included in the repository, always use `./yarn` instead of `yarn` when running commands from the project root:
+
+```bash
+# Install dependencies
+./yarn install
+
+# Build all packages
+./yarn build
+
+# Run tests
+./yarn test
+```
+
+When inside the repository, you can also set up a shell alias to simplify commands:
+
+```bash
+alias y="./yarn"
+```
+
+Then use `y` for all Yarn commands:
+
+```bash
+y build
+y test
+```
+
+### Package Versioning and Dependencies
+
+All packages in the monorepo share the same version number, currently `1.3.1`. This synchronized versioning approach simplifies release management and ensures compatibility between packages.
+
+#### Version Management
+
+1. **Root package.json**: Contains the main version:
+   ```json
+   {
+     "name": "subnetter",
+     "version": "1.3.1",
+     // ...
+   }
+   ```
+
+2. **Workspace packages**: Each has its own version that matches the root:
+   ```json
+   {
+     "name": "@subnetter/core",
+     "version": "1.3.1",
+     // ...
+   }
+   ```
+
+3. **Automatic updates**: The `update-versions.js` script ensures versions stay synchronized.
+
+#### Dependencies Between Packages
+
+Workspace packages can depend on each other:
+
+```json
+// packages/cli/package.json
+{
+  "dependencies": {
+    "@subnetter/core": "1.3.1",
+    // ...
+  }
+}
+```
+
+This allows direct imports between packages without publishing to npm first:
+
+```typescript
+// In packages/cli/src/index.ts
+import { CidrAllocator } from '@subnetter/core';
+```
+
+#### External Dependencies
+
+Dependencies at the root level are available to all packages. Package-specific dependencies are defined in each package's `package.json`.
+
+The project uses dependency resolution to handle conflicts and ensure consistent versions:
+
+```json
+// Root package.json
+"resolutions": {
+  "esbuild": "0.19.8",
+  "chalk": "4.1.2",
+  "strip-ansi": "6.0.1",
+  "string-width": "4.2.3",
+  "ansi-styles": "4.3.0",
+  "is-fullwidth-code-point": "3.0.0",
+  "emoji-regex": "8.0.0",
+  "eastasianwidth": "0.2.0"
+}
+```
+
+### Setting Up Your Development Environment
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/gangster/subnetter.git
+   cd subnetter
+   ```
+
+2. Install dependencies:
+   ```bash
+   yarn install
+   ```
+
+3. Build the packages:
+   ```bash
+   yarn build
+   ```
+
+4. Run tests to verify your setup:
+   ```bash
+   yarn test
+   ```
+
+## Build Process
+
+Subnetter uses TypeScript for all packages, with a build process that compiles the TypeScript code to JavaScript.
+
+### Building the Project
+
+The Subnetter project uses TypeScript's project references for efficient and reliable builds:
+
+```bash
+# Install dependencies first
+./yarn install
+
+# Build all packages
+./yarn build
+```
+
+#### TypeScript Project References
+
+The project uses TypeScript's project references to manage the build process:
+
+1. **Root Configuration**: The root `tsconfig.json` defines shared compiler options and references to package-specific configs:
+   ```json
+   {
+     "compilerOptions": {
+       "target": "ES2022",
+       "module": "CommonJS",
+       "strict": true,
+       // ... other options
+     },
+     "references": [
+       { "path": "./packages/core" },
+       { "path": "./packages/cli" }
+     ]
+   }
+   ```
+
+2. **Package-Specific Configurations**: Each package has its own `tsconfig.json`:
+   ```json
+   // packages/core/tsconfig.json
+   {
+     "extends": "../../tsconfig.json",
+     "compilerOptions": {
+       "outDir": "./dist",
+       // ... package-specific options
+     },
+     "include": ["src/**/*"]
+   }
+   ```
+
+3. **BuildInfo Files**: Incremental builds are enabled, generating `.tsbuildinfo` files to track dependencies and changes.
+
+#### Build Scripts
+
+The build system is orchestrated through npm scripts defined in `package.json`:
+
+```json
+"scripts": {
+  "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
+  "build": "yarn build:core && yarn build:cli",
+  "build:core": "yarn workspace @subnetter/core build",
+  "build:cli": "yarn workspace @subnetter/cli build",
+  "build:docs": "yarn workspace @subnetter/docs build",
+  "dev": "tsc -b --watch"
+}
+```
+
+Each package also has its own build scripts:
+
+- **Core Package**: Basic TypeScript compilation
+  ```json
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  }
+  ```
+
+- **CLI Package**: TypeScript compilation plus executable script generation
+  ```json
+  "scripts": {
+    "build": "tsc -b && yarn build:bin",
+    "build:bin": "node scripts/create-bin.js"
+  }
+  ```
+
+- **Docs Package**: TypeScript compilation plus static site generation
+  ```json
+  "scripts": {
+    "build": "yarn generate-api-docs && astro build && node postbuild.js"
+  }
+  ```
+
+#### Build Process Flow
+
+1. When you run `yarn build`, it builds packages in the correct dependency order:
+   - First the core package is built (`@subnetter/core`)
+   - Then the CLI package (`@subnetter/cli`), which depends on core
+   - Documentation can be built separately
+
+2. The TypeScript compiler follows project references to ensure dependent projects are built first.
+
+3. Each package's build process:
+   - Compiles TypeScript to JavaScript
+   - Generates type declaration files (`.d.ts`)
+   - Creates source maps for debugging
+
+#### CLI Binary Generation
+
+The CLI package includes a special step to create an executable binary:
+
+1. The `build:bin` script runs `create-bin.js` which:
+   - Creates a `bin` directory
+   - Generates a `subnetter` executable file with a Node.js shebang
+   - Sets executable permissions (chmod 755)
+
+```javascript
+// packages/cli/scripts/create-bin.js
+#!/usr/bin/env node
+
+const fs = require("fs");
+const path = require("path");
+
+// Define paths
+const binDir = path.resolve(__dirname, "../bin");
+const binFile = path.resolve(binDir, "subnetter");
+
+// Create bin directory if it doesn't exist
+if (!fs.existsSync(binDir)) {
+  fs.mkdirSync(binDir, { recursive: true });
+}
+
+// Create the bin file with the appropriate shebang
+const binContent = `#!/usr/bin/env node
+
+require("../dist/index.js");
+`;
+
+// Write the bin file
+fs.writeFileSync(binFile, binContent);
+
+// Make the bin file executable
+fs.chmodSync(binFile, "755");
+```
+
+2. The CLI package.json specifies this binary in the `bin` field:
+```json
+"bin": {
+  "subnetter": "./bin/subnetter.js"
+}
+```
+
+3. When the package is installed globally, npm/yarn creates a symlink to this binary in the user's PATH.
+
+#### Development Mode
+
+For active development, use the watch mode:
+
+```bash
+./yarn dev
+```
+
+This starts TypeScript in watch mode, rebuilding files as you make changes.
+
+## Development Workflow
+
+### Branch Strategy
+
+We follow the GitHub Flow branching strategy:
+
+1. Create a feature branch from `main`
+2. Make your changes
+3. Open a pull request to `main`
+4. After review, merge the pull request
+
+### Commit Messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. This helps generate accurate changelogs and determine version bumps.
+
+Examples:
+- `feat: add new subnet type validation`
+- `fix: correct CIDR overlapping detection`
+- `docs: update installation instructions`
+- `test: add test for edge case in CIDR allocation`
+- `refactor: simplify allocation algorithm`
+
+The commit message format is enforced by commitlint, which runs as a pre-commit hook.
+
+### Pull Request Process
+
+1. Ensure your code passes all tests and linting
+2. Update documentation if necessary
+3. Open a pull request with a clear description of the changes
+4. Address review comments
+5. Once approved, the pull request will be merged
+
+## Testing
+
+Subnetter has a comprehensive testing strategy that includes multiple levels of testing.
+
+### Unit Tests
+
+Unit tests focus on individual components and are located in the `tests` directory of each package.
+
+To run unit tests:
+
+```bash
+yarn test                # Run all tests
+yarn test:coverage       # Run tests with coverage reporting
+```
+
+To run tests for a specific package:
+
+```bash
+yarn workspace @subnetter/core test
+yarn workspace @subnetter/cli test
+```
+
+### End-to-End Tests
+
+End-to-end tests verify the complete workflow and are located in the `__tests__/e2e` directory.
+
+To run end-to-end tests:
+
+```bash
+yarn test:e2e
+```
+
+### Test Structure
+
+Tests are organized by package and follow a consistent structure:
+
+- **Unit Tests**: Test individual functions and classes
+  - Located in `packages/<package>/tests/`
+  - Named `*.test.ts`
+- **End-to-End Tests**: Test complete workflows
+  - Located in `__tests__/e2e/`
+  - Named `*.test.ts`
+
+### Testing Guidelines
+
+- Every feature should have corresponding tests
+- Aim for high test coverage (>90% for core functionality)
+- Use descriptive test names that indicate what is being tested
+- Use mocks sparingly and only when necessary
+- End-to-end tests should use realistic configurations
+
+## Code Style and Conventions
+
+### TypeScript and ESLint
+
+We use TypeScript for type safety and ESLint for static code analysis. Our configuration is based on recommended settings with custom rules specified in `eslint.config.js`.
+
+To lint your code:
+
+```bash
+yarn lint          # Check for linting issues
+yarn lint:fix      # Automatically fix linting issues
+```
+
+We use TypeScript 5.8.x for the core package and 5.7.x for other packages.
+
+### Code Formatting
+
+We use Prettier for code formatting. The configuration is in `.prettierrc.json`.
+
+### Naming Conventions
+
+- **Files**: Use kebab-case for filenames (e.g., `cidr-allocator.ts`)
+- **Classes**: Use PascalCase for class names (e.g., `CidrAllocator`)
+- **Functions and Variables**: Use camelCase for functions and variables (e.g., `processRegions`)
+- **Interfaces**: Use PascalCase for interfaces (e.g., `Allocation`)
+- **Enums**: Use PascalCase for enums and enum members
+
+### Documentation
+
+- Use JSDoc comments for all public APIs
+- Include examples in documentation when helpful
+- Keep documentation up to date with the code
+
+## Contribution Guidelines
+
+We welcome contributions from the community! Here's how you can contribute:
+
+### Finding Issues to Work On
+
+- Check the [GitHub Issues](https://github.com/gangster/subnetter/issues) for tasks
+- Look for issues labeled "good first issue" for a good starting point
+
+### Submitting Changes
+
+1. Fork the repository
+2. Create a feature branch from `main`
+3. Make your changes
+4. Ensure your code passes tests and linting
+5. Open a pull request
+6. Address review comments
+
+### Code Review Process
+
+All code changes go through a review process:
+
+1. Automated checks (CI/CD pipeline)
+2. Code review by at least one maintainer
+3. Address feedback
+4. Final approval and merge
+
+## Release Process
+
+We use semantic versioning (SemVer) for releases.
+
+### Version Bumping
+
+Versions are bumped automatically based on commit messages:
+- `fix`: Patch version bump
+- `feat`: Minor version bump
+- `feat!` or `fix!`: Major version bump (breaking changes)
+
+### Release Workflow
+
+1. Merge pull requests to `main`
+2. The CI/CD pipeline runs tests on multiple platforms
+3. If all tests pass, the release job creates releases automatically
+4. Packages are published to GitHub Packages
+5. Release notes are generated based on commit messages
+
+### Package Publishing
+
+Our packages are published to GitHub Packages. The package configuration includes:
+
+```json
+"publishConfig": {
+  "registry": "https://npm.pkg.github.com",
+  "access": "public"
+}
+```
+
+### Manual Release
+
+If necessary, manual releases can be triggered:
+
+```bash
+npm run release
+```
+
+## Common Development Tasks
+
+### Adding a New Feature
+
+1. Understand the requirements and design the feature
+2. Create a feature branch from `main`
+3. Implement the feature with tests
+4. Update documentation
+5. Open a pull request
+
+### Debugging
+
+For debugging, you can use:
+
+```bash
+# Running with verbose output
+yarn workspace @subnetter/cli develop -- generate -c config.json -o output.csv -v
+
+# Node.js inspector
+node --inspect-brk packages/cli/dist/index.js generate -c config.json
+```
+
+### Adding a New Command
+
+To add a new CLI command:
+
+1. Create a new file in `packages/cli/src/commands/`
+2. Implement the command using the Commander.js API
+3. Register the command in `packages/cli/src/index.ts`
+4. Add tests for the command
+5. Update the documentation
+
+### Extending the Core Functionality
+
+To extend the core functionality:
+
+1. Identify where your feature fits in the architecture
+2. Add new interfaces or types in `packages/core/src/models/`
+3. Implement the functionality in the appropriate directory
+4. Export the new functionality in `packages/core/src/index.ts`
+5. Add tests for the new functionality
+6. Update the documentation
+
+## Advanced Topics
+
+### Performance Optimization
+
+When optimizing for performance:
+
+- Use profiling tools to identify bottlenecks
+- Consider memoization for expensive calculations
+- Optimize CIDR subdivision for large allocations
+- Use efficient data structures for lookup operations
+
+### Adding Support for New Cloud Providers
+
+To add a new cloud provider:
+
+1. Update the CloudProvider interface
+2. Extend the provider detection logic in `getProviderForRegion()`
+3. Add provider-specific AZ naming in `generateAzNames()`
+4. Add tests for the new provider
+5. Update documentation
+
+### Extending Output Formats
+
+To add a new output format:
+
+1. Create a new file in `packages/core/src/output/`
+2. Implement the output generation function
+3. Export the function in `packages/core/src/index.ts`
+4. Add options to the CLI in `packages/cli/src/index.ts`
+5. Add tests for the new format
+
+## Troubleshooting
+
+### Common Build Issues
+
+- **TypeScript Errors**: Check if your TypeScript version matches the project requirements
+- **Missing Dependencies**: Run `yarn install` to ensure all dependencies are installed
+- **Out-of-Memory**: Increase Node.js memory limit with `NODE_OPTIONS=--max_old_space_size=4096`
+
+### Testing Issues
+
+- **Failed Tests**: Check the error message for details
+- **Timeout Issues**: Consider increasing the test timeout value
+- **Coverage Issues**: Ensure you have written tests for all code paths 
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment. For a comprehensive overview of the CI/CD pipeline, including workflows for testing, building, releasing, and documentation publishing, see the [CI/CD Pipeline documentation](../../project/ci-cd-pipeline/).
+
+The CI/CD pipeline:
+- Automatically builds and tests code on multiple platforms (Ubuntu and macOS)
+- Validates pull requests before merging
+- Creates releases based on conventional commits
+- Publishes packages to GitHub Packages
+- Deploys documentation to GitHub Pages
+- Keeps dependencies up-to-date via Dependabot
+
+You can run the same checks locally that run in the CI pipeline using the commands documented in the [Testing](#testing) section.
+
+### Package Publication
+
+The project is set up to automatically publish packages to the npm registry when a new version is released. This is handled by the CI/CD pipeline.
+
+## Working with the CIDR Utilities Package
+
+The `@subnetter/cidr-utils` package provides low-level utilities for IP address and CIDR manipulation. This package can be used both internally (by the core package) or as a standalone utility library for other projects.
+
+### Architecture and Design
+
+The CIDR utils package was designed with the following principles:
+
+1. **Zero dependencies**: Pure JavaScript/TypeScript implementation without external dependencies
+2. **TypeScript-first**: Comprehensive type definitions for all functions and data structures
+3. **Comprehensive API**: Complete set of utilities for all common CIDR operations
+4. **Modular design**: Each file has a single responsibility and a clean API
+5. **Thorough testing**: Extensive unit test coverage, including edge cases
+
+### Key Components
+
+- **IP Address Manipulation** (`ip.ts`): Functions to convert between string, numeric, and octet representations
+  - `ipv4ToNumber`: Convert an IPv4 address string to its numeric representation
+  - `numberToIpv4`: Convert a numeric representation to an IPv4 address string
+  - `createIpAddress`: Create an IP address object with various formats
+  
+- **CIDR Parsing** (`parser.ts`): Functions to parse and normalize CIDR notation
+  - `parseIpv4Cidr`: Parse a CIDR string into its components (address and prefix length)
+  - `normalizeCidr`: Normalize a CIDR string to its canonical form
+  
+- **CIDR Validation** (`validator.ts`): Functions to validate CIDR notation
+  - `isValidIpv4Cidr`: Check if a string is a valid CIDR
+  - `validateIpv4Cidr`: Validate a CIDR with detailed error reporting
+  
+- **Subnet Calculations** (`calculator.ts`): Functions for subnet calculations
+  - `calculateNetworkAddress`: Calculate the network address of a CIDR
+  - `calculateBroadcastAddress`: Calculate the broadcast address of a CIDR
+  - `calculateUsableIps`: Calculate the number of usable IPs in a CIDR
+  - `isIpInCidr`: Check if an IP address is within a CIDR range
+  - `doCidrsOverlap`: Check if two CIDRs overlap
+  
+- **Subnet Allocation** (`subnet.ts`): Functions for subnet allocation
+  - `subdivideIpv4Cidr`: Divide a CIDR into smaller subnets
+  - `findNextAvailableCidr`: Find the next available CIDR block in a range
+
+### Using the CIDR Utils Package
+
+You can use the CIDR utils package directly in your code:
+
+```typescript
+// Import specific functions
+import { 
+  isValidIpv4Cidr, 
+  calculateUsableIps, 
+  ipv4ToNumber 
+} from '@subnetter/cidr-utils';
+
+// Validate a CIDR
+const validCidr = isValidIpv4Cidr('10.0.0.0/24'); // true
+
+// Calculate usable IPs
+const usableIps = calculateUsableIps('10.0.0.0/24'); // 254
+
+// Convert IP to number
+const ipNumber = ipv4ToNumber('10.0.0.1'); // 167772161
+```
+
+### Extending CIDR Utils
+
+When adding new functionality to the CIDR utils package:
+
+1. Identify the appropriate file based on the type of functionality
+2. Add well-documented, strongly-typed functions
+3. Write comprehensive tests, including edge cases
+4. Export the new functions in the `index.ts` file
+5. Update dependencies (if needed) in the core and CLI packages
+
+### CI/CD Considerations
+
+The `cidr-utils` package sits at the bottom of the dependency tree, so it needs to be built first:
+
+```bash
+# Build cidr-utils first
+yarn workspace @subnetter/cidr-utils build
+
+# Then build dependent packages
+yarn workspace @subnetter/core build
+yarn workspace @subnetter/cli build
+```
+
+The CI/CD pipeline is configured to build packages in the correct order automatically. 

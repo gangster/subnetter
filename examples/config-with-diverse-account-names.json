@@ -1,0 +1,63 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": [
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "accounts": [
+    {
+      "name": "innovation-test",
+      "clouds": {
+        "aws": {
+          
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "acme-corp",
+      "clouds": {
+        "aws": {
+          
+          "baseCidr": "172.16.0.0/12",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "dev123",
+      "clouds": {
+        "aws": {
+          
+          "regions": ["us-west-1", "eu-central-1"]
+        }
+      }
+    },
+    {
+      "name": "finance_dept",
+      "clouds": {
+        "azure": {
+          
+          "baseCidr": "10.200.0.0/16",
+          "regions": ["eastus2", "westeurope"]
+        },
+        "gcp": {
+          
+          "regions": ["us-central1", "europe-west4"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 27,
+    "Data": 28,
+    "Management": 29
+  }
+} 

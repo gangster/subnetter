@@ -1,0 +1,285 @@
+name: CI/CD Pipeline
+
+# Added to trigger a pipeline run
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Add explicit permissions needed for all operations
+permissions:
+  contents: write      # Needed for pushing tags and creating releases
+  issues: write        # Needed for creating issues
+  pull-requests: write # Needed for commenting on PRs
+  packages: write      # Needed for publishing to GitHub Packages
+  pages: write         # Needed for GitHub Pages deployments
+  id-token: write      # Needed for GitHub Pages deployments
+
+jobs:
+  # PR validation job - only runs on PRs
+  validate-pr:
+    name: Validate PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for package-lock.json
+        run: |
+          FOUND_FILES=$(find . -name "package-lock.json" -type f | tr '\n' ' ')
+          if [ -n "$FOUND_FILES" ]; then
+            echo "Error: package-lock.json file(s) found at: $FOUND_FILES"
+            echo "This project uses Yarn exclusively. Please remove all package-lock.json files."
+            exit 1
+          else
+            echo "No package-lock.json files found. Good job!"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Setup Yarn Berry
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          
+      - name: Install Dependencies
+        run: |
+          yarn config set enableImmutableInstalls false
+          yarn install
+        
+      - name: Lint Commit Messages
+        uses: wagoid/commitlint-github-action@v5
+
+  # PR test job - runs only on PRs and depends on validation
+  test-pr:
+    name: Test PR
+    if: github.event_name == 'pull_request'
+    needs: validate-pr
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Yarn Berry
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          
+      - name: Install Dependencies
+        run: |
+          yarn config set enableImmutableInstalls false
+          yarn install
+      
+      - name: Lint
+        run: yarn lint
+      
+      - name: Build
+        run: |
+          yarn build:cidr-utils
+          yarn build:core
+          yarn build:cli
+      
+      - name: Run Tests
+        run: yarn test
+        
+      - name: Run E2E Tests
+        run: yarn test:e2e
+        
+  # Main branch test job - only runs on push to main
+  test-main:
+    name: Test Main Branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Yarn Berry
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          
+      - name: Install Dependencies
+        run: |
+          yarn config set enableImmutableInstalls false
+          yarn install
+      
+      - name: Lint
+        run: yarn lint
+      
+      - name: Build
+        run: |
+          yarn build:cidr-utils
+          yarn build:core
+          yarn build:cli
+      
+      - name: Run Tests
+        run: yarn test
+        
+      - name: Run E2E Tests
+        run: yarn test:e2e
+
+  # Check if a release is needed
+  check-release:
+    name: Check If Release Needed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test-main
+    outputs:
+      release_needed: ${{ steps.check.outputs.release_needed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check If Release Is Needed
+        id: check
+        run: |
+          # Get the latest tag
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          
+          if [ "$LATEST_TAG" = "none" ]; then
+            echo "No tags found, release needed"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check commits since the latest tag
+          COMMITS=$(git log $LATEST_TAG..HEAD --format="%s")
+          
+          # Check if there are any feat: or fix: commits, or breaking changes
+          if echo "$COMMITS" | grep -E '^(feat|fix)(\(.+\))?:' > /dev/null || echo "$COMMITS" | grep -E 'BREAKING CHANGE' > /dev/null; then
+            echo "Found commits that would trigger a release"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No commits found that would trigger a release"
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Release job - only runs on push to main after tests pass and if release is needed
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check-release.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+    needs: [test-main, check-release]
+    concurrency: 
+      group: release
+      cancel-in-progress: false
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Yarn Berry
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+      - name: Install Dependencies
+        run: |
+          yarn config set enableImmutableInstalls false
+          yarn install
+      
+      - name: Build
+        run: |
+          yarn build:cidr-utils
+          yarn build:core
+          yarn build:cli
+      
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  # Documentation job - only runs on push to main when docs files change
+  docs:
+    name: Build and Deploy Docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Yarn Berry
+        run: |
+          corepack enable
+          corepack prepare yarn@stable --activate
+          
+      - name: Install Dependencies
+        run: |
+          yarn config set enableImmutableInstalls false
+          yarn install
+      
+      - name: Build TypeScript Project
+        run: yarn workspace @subnetter/cidr-utils build && yarn build:core && yarn build:cli
+      
+      - name: Build Documentation Site
+        run: yarn build:docs
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/docs/dist
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 

@@ -1,0 +1,189 @@
+---
+title: CI/CD Pipeline
+description: "Documentation for Subnetter's Continuous Integration and Continuous Deployment pipeline implementation."
+---
+
+This document describes the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the Subnetter project, including workflows, processes, and tools.
+
+## Overview
+
+The Subnetter project implements a robust CI/CD pipeline consisting of several GitHub Actions workflows:
+
+1. **CI/CD Workflow** - Tests code, creates releases, and publishes packages when code is merged to main
+2. **Pull Request Validation** - Validates code changes in pull requests before merging
+3. **Documentation Publishing** - Deploys documentation to GitHub Pages
+
+The pipelines are designed to ensure code quality, maintain test coverage, and automate the release process.
+
+## CI/CD Workflow
+
+The main CI/CD workflow is defined in `.github/workflows/ci-cd.yml` and handles testing, building, and releasing the project when changes are pushed to the main branch or when pull requests are created.
+
+### CI/CD Workflow Jobs
+
+The workflow includes the following jobs:
+
+1. **Validate PR** (only on pull requests):
+   - Checks that package-lock.json is not committed (Yarn-only project)
+   - Sets up Node.js
+   - Configures Yarn Berry
+   - Installs dependencies
+   - Lints commit messages
+
+2. **Test PR** (only on pull requests):
+   - Sets up Node.js
+   - Configures Yarn Berry
+   - Installs dependencies
+   - Runs linting checks
+   - Builds the project with the correct order (cidr-utils → core → cli)
+   - Runs unit tests
+   - Runs end-to-end tests
+
+3. **Test Main Branch** (only on push to main):
+   - Similar to Test PR but runs when changes are pushed to main
+
+4. **Check If Release Needed**:
+   - Determines if a release is needed based on commit messages
+   - Uses conventional commits to identify changes that would trigger a release
+
+5. **Release** (if needed):
+   - Sets up Node.js
+   - Configures Yarn Berry
+   - Configures Git for automated commits
+   - Installs dependencies
+   - Builds the project
+   - Runs the semantic-release process
+
+## Build Process
+
+The CI/CD workflow builds packages in a specific order to ensure proper dependency resolution:
+
+1. Build `@subnetter/cidr-utils` first (foundation package)
+2. Build `@subnetter/core` second (depends on cidr-utils)
+3. Build `@subnetter/cli` last (depends on core)
+
+This build order is explicitly defined in the workflow to prevent module resolution issues:
+
+```yaml
+- name: Build
+  run: |
+    yarn build:cidr-utils
+    yarn build:core
+    yarn build:cli
+```
+
+## Dependencies and Configuration
+
+The CI/CD pipeline has been optimized to remove unnecessary dependencies and configurations:
+
+- **No System Dependencies**: The pipeline does not require any specialized system dependencies as the project uses pure JavaScript/TypeScript
+- **Simplified Configuration**: No custom `.npmrc` configuration is needed
+- **Yarn Berry**: Uses Yarn Berry's zero-install features for improved dependency management
+
+## Pull Request Validation
+
+Pull requests are validated through a series of checks to ensure they meet quality standards before being merged:
+
+1. **Package-lock.json Check**: Ensures no package-lock.json files are committed (Yarn-only project)
+2. **Commit Message Linting**: Validates that commit messages follow the conventional commits format
+3. **Code Quality**: Runs linting checks to ensure code style and quality standards
+4. **Tests**: Runs unit tests and end-to-end tests to ensure functionality
+
+## Documentation Publishing
+
+The Documentation Publishing workflow automatically builds and deploys the documentation site to GitHub Pages when documentation files are changed or on manual triggers.
+
+### Documentation Publishing Process
+
+1. **Build the TypeScript Projects**: Builds all packages with proper order (cidr-utils → core → cli)
+2. **Build the Documentation Site**: Builds the Astro documentation site
+3. **Deploy to GitHub Pages**: Deploys the documentation to GitHub Pages
+
+## Release Process
+
+The release process is automated and follows semantic versioning principles:
+
+1. **Version Determination**:
+   - **Patch version** (1.0.x): For bug fixes (`fix:` commits)
+   - **Minor version** (1.x.0): For new features (`feat:` commits)
+   - **Major version** (x.0.0): For breaking changes (`feat!:`, `fix!:`, or `BREAKING CHANGE:` in commit body)
+
+2. **Release Creation**:
+   - Updates version numbers
+   - Generates release notes
+   - Updates the changelog
+   - Creates a GitHub release
+   - Tags the repository
+
+3. **Package Publishing**:
+   - Publishes packages to npm or GitHub Packages
+   - Follows the dependency order (cidr-utils → core → cli)
+
+## Workflow Dependencies
+
+The CI/CD workflow has been optimized to ensure efficient execution:
+
+1. **Workspace Dependencies**: Uses the `"workspace:^"` syntax in package.json files to ensure proper linking between packages
+2. **Caching**: Caches Yarn dependencies for faster builds
+3. **Concurrency Control**: Uses concurrency settings to prevent simultaneous releases
+
+## Local Development and CI Consistency
+
+When developing locally, you can run the same checks that will be performed in the CI pipeline:
+
+```bash
+# Build all packages in the correct order
+yarn build
+
+# Build individual packages
+yarn build:cidr-utils
+yarn build:core
+yarn build:cli
+
+# Run linting
+yarn lint
+
+# Run tests
+yarn test
+
+# Run end-to-end tests
+yarn test:e2e
+```
+
+## Troubleshooting CI/CD Issues
+
+### Common CI Failures
+
+1. **Linting errors**:
+   - Run `yarn lint` locally to identify and fix issues
+   - Many linting errors can be automatically fixed with `yarn lint:fix`
+
+2. **Test failures**:
+   - Check the CI logs to see which tests are failing
+   - Run the specific failing tests locally to debug
+   - Make sure all tests pass locally before pushing
+
+3. **Dependency issues**:
+   - Ensure dependencies are correctly declared in package.json files
+   - Use the `"workspace:^"` syntax for internal dependencies
+   - Make sure the build order is correct
+
+## Recent Improvements
+
+The CI/CD pipeline has been recently optimized:
+
+1. **Removed Unnecessary Dependencies**: Eliminated system dependencies (libvips-dev, libjpeg-dev, libpng-dev) that were not required for the project, simplifying the build process.
+
+2. **Removed Sharp Configuration**: Removed Sharp-specific configuration from the workflow, as the project doesn't use image processing functionality.
+
+3. **Build Order**: Ensured proper build order (cidr-utils → core → cli) to prevent module resolution issues.
+
+4. **Workspace Dependencies**: Fixed workspace dependency references using the `"workspace:^"` syntax to ensure proper linking between packages.
+
+These improvements have streamlined the build process and made it more reliable.
+
+## Conclusion
+
+The CI/CD pipeline is a critical part of the Subnetter project, ensuring code quality, automating testing, and streamlining the release process. By leveraging GitHub Actions and other tools, we maintain a consistent and reliable development workflow that helps the project deliver high-quality software.
+
+For more information about contributing to the project, see the [Developer Guide](../../developer-guide/) and [Contribution Guidelines](../../developer-guide/#contribution-guidelines). 

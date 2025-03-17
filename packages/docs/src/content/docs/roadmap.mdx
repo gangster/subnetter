@@ -1,0 +1,154 @@
+---
+title: Project Roadmap
+description: Current implementation status and future plans for the Subnetter tool
+---
+
+import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+# Subnetter Project Roadmap
+
+This document outlines the current implementation status of Subnetter's features and the planned enhancements for future releases. It serves as a guide for users and contributors to understand the project's direction and priorities.
+
+## Current Implementation Status
+
+The following table summarizes the current implementation status of key features:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Core CIDR Allocation | ✅ Implemented | The basic hierarchical allocation algorithm is fully functional |
+| AWS Provider Support | ✅ Implemented | AWS region and AZ handling is complete |
+| Azure Provider Support | ✅ Implemented | Full support for Azure regions and availability zones |
+| GCP Provider Support | ✅ Implemented | Complete support for Google Cloud regions and zones |
+| Documentation | 🔄 Ongoing | Comprehensive guides and API references with continuous improvements |
+| Configuration Validation | ✅ Implemented | Schema validation using Zod is functional |
+| CSV Output | ✅ Implemented | Basic CSV output format is available |
+| CLI Interface | ✅ Implemented | Core commands are functional |
+| Variable Subnet Sizing | ✅ Implemented | Support for different prefix lengths for different subnet types |
+| Account-Level Overrides | ✅ Implemented | Support for overriding base CIDRs at the account level |
+| Base CIDR Override via CLI | ✅ Implemented | Ability to override base CIDR through command-line options |
+| CIDR Tracking | ✅ Implemented | System for tracking allocated CIDRs to prevent overlaps |
+| Schema Evolution | 🟨 Partial | Basic normalization of older formats, but limited |
+| Error Handling | ✅ Implemented | Comprehensive error handling with error hierarchy, error codes, context information, and actionable help text |
+| Logging | ✅ Implemented | Configurable logging system with multiple levels and output options |
+| Testing Coverage | ✅ Implemented | Comprehensive test suite with >90% line coverage for core functionality, including unit, integration, and E2E tests |
+| Extension Points | 🟠 Planned | Architecture supports extension but formal interfaces not yet implemented |
+| IaC Outputs | 🟠 Planned | Only CSV output currently implemented |
+| Plugin System | 🟠 Planned | Not yet implemented |
+| Web Interface | 🟠 Planned | Not yet implemented |
+| IPv6 Support | 🟠 Planned | Not yet implemented |
+| Visualization | 🟠 Planned | Not yet implemented |
+| IPAM Integration | 🟠 Planned | Not yet implemented |
+
+## Development Priorities
+
+<MermaidDiagram chart={`flowchart LR
+    current[Current System] --> |"High"| testing[Comprehensive Testing]
+    current --> |"Medium"| iac[Terraform Integration]
+    current --> |"Medium"| viz[Visualization Tools]
+    current --> |"Low"| plugins[Plugin System]
+    current --> |"Low"| ipv6[IPv6 Support]
+    current --> |"Low"| web[Web Interface]
+    current --> |"Medium"| ipam[IPAM Integration]
+    
+    linkStyle 0,1,2,3,4,5,6 stroke:#36BCF7,stroke-width:2px;
+    
+    style current fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style testing fill:#ff9999,stroke:#b85450,stroke-width:2px,color:#333333
+    style iac fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333
+    style viz fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333
+    style plugins fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333
+    style ipv6 fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333
+    style web fill:#ccff99,stroke:#82b366,stroke-width:2px,color:#333333
+    style ipam fill:#ffcc99,stroke:#d79b00,stroke-width:2px,color:#333333`} />
+
+## Planned Enhancements
+
+### High Priority
+
+1. **Comprehensive Testing**
+   - Expand unit test coverage to 90%+
+   - Implement integration tests for all major components
+   - Add end-to-end tests for common use cases
+   - Integrate with CI/CD pipeline for continuous validation
+
+### Medium Priority
+
+2. **Infrastructure as Code Integration**
+   - Add Terraform HCL output format
+   - Support CloudFormation template generation
+   - Create Pulumi/CDK integration hooks
+
+3. **Visualization Tools**
+   - Add graphical representation of CIDR hierarchies
+   - Create interactive visualization in CLI
+   - Generate diagrams for documentation
+
+4. **IPAM Integration**
+   - Integrate with existing IP Address Management solutions
+   - Enable synchronization of allocations with enterprise IPAM systems
+   - Support import/export of allocation data from common IPAM tools
+
+### Low Priority
+
+5. **Plugin System**
+   - Create formal extension interface
+   - Support custom allocation strategies
+   - Enable third-party output formats
+   - Provide integration points for external tools
+
+6. **IPv6 Support**
+   - Extend the tool to handle IPv6 allocations
+   - Support dual-stack configurations
+   - Add IPv6-specific validation rules
+
+7. **Web Interface**
+   - Create web-based UI for configuration
+   - Provide interactive CIDR visualization
+   - Enable sharing and collaboration features
+
+## Release Roadmap
+
+The following outlines our planned release schedule:
+
+### v1.0 (Current Stable)
+- Core CIDR allocation functionality
+- AWS, Azure, and GCP provider support
+- Configuration validation
+- CSV output format
+- Command-line interface
+- Variable subnet sizing
+- Account-level CIDR overrides
+- Base CIDR override via CLI
+- Configurable logging system
+
+### v1.1
+- Improved error handling
+- Expanded test coverage
+- Better schema validation
+
+### v1.2
+- Terraform HCL output
+- CloudFormation output
+- Performance optimizations
+
+### v2.0
+- Visualization tools
+- IPAM integration
+- Comprehensive documentation
+- Refactored core architecture
+
+### v2.x
+- Plugin system
+- IPv6 support
+- Web interface
+- Enhanced collaboration features
+
+## Contributing to the Roadmap
+
+We welcome community input on our roadmap priorities. If you'd like to contribute to any of these planned features or suggest new ones, please:
+
+1. Check the [GitHub issues](https://github.com/gangster/subnetter/issues) to see if your idea is already being discussed
+2. Submit a feature request with a clear description of the proposed enhancement
+3. Consider contributing code if you're interested in implementing any planned features
+
+For more details on how to contribute, please see our [Developer Guide](/subnetter/developer-guide). 

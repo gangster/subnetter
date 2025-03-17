@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
+  <script>
+    console.log('Mermaid script loaded in main.html');
+  </script>
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
+  
+  <script>
+    // Initialize Mermaid after content is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded in main.html, configuring Mermaid');
+      
+      // First check if Mermaid is loaded
+      if (typeof mermaid === 'undefined') {
+        console.error('Mermaid is not loaded!');
+        // Try to load it again
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js';
+        script.onload = initMermaid;
+        document.head.appendChild(script);
+      } else {
+        initMermaid();
+      }
+      
+      function initMermaid() {
+        // Initialize with configuration
+        console.log('Initializing Mermaid in main.html');
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'default',
+          securityLevel: 'loose',
+          htmlLabels: true,
+          flowchart: {
+            curve: 'basis',
+            useMaxWidth: true
+          },
+          themeVariables: {
+            primaryColor: '#f4f4f4',
+            primaryTextColor: '#333',
+            primaryBorderColor: '#ccc',
+            lineColor: '#666',
+            secondaryColor: '#e8e8e8',
+            tertiaryColor: '#fff'
+          }
+        });
+        
+        // Function to process Mermaid diagrams
+        function processMermaidDiagrams() {
+          console.log('Processing Mermaid diagrams in main.html');
+          
+          // Try multiple selectors to find Mermaid code blocks
+          let mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
+          console.log('Found ' + mermaidBlocks.length + ' language-mermaid blocks');
+          
+          if (mermaidBlocks.length === 0) {
+            mermaidBlocks = document.querySelectorAll('pre code.mermaid');
+            console.log('Found ' + mermaidBlocks.length + ' mermaid class blocks');
+          }
+          
+          if (mermaidBlocks.length === 0) {
+            // Direct selector for the markdown content
+            const allCodeBlocks = document.querySelectorAll('pre code');
+            console.log('Checking ' + allCodeBlocks.length + ' code blocks for mermaid content');
+            
+            // Filter to find blocks that contain mermaid syntax
+            mermaidBlocks = Array.from(allCodeBlocks).filter(block => {
+              const content = block.textContent.trim();
+              return content.startsWith('graph') || 
+                     content.startsWith('flowchart') || 
+                     content.startsWith('sequenceDiagram') || 
+                     content.startsWith('classDiagram');
+            });
+            
+            console.log('Found ' + mermaidBlocks.length + ' blocks with mermaid syntax');
+          }
+          
+          // Process code blocks if found
+          if (mermaidBlocks.length > 0) {
+            mermaidBlocks.forEach(function(block, index) {
+              console.log('Processing potential mermaid block', index);
+              const pre = block.parentElement;
+              const content = block.textContent.trim();
+              
+              console.log('Content preview:', content.substring(0, 30) + '...');
+              
+              // Create a new div for mermaid
+              const div = document.createElement('div');
+              div.className = 'mermaid';
+              div.textContent = content;
+              div.setAttribute('data-processed', 'false');
+              
+              // Replace the pre element with the new div
+              if (pre && pre.parentElement) {
+                pre.parentElement.replaceChild(div, pre);
+                console.log('Replaced block', index);
+              }
+            });
+            
+            // Now render all mermaid divs
+            try {
+              console.log('Running mermaid.init()');
+              mermaid.init(undefined, '.mermaid');
+            } catch (e) {
+              console.error('Error initializing mermaid:', e);
+            }
+          } else {
+            console.log('No mermaid blocks found to process');
+          }
+          
+          // Check for existing mermaid divs that might need processing
+          const mermaidDivs = document.querySelectorAll('div.mermaid:not([data-processed="true"])');
+          if (mermaidDivs.length > 0) {
+            console.log('Found ' + mermaidDivs.length + ' unprocessed mermaid divs');
+            try {
+              mermaid.init(undefined, 'div.mermaid:not([data-processed="true"])');
+            } catch (e) {
+              console.error('Error rendering existing mermaid divs:', e);
+            }
+          }
+        }
+        
+        // Process diagrams after delays
+        setTimeout(processMermaidDiagrams, 500);
+        setTimeout(processMermaidDiagrams, 1500);
+      }
+    });
+    
+    // Also try on window load
+    window.addEventListener('load', function() {
+      console.log('Window loaded, trying mermaid again');
+      if (typeof mermaid !== 'undefined') {
+        try {
+          mermaid.init(undefined, '.mermaid');
+        } catch (e) {
+          console.error('Error on window load mermaid init:', e);
+        }
+      }
+    });
+  </script>
+{% endblock %} 

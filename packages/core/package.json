@@ -1,0 +1,55 @@
+{
+  "name": "@subnetter/core",
+  "version": "1.0.1",
+  "description": "Core IP allocation functionality for Subnetter",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "cd ../.. && yarn eslint packages/core/src --fix",
+    "clean": "rimraf dist",
+    "prepare": "cd ../cidr-utils && yarn build"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gangster/subnetter.git",
+    "directory": "packages/core"
+  },
+  "dependencies": {
+    "@subnetter/cidr-utils": "1.0.1",
+    "chalk": "^4.1.2",
+    "csv-writer": "^1.6.0",
+    "ipaddr.js": "^2.2.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.10",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "eslint": "^9.20.1",
+    "jest": "^29.7.0",
+    "rimraf": "^6.0.1",
+    "ts-jest": "^29.2.6",
+    "typescript": "5.8.2"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gangster/subnetter/issues"
+  },
+  "homepage": "https://github.com/gangster/subnetter#readme"
+}

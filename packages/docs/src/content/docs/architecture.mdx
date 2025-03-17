@@ -1,0 +1,794 @@
+---
+title: Subnetter Architecture
+description: A detailed explanation of the technical components, design patterns, and data flows in the Subnetter codebase.
+---
+
+import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+This document provides detailed technical information about Subnetter's architecture. It is intended for developers who want to understand the system's internal workings or contribute to the codebase.
+
+## 1. System Overview
+
+Subnetter is a tool for allocating IPv4 CIDR blocks across cloud infrastructure in a hierarchical, deterministic manner. It takes a configuration file as input and produces a set of non-overlapping CIDR allocations for subnets across multiple cloud providers, accounts, regions, and availability zones.
+
+The tool is designed to be:
+
+1. **Deterministic**: The same input configuration always produces the same output allocations
+2. **Hierarchical**: CIDRs are allocated in a nested structure (accounts → regions → AZs → subnets)
+3. **Non-overlapping**: All allocated CIDRs are guaranteed not to overlap
+4. **Cloud-agnostic**: Works with AWS, Azure, GCP, and other cloud providers
+5. **Flexible**: Supports various configuration options and output formats
+
+> **Current Implementation Status**: The core CIDR allocation functionality is fully implemented across all supported cloud providers (AWS, Azure, and GCP). The tool offers comprehensive configuration options and error handling, with additional features planned as outlined in the roadmap.
+
+### 1.1 CIDR Allocation Hierarchy
+
+<MermaidDiagram chart={`graph TD
+    base[Base CIDR] --> account1[Account 1 CIDR]
+    base --> account2[Account 2 CIDR]
+    
+    account1 --> region1[Region 1 CIDR] 
+    account1 --> region2[Region 2 CIDR]
+    
+    region1 --> az1[AZ 1 CIDR]
+    region1 --> az2[AZ 2 CIDR]
+    
+    az1 --> subnet1[Public Subnet CIDR]
+    az1 --> subnet2[Private Subnet CIDR]
+    
+    style base fill:#4169E1,color:#FFFFFF
+    style account1 fill:#4682B4,color:#FFFFFF
+    style account2 fill:#4682B4,color:#FFFFFF
+    style region1 fill:#6495ED,color:#FFFFFF
+    style region2 fill:#6495ED,color:#FFFFFF
+    style az1 fill:#87CEEB,color:#333333
+    style az2 fill:#87CEEB,color:#333333
+    style subnet1 fill:#ADD8E6,color:#333333
+    style subnet2 fill:#ADD8E6,color:#333333`} />
+
+### 1.2 High-Level Data Flow
+
+<MermaidDiagram chart={`graph LR
+    A[Configuration File] --> |"loads"| B[Config Loader]
+    B --> |"validates"| C[Config Validator]
+    C --> |"processes"| D[CIDR Allocator]
+    D --> |"generates"| E[Output Generator]
+    E --> |"creates"| F1[CSV Output]
+    E -.-> |"creates"| F2[Future Formats]
+    
+    linkStyle 0,1,2,3,4,5 stroke:#36BCF7,stroke-width:2px;
+    style A fill:#283747,color:#FFFFFF
+    style B fill:#283747,color:#FFFFFF
+    style C fill:#283747,color:#FFFFFF
+    style D fill:#283747,color:#FFFFFF
+    style E fill:#283747,color:#FFFFFF
+    style F1 fill:#283747,color:#FFFFFF
+    style F2 fill:#283747,color:#FFFFFF`} />
+
+## 2. Configuration System
+
+### 2.1 Configuration Structure
+
+The configuration file is the primary input to the system and defines the structure of the CIDR allocation hierarchy.
+
+Key sections of the configuration include:
+- Base CIDR block
+- Account definitions
+- Region specifications
+- Subnet type definitions
+- Prefix length settings
+
+### 2.2 Validation Rules and Constraints
+
+The configuration validation system enforces a set of rules to ensure that inputs will result in valid and practical CIDR allocations. These constraints are implemented as a schema using Zod in `packages/core/src/config/schema.ts`.
+
+<MermaidDiagram chart={`flowchart TD
+    config[Config Object] --> validator[Config Validator]
+    validator --> basecidr[Base CIDR Validation]
+    validator --> subnet[Subnet Types Validation]
+    validator --> account[Account Validation]
+    validator --> prefix[Prefix Lengths Validation]
+    
+    basecidr --> cidr{Valid CIDR?}
+    cidr -->|Yes| next1[Continue]
+    cidr -->|No| error1[Error]
+    
+    subnet --> stype{Valid Subnet Types?}
+    stype -->|Yes| next2[Continue]
+    stype -->|No| error2[Error]
+    
+    prefix --> plen{Valid Prefix Lengths?}
+    plen -->|Yes| next3[Continue]
+    plen -->|No| error3[Error]
+    
+    account --> acct{Valid Accounts?}
+    acct -->|Yes| next4[Continue]
+    acct -->|No| error4[Error]
+    
+    style config fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style validator fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style basecidr fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style subnet fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style account fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style prefix fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style cidr fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style stype fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style plen fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style acct fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style next1 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next2 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next3 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style next4 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error1 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error2 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error3 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style error4 fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+Key validation rules:
+
+1. **Base CIDR**: Must be a valid CIDR notation (e.g., `10.0.0.0/8`)
+2. **Subnet Types**: Must be a non-empty object with valid subnet type names and prefix lengths
+3. **Accounts**: Must be a non-empty array of account objects with valid names and cloud configurations
+4. **Prefix Lengths**: Must be a valid object with account, region, and AZ prefix lengths within the valid range (8-28)
+
+### 2.3 Schema Evolution and Backwards Compatibility
+
+As the tool evolves, the configuration schema may change over time. We've designed the system to maintain backwards compatibility with older configuration formats where possible. This section describes our approach to schema evolution.
+
+<MermaidDiagram chart={`flowchart TD
+    oldConfig[Old Config Format] --> validator[Config Validator]
+    newConfig[New Config Format] --> validator
+    validator --> detection[Format Detection]
+    detection --> v1[v1 Schema]
+    detection --> v2[v2 Schema]
+    detection --> v3[v3 Schema]
+    v1 --> norm[Normalization Layer]
+    v2 --> norm
+    v3 --> norm
+    norm --> internal[Internal Format]
+    internal --> allocator[CIDR Allocator]
+    
+    style oldConfig fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style newConfig fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style validator fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style detection fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style v1 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style v2 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333 
+    style v3 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style norm fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style internal fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333
+    style allocator fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+Key principles for backwards compatibility:
+
+1. **Additive Schema Changes**: New fields should be added in a way that doesn't break existing configurations
+2. **Schema Versioning**: Major changes to the schema should increment the major version number
+3. **Format Normalization**: Internally normalize different configuration formats to support legacy formats
+4. **Deprecation Cycle**: Old formats should go through a deprecation cycle before being removed
+
+Example of schema evolution:
+```javascript
+// Original v1 format - array of subnet types
+"subnetTypes": [
+  { "name": "Public", "prefixLength": 24 },
+  { "name": "Private", "prefixLength": 26 }
+]
+
+// New v2 format - object map of subnet types
+"subnetTypes": {
+  "Public": 24,
+  "Private": 26
+}
+```
+
+Both formats are supported through the normalization layer, which converts them to a consistent internal format.
+
+### 2.4 Configuration Examples
+
+This section provides examples of real-world configurations and their resulting allocations.
+
+#### Basic Single-Account Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 26,
+    "Data": 28
+  },
+  "accounts": [
+    {
+      "name": "Production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ]
+}
+```
+
+Resulting allocations (simplified):
+```
+Account: Production, Region: us-east-1, AZ: us-east-1a, Subnet: Public, CIDR: 10.0.0.0/24
+Account: Production, Region: us-east-1, AZ: us-east-1a, Subnet: Private, CIDR: 10.0.1.0/26
+Account: Production, Region: us-east-1, AZ: us-east-1a, Subnet: Data, CIDR: 10.0.1.64/28
+Account: Production, Region: us-east-1, AZ: us-east-1b, Subnet: Public, CIDR: 10.0.4.0/24
+...
+```
+
+## 3. Core Components
+
+### 3.1 CIDR Utilities
+
+The CIDR Utilities layer (`packages/cidr-utils`) provides low-level functionality for IP address and CIDR manipulation, including:
+
+1. **IP Address Parsing**: Converting between string, numeric, and octet representations
+2. **CIDR Validation**: Ensuring CIDR blocks are valid and well-formed
+3. **Subnet Calculations**: Computing subnet properties (network address, broadcast, usable IPs)
+4. **Range Detection**: Determining if CIDR blocks overlap or contain one another
+5. **Error Handling**: Providing detailed error types for IP and CIDR operations
+
+<MermaidDiagram chart={`graph TB
+    input[IP/CIDR String] --> |"validates"| validator[CIDR Validator]
+    input --> |"parses"| parser[CIDR Parser]
+    parser --> |"manipulates"| ip[IP Utilities]
+    parser --> |"calculates"| calculator[Subnet Calculator]
+    calculator --> |"outputs"| result[Subnet Properties]
+    
+    linkStyle 0,1,2,3,4 stroke:#36BCF7,stroke-width:2px;
+    style input fill:#4682B4,color:#FFFFFF
+    style validator fill:#4682B4,color:#FFFFFF
+    style parser fill:#4682B4,color:#FFFFFF
+    style ip fill:#4682B4,color:#FFFFFF
+    style calculator fill:#4682B4,color:#FFFFFF
+    style result fill:#4682B4,color:#FFFFFF`} />
+
+Key files:
+- `packages/cidr-utils/src/validator.ts`: CIDR validation functions
+- `packages/cidr-utils/src/parser.ts`: CIDR parsing and normalization
+- `packages/cidr-utils/src/ip.ts`: IP address manipulation utilities
+- `packages/cidr-utils/src/calculator.ts`: Subnet calculation functions
+- `packages/cidr-utils/src/subnet.ts`: Subnet allocation utilities
+
+This dedicated CIDR utilities package replaces direct dependencies on external libraries like ipaddr.js, providing several advantages:
+
+1. **Complete control** over IP address and CIDR manipulation logic
+2. **Consistent error handling** with domain-specific error types
+3. **Performance optimization** for Subnetter's specific use cases
+4. **TypeScript-first design** with comprehensive type definitions
+5. **Zero dependencies** for better security and smaller bundle size
+
+### 3.2 CIDR Allocator
+
+The CIDR allocator is the heart of the system, responsible for:
+
+1. Dividing the base CIDR block into account-level blocks
+2. Further subdividing into regions, AZs, and subnets
+3. Tracking allocated CIDRs to prevent overlaps
+4. Generating the final allocation objects
+
+<MermaidDiagram chart={`graph TB
+    config[Validated Config] --> |"inputs to"| allocator[CIDR Allocator]
+    allocator --> |"creates"| accounts[Account Allocation]
+    accounts --> |"creates"| regions[Region Allocation]
+    regions --> |"creates"| azs[AZ Allocation]
+    azs --> |"creates"| subnets[Subnet Allocation]
+    subnets --> |"produces"| result[Allocation Results]
+    
+    linkStyle 0,1,2,3,4,5 stroke:#36BCF7,stroke-width:2px;
+    style config fill:#283747,color:#FFFFFF
+    style allocator fill:#283747,color:#FFFFFF
+    style accounts fill:#283747,color:#FFFFFF
+    style regions fill:#283747,color:#FFFFFF
+    style azs fill:#283747,color:#FFFFFF
+    style subnets fill:#283747,color:#FFFFFF
+    style result fill:#283747,color:#FFFFFF`} />
+
+Key files:
+- `packages/core/src/allocator/core/allocator.ts`: Main allocator class
+- `packages/core/src/allocator/core/region.ts`: Region-level allocation
+- `packages/core/src/allocator/core/subnet.ts`: Subnet-level allocation
+- `packages/core/src/allocator/utils/cidr/calculator.ts`: CIDR manipulation utilities
+
+### 3.3 Cloud Provider Detection
+
+The system intelligently detects and handles different cloud providers, applying provider-specific logic where needed:
+
+- **AWS**: Understands AWS region and AZ naming conventions (us-east-1, us-east-1a)
+- **Azure**: Maps regions to Azure conventions (eastus, eastus-1)
+- **GCP**: Understands GCP zone naming patterns (us-central1, us-central1-a)
+
+Implementation details:
+- Provider detection is handled by the `CloudProviderDetector` class
+- Region normalization ensures consistent handling across providers
+- AZ naming is automatically adjusted based on the detected provider
+
+> **Current Implementation Status**: AWS, Azure, and GCP provider support are now fully implemented with complete region and availability zone handling. Additional cloud providers may be added in the future through the planned extensibility framework.
+
+### 3.4 Algorithm Complexity and Performance
+
+The CIDR allocation algorithm is designed for deterministic, efficient allocation with the following characteristics:
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|-----------------|
+| Configuration Loading | O(n) | O(n) |
+| CIDR Validation | O(1) | O(1) |
+| Account Allocation | O(a) | O(a) |
+| Region Allocation | O(a*r) | O(a*r) |
+| AZ Allocation | O(a*r*z) | O(a*r*z) |
+| Subnet Allocation | O(a*r*z*s) | O(a*r*z*s) |
+| Total Allocation | O(a*r*z*s) | O(a*r*z*s) |
+
+Where:
+- a = number of accounts
+- r = average number of regions per account
+- z = average number of AZs per region
+- s = number of subnet types
+
+Performance considerations:
+- The algorithm uses efficient CIDR block calculations 
+- Allocations are performed in a single pass
+- Results are cached to avoid recalculation
+
+### 3.5 Output Generator
+
+The output generator is responsible for:
+
+1. Formatting the allocations into the desired output format (CSV)
+2. Writing the output to a file or stdout
+
+<MermaidDiagram chart={`graph LR
+    allocations[Allocation Results] --> |"feeds into"| formatter[Output Formatter]
+    formatter --> |"creates"| csv[CSV Output]
+    formatter -.-> |"may create"| future[Future Formats]
+    
+    linkStyle 0,1,2 stroke:#36BCF7,stroke-width:2px;
+    style allocations fill:#283747,color:#FFFFFF
+    style formatter fill:#283747,color:#FFFFFF
+    style csv fill:#283747,color:#FFFFFF
+    style future fill:#283747,color:#FFFFFF`} />
+
+Key files:
+- `packages/core/src/output/csv-writer.ts`: CSV output generation
+
+## 4. Error Handling and Observability
+
+### 4.1 Error Handling
+
+The system uses a hierarchical error handling approach:
+
+<MermaidDiagram chart={`classDiagram
+    class Error {
+        +string message
+        +string name
+    }
+    
+    class ConfigValidationError {
+        +string message
+        +ZodError errors
+    }
+    
+    class CidrError {
+        +string message
+    }
+    
+    class AllocationError {
+        +string message
+    }
+    
+    class OutputError {
+        +string message
+    }
+    
+    Error <|-- ConfigValidationError
+    Error <|-- CidrError
+    Error <|-- AllocationError
+    Error <|-- OutputError`} />
+
+1. **Domain-specific errors**: `CidrError`, `AllocationError`, `ConfigValidationError`
+2. **Contextual error wrapping**: Errors are wrapped with context about where they occurred
+3. **Helpful error messages**: Error messages include specific details about what went wrong
+
+### 4.2 Error Recovery Strategies
+
+When errors occur, the system provides clear guidance on how to fix them. Common error scenarios and their solutions include:
+
+| Error Type | Possible Causes | Recovery Strategy |
+|------------|----------------|-------------------|
+| Invalid CIDR Format | Malformed CIDR notation | Check the CIDR notation format (e.g., 10.0.0.0/8) |
+| Insufficient IP Space | Base CIDR too small for requested allocations | Use a larger base CIDR or reduce the number of allocations |
+| Overlapping CIDRs | Manually specified CIDRs overlap | Adjust the CIDRs to remove the overlap |
+| Invalid Prefix Length | Prefix length out of range | Ensure prefix lengths are between 8 and 28 |
+| Unknown Cloud Provider | Unsupported provider specified | Check the supported cloud providers list |
+
+The system also provides validation modes:
+
+1. **Strict Mode**: Fails on any validation error
+2. **Warning Mode**: Logs warnings but proceeds with safe defaults
+3. **Verbose Mode**: Provides detailed information about validation issues
+
+### 4.3 Logging and Observability
+
+The system includes comprehensive logging to track allocation operations and diagnose issues:
+
+- **Structured Logging**: JSON-formatted logs for machine parsing
+- **Log Levels**: ERROR, WARN, INFO, DEBUG, TRACE
+- **Contextual Information**: Each log entry includes operation context
+- **Performance Metrics**: Timing data for performance-critical operations
+
+<MermaidDiagram chart={`graph TD
+    operation[Operation] --> |"generates"| logs[Structured Logs]
+    logs --> |"filtered by"| level[Log Level]
+    logs --> |"enriched with"| context[Operation Context]
+    logs --> |"includes"| metrics[Performance Metrics]
+    logs --> |"can be sent to"| console[Console]
+    logs --> |"can be sent to"| file[File]
+    
+    style operation fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style logs fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style level fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style context fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style metrics fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style console fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style file fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333`} />
+
+Sample log entry:
+```json
+{
+  "level": "INFO",
+  "timestamp": "2023-06-15T12:34:56.789Z",
+  "message": "Allocated subnet CIDR",
+  "context": {
+    "accountName": "Production",
+    "regionName": "us-east-1",
+    "azName": "us-east-1a",
+    "subnetType": "Public"
+  },
+  "data": {
+    "cidr": "10.0.0.0/24",
+    "ipCount": 256,
+    "usableIps": 251
+  },
+  "durationMs": 1.23
+}
+```
+
+> **Current Implementation Status**: A comprehensive logging system is now implemented with support for multiple log levels, structured output formats, and performance metrics. The system provides both human-readable console output and machine-parseable JSON format for integration with monitoring tools.
+
+## 5. Project Structure and Workflow
+
+### 5.1 Monorepo Structure
+
+The project is organized as a monorepo with the following packages:
+
+- `packages/core`: Core functionality for CIDR allocation and configuration handling
+- `packages/cli`: Command-line interface for the tool
+- `packages/docs`: Documentation site
+- `packages/cidr-utils`: Pure JavaScript/TypeScript utilities for CIDR manipulation and subnet calculations
+
+<MermaidDiagram chart={`graph TD
+    A[Subnetter Monorepo] --> |"contains"| B1[Core Package]
+    A --> |"contains"| B2[CLI Package]
+    A --> |"contains"| B3[Docs Package]
+    A --> |"contains"| B4[CIDR Utils Package]
+    B1 --> |"includes"| C1[Allocator]
+    B1 --> |"includes"| C2[Config]
+    B1 --> |"includes"| C3[Models]
+    B1 --> |"includes"| C4[Output]
+    B1 --> |"uses"| B4
+    B2 --> |"includes"| D1[CLI Commands]
+    B2 --> |"uses"| B1
+    B3 --> |"includes"| D2[Astro/Starlight Site]
+    B4 --> |"includes"| E1[IP Utilities]
+    B4 --> |"includes"| E2[CIDR Parser]
+    B4 --> |"includes"| E3[CIDR Validator]
+    B4 --> |"includes"| E4[Subnet Calculator]
+    
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 stroke:#36BCF7,stroke-width:2px;
+    style A fill:#1E3D59,color:#FFFFFF
+    style B1 fill:#1E3D59,color:#FFFFFF
+    style B2 fill:#1E3D59,color:#FFFFFF
+    style B3 fill:#1E3D59,color:#FFFFFF
+    style B4 fill:#1E3D59,color:#FFFFFF
+    style C1 fill:#1E3D59,color:#FFFFFF
+    style C2 fill:#1E3D59,color:#FFFFFF
+    style C3 fill:#1E3D59,color:#FFFFFF
+    style C4 fill:#1E3D59,color:#FFFFFF
+    style D1 fill:#1E3D59,color:#FFFFFF
+    style D2 fill:#1E3D59,color:#FFFFFF
+    style E1 fill:#1E3D59,color:#FFFFFF
+    style E2 fill:#1E3D59,color:#FFFFFF
+    style E3 fill:#1E3D59,color:#FFFFFF
+    style E4 fill:#1E3D59,color:#FFFFFF`} />
+
+#### 5.1.1 CIDR Utils Package
+
+The CIDR Utils package (`packages/cidr-utils`) provides a foundation of low-level utilities for working with IPv4 CIDR notation:
+
+1. **IP Utilities**: Conversion between string, numeric, and octet representations of IP addresses
+2. **CIDR Parser**: Functions for parsing and normalizing CIDR notation
+3. **CIDR Validator**: Comprehensive validation of CIDR notation with detailed error handling
+4. **Subnet Calculator**: Tools for calculating subnet properties, range detection, and subnet allocation
+
+This package is designed to be:
+- **Dependency-free**: Pure JavaScript/TypeScript implementation with no external dependencies
+- **Reusable**: Usable in any JavaScript/TypeScript project requiring CIDR functionality
+- **Comprehensive**: Complete set of utilities for all CIDR-related operations
+- **Self-contained**: Can be used independently of the rest of the Subnetter project
+
+#### 5.1.2 Package Dependency Architecture
+
+The Subnetter project follows a clear dependency hierarchy to maintain separation of concerns and modularity:
+
+<MermaidDiagram chart={`flowchart LR
+    utils[CIDR Utils] --> core[Core Package]
+    core --> cli[CLI Package]
+    
+    utils -.-> external[External Projects]
+    
+    subgraph "Low-Level Utilities"
+        utils
+    end
+    
+    subgraph "Business Logic"
+        core
+    end
+    
+    subgraph "User Interfaces"
+        cli
+    end
+    
+    style utils fill:#4682B4,color:#FFFFFF
+    style core fill:#1E3D59,color:#FFFFFF
+    style cli fill:#F5B971,color:#333333
+    style external fill:#AAA,color:#333333
+`} />
+
+The dependency flow is designed to follow best practices for modularity and reusability:
+
+1. **CIDR Utils Package**: Forms the foundation with no internal dependencies
+   - Provides low-level CIDR utilities that can be used independently
+   - Serves as the core building block for IP address manipulation
+   - Can be used by external projects needing CIDR functionality
+
+2. **Core Package**: Depends on CIDR Utils
+   - Implements the business logic for subnet allocation
+   - Uses CIDR Utils for all IP address and subnet calculations
+   - Exposes a clean API for programmatic use
+
+3. **CLI Package**: Depends on Core
+   - Provides the user interface layer
+   - Uses the Core package's API to drive the application
+   - Does not directly use CIDR Utils to maintain proper layering
+
+This architecture ensures:
+- **Separation of concerns**: Each package has a well-defined responsibility
+- **Reduced coupling**: Dependencies flow in one direction only
+- **Reusability**: Lower-level packages can be used independently
+- **Maintainability**: Changes in one layer don't affect others unnecessarily
+
+### 5.2 CLI Interface
+
+The CLI interface provides a user-friendly way to interact with the tool, including:
+
+1. Parsing command-line arguments
+2. Handling errors and providing helpful messages
+3. Configuring logging levels
+
+<MermaidDiagram chart={`graph TB
+    input[User Input] --> |"enters"| program[Commander Program]
+    program --> |"parses"| commands[Commands]
+    commands --> |"executes"| generate[Generate Command]
+    commands --> |"executes"| validate[Validate Command]
+    generate --> |"uses"| core[Core Package]
+    validate --> |"uses"| core
+    core --> |"returns to"| output[Output to User]
+    
+    linkStyle 0,1,2,3,4,5,6 stroke:#36BCF7,stroke-width:2px;
+    style input fill:#283747,color:#FFFFFF
+    style program fill:#283747,color:#FFFFFF
+    style commands fill:#283747,color:#FFFFFF
+    style generate fill:#283747,color:#FFFFFF
+    style validate fill:#283747,color:#FFFFFF
+    style core fill:#283747,color:#FFFFFF
+    style output fill:#283747,color:#FFFFFF`} />
+
+Key files:
+- `packages/cli/src/index.ts`: Main CLI entry point
+
+### 5.3 Data Flow
+
+The following diagram illustrates the complete data flow through the system:
+
+<MermaidDiagram chart={`sequenceDiagram
+    participant User
+    participant CLI
+    participant ConfigLoader
+    participant CidrAllocator
+    participant CSVWriter
+    
+    User->>+CLI: Run with options
+    CLI->>+ConfigLoader: Load config file
+    ConfigLoader-->>-CLI: Return validated config
+    CLI->>+CidrAllocator: Create with config
+    CLI->>CidrAllocator: Generate allocations
+    CidrAllocator-->>-CLI: Return allocations
+    CLI->>+CSVWriter: Write allocations to CSV
+    CSVWriter-->>-CLI: Confirm write complete
+    CLI-->>-User: Show success message
+    
+    Note over User,CSVWriter: Complete allocation workflow`} />
+
+### 5.4 Testing Approach
+
+The codebase has extensive test coverage:
+
+<MermaidDiagram chart={`flowchart TB
+    unit[Unit Tests] --> |"includes"| core[Core Package Tests]
+    unit --> |"includes"| cli[CLI Package Tests]
+    integration[Integration Tests] --> |"includes"| e2e[End-to-End Tests]
+    
+    linkStyle 0,1,2 stroke:#36BCF7,stroke-width:2px;
+    
+    style unit fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style integration fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style core fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style cli fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style e2e fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333`} />
+
+1. **Unit tests**: For individual functions and classes
+2. **Integration tests**: For the complete allocation process
+3. **End-to-end tests**: For the CLI interface
+
+> **Current Implementation Status**: The project now has comprehensive test coverage (>90%) across unit, integration, and end-to-end tests. All core functionality has extensive test cases covering both common scenarios and edge cases to ensure reliability and correctness.
+
+### 5.5 CI/CD Process
+
+The project uses GitHub Actions for CI/CD:
+
+<MermaidDiagram chart={`flowchart LR
+    pr[Pull Request] --> |"triggers"| checks[PR Checks]
+    push[Push to Main] --> |"triggers"| ci[CI Pipeline]
+    ci --> |"runs"| tests[Run Tests]
+    tests --> |"generates"| coverage[Generate Coverage]
+    tests --> |"triggers"| release[Semantic Release]
+    tests --> |"builds"| docs[Build & Deploy Docs]
+    
+    linkStyle 0,1,2,3,4,5 stroke:#36BCF7,stroke-width:2px;
+    
+    style pr fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style push fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style ci fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style tests fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
+    style coverage fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
+    style release fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333333
+    style docs fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333333`} />
+
+1. **Build**: Compile TypeScript code
+2. **Test**: Run unit and integration tests
+3. **Lint**: Check code style and quality
+4. **Publish**: Publish packages to npm (on release)
+
+## 6. Data Model
+
+The core data model consists of these key interfaces:
+
+<MermaidDiagram chart={`classDiagram
+    class Config {
+        +string baseCidr
+        +PrefixLengths prefixLengths
+        +string[] cloudProviders
+        +Account[] accounts
+        +SubnetTypesMap subnetTypes
+    }
+    
+    class PrefixLengths {
+        +number account
+        +number region
+        +number az
+    }
+    
+    class Account {
+        +string name
+        +Record clouds
+    }
+    
+    class CloudConfig {
+        +string baseCidr
+        +string[] regions
+    }
+    
+    class SubnetTypesMap {
+        +Record~string, number~ map
+    }
+    
+    class Allocation {
+        +string accountName
+        +string vpcName
+        +string cloudProvider
+        +string regionName
+        +string availabilityZone
+        +string regionCidr
+        +string vpcCidr
+        +string azCidr
+        +string subnetCidr
+        +string cidr
+        +string subnetRole
+        +number usableIps
+    }
+    
+    Config "1" --> "*" Account
+    Config "1" --> "1" SubnetTypesMap
+    Config "1" --> "0..1" PrefixLengths
+    Account "1" --> "*" CloudConfig`} />
+
+These interfaces define the structure of the configuration input and allocation output.
+
+## 7. Extensibility and Future Development
+
+### 7.1 Extensibility Points
+
+The architecture is designed with several extensibility points that allow users to customize and extend the tool without altering the core codebase.
+
+<MermaidDiagram chart={`flowchart TD
+    core[Core System] --> out[Output Format Extensions]
+    core --> cloud[Cloud Provider Extensions]
+    core --> alloc[Custom Allocation Strategies]
+    core --> cli[CLI Extensions]
+    core --> integrate[Integration Points]
+    
+    out --> tf[Terraform HCL]
+    out --> cf[CloudFormation]
+    out --> json[JSON/YAML]
+    
+    cloud --> aws[AWS]
+    cloud --> azure[Azure]
+    cloud --> gcp[GCP]
+    cloud --> oracle[Oracle Cloud]
+    cloud --> alibaba[Alibaba Cloud]
+    
+    alloc --> dynamic[Dynamic Prefix Lengths]
+    alloc --> custom[Custom Allocation Rules]
+    
+    cli --> convert[Conversion Utilities]
+    cli --> viz[Visualization Tools]
+    
+    integrate --> tools[External Tools]
+    integrate --> plugins[Plugin System]
+    
+    style core fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
+    style out fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style cloud fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style alloc fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style cli fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
+    style integrate fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333`} />
+
+Key extension areas:
+
+1. **Output Format Extensions**: The system is designed to easily add new output formats beyond CSV
+2. **Cloud Provider Extensions**: Support for additional cloud providers can be added
+3. **Custom Allocation Strategies**: Users can implement custom allocation algorithms
+4. **CLI Extensions**: The command-line interface can be extended with new commands
+5. **Integration Points**: External tools can integrate with the core library
+
+> **Current Implementation Status**: While the core architecture is designed with extensibility in mind, the formal extension interfaces and plugin system remain under development. The current implementation provides stable APIs for integrating with the core library programmatically, but a proper plugin system for third-party extensions is still on the roadmap.
+
+### 7.2 Future Development
+
+This architecture document describes the current design of the Subnetter tool and outlines potential extensibility points. For a detailed view of which features are currently implemented, partially implemented, or planned for future releases, please refer to our [Project Roadmap](/roadmap).
+
+The roadmap includes:
+- Current implementation status of all features
+- Development priorities and timeline
+- Planned release schedule
+- Information on how to contribute to future development
+
+As the project evolves, this architecture document will be updated to reflect major architectural changes and enhancements.

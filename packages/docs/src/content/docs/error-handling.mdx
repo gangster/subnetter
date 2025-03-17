@@ -1,0 +1,274 @@
+---
+title: Error Handling System
+description: "Comprehensive explanation of Subnetter's error handling capabilities, error types, error codes, and how to interpret error messages."
+---
+
+Subnetter implements a comprehensive error handling system designed to provide clear, actionable information when something goes wrong. This document explains how the error system works, the different types of errors you might encounter, and how to interpret and resolve them.
+
+## Error Hierarchy
+
+Subnetter uses a hierarchical error structure to organize errors by type:
+
+```
+SubnetterError (Base class)
+├── ConfigurationError
+├── AllocationError
+├── ValidationError
+├── IOError
+└── CloudProviderError
+```
+
+Each error type provides specific context and help information relevant to its category.
+
+## Error Types
+
+### SubnetterError
+
+The base error class for all Subnetter-specific errors. It provides:
+
+- Error message
+- Error code
+- Context information
+- Formatted error output
+- Help text
+
+### ConfigurationError
+
+Indicates issues with the configuration file or settings. Common causes include:
+
+- Invalid JSON or YAML syntax
+- Missing required fields
+- Schema validation failures
+- Unsupported file formats
+
+### AllocationError
+
+Signals problems with CIDR block allocation. Common causes include:
+
+- Insufficient address space for the requested allocation
+- Overlapping CIDR blocks
+- Invalid CIDR formats
+- Network conflicts
+
+### ValidationError
+
+Represents input validation failures. Common causes include:
+
+- Invalid parameters passed to functions
+- Unsupported data formats
+- Type checking failures
+
+### IOError
+
+Indicates file system operation failures. Common causes include:
+
+- File not found
+- Permission issues
+- Disk space problems
+- Network connectivity issues when accessing remote files
+
+### CloudProviderError
+
+Represents cloud provider-specific issues. Common causes include:
+
+- Unsupported cloud providers
+- Invalid region or zone names
+- Provider-specific limitations
+
+## Error Codes
+
+Each error includes a specific error code that helps identify the exact issue. Error codes follow this pattern:
+
+- `E1xxx`: General errors
+- `E2xxx`: Configuration errors
+- `E3xxx`: CIDR allocation errors
+- `E4xxx`: I/O errors
+- `E5xxx`: Cloud provider errors
+
+Examples:
+
+| Error Code | Description |
+|------------|-------------|
+| `E1001` | Unknown error |
+| `E2001` | Invalid configuration format |
+| `E2002` | Configuration validation failed |
+| `E2003` | Configuration file not found |
+| `E3001` | Insufficient address space |
+| `E3002` | CIDR blocks overlap |
+| `E3003` | Invalid CIDR format |
+| `E4001` | File not found |
+| `E4002` | Permission denied |
+| `E5001` | Unsupported cloud provider |
+
+## Error Messages
+
+Error messages follow a consistent format:
+
+```
+ERROR [E3001] Insufficient address space: No CIDR available for region us-east-1 at index 0
+```
+
+When context is available, it's displayed in a structured format:
+
+```
+ERROR [E3001] Insufficient address space: No CIDR available for region us-east-1 at index 0
+Context:
+- Account: production
+- Regions: us-east-1, us-west-2
+- Base CIDR: 10.0.0.0/24 (too small for the requested allocation)
+```
+
+## Reading Error Messages
+
+When you encounter an error, follow these steps to interpret it:
+
+1. Identify the error type (ConfigurationError, AllocationError, etc.)
+2. Note the error code (E1xxx, E2xxx, etc.)
+3. Read the error message for a description of the issue
+4. Check the context information for specific details
+5. Refer to the help text for suggested solutions
+
+## Common Error Scenarios and Solutions
+
+### Configuration Errors
+
+#### Invalid JSON/YAML Format
+
+```
+ERROR [E2001] Invalid configuration format: Unexpected token } in JSON at position 105
+```
+
+**Solution**: Check your JSON or YAML syntax. Common issues include missing commas, unbalanced braces, and quote mismatches.
+
+#### Missing Required Fields
+
+```
+ERROR [E2002] Configuration validation failed: Missing required field 'accounts'
+```
+
+**Solution**: Ensure your configuration includes all required fields. See the [Configuration Format](/user-guide/#configuration-format) documentation for details.
+
+#### Unsupported File Format
+
+```
+ERROR [E2005] Unsupported file extension: .txt. Supported formats are: .json, .yaml, .yml
+```
+
+**Solution**: Use one of the supported file formats (JSON or YAML).
+
+### Allocation Errors
+
+#### Insufficient Address Space
+
+```
+ERROR [E3001] Insufficient address space: No CIDR available for region us-east-1
+```
+
+**Solution**: 
+- Use a larger base CIDR (smaller prefix length)
+- Reduce the number of regions or subnets
+- Adjust the prefix lengths for different levels of the hierarchy
+
+#### Overlapping CIDRs
+
+```
+ERROR [E3002] CIDR blocks overlap: 10.0.0.0/24 overlaps with 10.0.0.128/25
+```
+
+**Solution**: Ensure that manually specified CIDRs don't overlap with each other or with automatically allocated CIDRs.
+
+#### Invalid CIDR Format
+
+```
+ERROR [E3003] Invalid CIDR format: 10.0.0/8
+```
+
+**Solution**: Use the correct CIDR notation (e.g., 10.0.0.0/8).
+
+### I/O Errors
+
+#### File Not Found
+
+```
+ERROR [E4001] File not found: /path/to/config.json
+```
+
+**Solution**: Check the file path and ensure the file exists.
+
+#### Permission Denied
+
+```
+ERROR [E4002] Permission denied when reading file: /path/to/config.json
+```
+
+**Solution**: Check file permissions and ensure your user account has read access.
+
+## Using Error Handling Programmatically
+
+If you're using Subnetter as a library in your own application, you can catch and handle specific error types:
+
+```typescript
+import { 
+  SubnetterError, 
+  ConfigurationError, 
+  AllocationError, 
+  CloudProviderError,
+  ValidationError,
+  IOError,
+  ErrorCode 
+} from '@subnetter/core';
+
+try {
+  const allocations = cidrAllocator.generateAllocations(config);
+} catch (error) {
+  if (error instanceof ConfigurationError) {
+    console.error('Configuration problem:', error.message);
+    console.log('Help:', error.getHelpText());
+  } else if (error instanceof AllocationError) {
+    console.error('Allocation failure:', error.message);
+    console.log('Context:', error.getContextString());
+  } else if (error instanceof CloudProviderError) {
+    console.error('Cloud provider issue:', error.message);
+    console.log('Provider help:', error.getHelpText());
+    // You might want to handle specific cloud provider errors
+    if (error.code === ErrorCode.INVALID_CLOUD_PROVIDER) {
+      console.error('Unsupported cloud provider specified');
+    } else if (error.code === ErrorCode.INVALID_REGION) {
+      console.error('Invalid region specified for the cloud provider');
+    }
+  } else if (error instanceof ValidationError) {
+    console.error('Validation error:', error.message);
+  } else if (error instanceof IOError) {
+    console.error('I/O operation failed:', error.message);
+  } else if (error instanceof SubnetterError) {
+    console.error(`Error [${error.code}]:`, error.message);
+  } else {
+    console.error('Unknown error:', error);
+  }
+}
+```
+
+This allows you to provide custom error handling and recovery strategies based on the type of error encountered.
+
+## Adding Custom Error Types
+
+If you're extending Subnetter and need to add custom error types, you can extend the `SubnetterError` class:
+
+```typescript
+import { SubnetterError, ErrorCode } from '@subnetter/core';
+
+export class CustomError extends SubnetterError {
+  constructor(message: string, code: ErrorCode = ErrorCode.UNKNOWN_ERROR, context?: Record<string, any>) {
+    super(message, code, context);
+    this.name = 'CustomError';
+  }
+
+  getHelpText(): string {
+    return 'This is a custom error. Here are steps to resolve it...';
+  }
+}
+```
+
+## Conclusion
+
+Subnetter's error handling system is designed to provide clear, actionable information when something goes wrong. By understanding the different error types and their causes, you can quickly diagnose and resolve issues with your CIDR allocations. 

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "expand",
+  "entryPoints": [
+    "./packages/core/src/index.ts",
+    "./packages/cli/src/index.ts"
+  ],
+  "out": "docs/api",
+  "name": "Subnetter API Documentation",
+  "includeVersion": true,
+  "skipErrorChecking": true,
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "externalPattern": ["**/node_modules/**"],
+  "sort": ["kind", "visibility", "static-first", "alphabetical"],
+  "categorizeByGroup": true
+} 

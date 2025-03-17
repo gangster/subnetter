@@ -1,0 +1,424 @@
+---
+title: CIDR Primer
+description: "This document explains key concepts about CIDR notation and IP subnetting as relevant to the Subnetter tool."
+---
+
+This document explains key concepts about CIDR notation and IP subnetting as relevant to the Subnetter tool.
+
+## Table of Contents
+- [IP Addressing Basics](#ip-addressing-basics)
+- [CIDR Notation](#cidr-notation)
+- [Subnet Sizing and Planning](#subnet-sizing-and-planning)
+- [Hierarchical Allocation](#hierarchical-allocation)
+- [Cloud Provider Specifics](#cloud-provider-specifics)
+- [CIDR Calculation Examples](#cidr-calculation-examples)
+
+## IP Addressing Basics
+
+### IPv4 Address Structure
+
+An IPv4 address is a 32-bit number represented in dotted-decimal notation, divided into four 8-bit octets:
+
+```
+192.168.1.1
+```
+
+Each octet can range from 0 to 255, giving a total of approximately 4.3 billion possible IPv4 addresses.
+
+### Network and Host Portions
+
+IP addresses are divided into two logical parts:
+- **Network portion**: Identifies the network
+- **Host portion**: Identifies a specific device on that network
+
+The division between these portions is determined by the subnet mask or prefix length.
+
+### Traditional Subnet Masks
+
+Before CIDR, subnet masks were expressed in dotted-decimal notation:
+
+| Class | Subnet Mask    | Networks | Hosts per Network |
+|-------|----------------|----------|-------------------|
+| A     | 255.0.0.0      | 128      | 16,777,214        |
+| B     | 255.255.0.0    | 16,384   | 65,534            |
+| C     | 255.255.255.0  | 2,097,152| 254               |
+
+This class-based system was inflexible and led to inefficient use of IP address space.
+
+## CIDR Notation
+
+### What is CIDR?
+
+CIDR (Classless Inter-Domain Routing) notation is a compact method for specifying IP address ranges that replaced the older class-based system.
+
+### CIDR Format
+
+A CIDR block is represented as:
+
+```
+<IP address>/<prefix length>
+```
+
+For example: `10.0.0.0/8`
+
+The prefix length (1-32) indicates how many bits of the IP address are fixed (the network portion), with the remaining bits available for hosts.
+
+### Prefix Length and Available Addresses
+
+| Prefix Length | Available Addresses | Common Use Case           |
+|---------------|---------------------|---------------------------|
+| /8            | 16,777,216          | Entire organization       |
+| /16           | 65,536              | Large data center         |
+| /20           | 4,096               | Cloud account or region   |
+| /22           | 1,024               | Availability zone         |
+| /24           | 256                 | Standard subnet           |
+| /26           | 64                  | Small subnet              |
+| /28           | 16                  | Micro subnet              |
+| /30           | 4                   | Point-to-point link       |
+| /31           | 2                   | Point-to-point (RFC 3021) |
+| /32           | 1                   | Single host               |
+
+**Formula**: Available addresses = 2^(32 - prefix length)
+
+### Usable IP Addresses
+
+In most networks, the first and last IP addresses in a subnet are reserved:
+- First address: Network address
+- Last address: Broadcast address
+
+Therefore, the number of usable IP addresses is typically 2 fewer than the total:
+
+**Usable IPs** = 2^(32 - prefix length) - 2
+
+For example, a /24 subnet has 256 total addresses but 254 usable IPs.
+
+**Exception**: In /31 networks (RFC 3021), both addresses can be used for point-to-point links.
+
+## Subnet Sizing and Planning
+
+### Determining Subnet Size
+
+When planning your network, consider:
+
+1. **Current needs**: How many hosts do you need to support now?
+2. **Future growth**: How much expansion do you anticipate?
+3. **Network segmentation**: How do you want to divide your network logically?
+4. **Address utilization**: What is an acceptable utilization percentage?
+
+### Subnet Size Calculation
+
+To determine the prefix length needed for a specific number of hosts:
+
+1. Calculate the number of bits needed: log₂(number of hosts + 2)
+2. Round up to the next whole number
+3. Subtract from 32 to get the prefix length
+
+**Example**: For 100 hosts, you need log₂(102) ≈ 6.67 bits, rounded up to 7 bits.
+Prefix length = 32 - 7 = /25, which provides 128 addresses (126 usable).
+
+### Subnet Boundaries
+
+CIDR blocks must start at addresses that are multiples of their size.
+
+**Example**: Valid /24 subnets include 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24, etc.
+
+### Subnet Visualization
+
+Here's a visual representation of how a /24 subnet divides into smaller subnets:
+
+```
+10.0.0.0/24 (256 addresses)
+│
+├── 10.0.0.0/25 (128 addresses)
+│   │
+│   ├── 10.0.0.0/26 (64 addresses)
+│   │   │
+│   │   ├── 10.0.0.0/27 (32 addresses)
+│   │   └── 10.0.0.32/27 (32 addresses)
+│   │
+│   └── 10.0.0.64/26 (64 addresses)
+│       │
+│       ├── 10.0.0.64/27 (32 addresses)
+│       └── 10.0.0.96/27 (32 addresses)
+│
+└── 10.0.0.128/25 (128 addresses)
+    │
+    ├── 10.0.0.128/26 (64 addresses)
+    │   │
+    │   ├── 10.0.0.128/27 (32 addresses)
+    │   └── 10.0.0.160/27 (32 addresses)
+    │
+    └── 10.0.0.192/26 (64 addresses)
+        │
+        ├── 10.0.0.192/27 (32 addresses)
+        └── 10.0.0.224/27 (32 addresses)
+```
+
+This visual helps understand how subnets are hierarchically subdivided, with each level doubling the number of subnets while halving their size.
+
+## Hierarchical Allocation
+
+Hierarchical IP allocation is a strategic approach to subnet design that creates a tree-like structure of network segments. This hierarchical model makes address management more scalable and helps prevent overlaps.
+
+### Example: Subnetting a CIDR Block
+
+When you have a base CIDR block like `10.0.0.0/16`, you can divide it into increasingly smaller subnets:
+
+```
+10.0.0.0/16 (65,536 addresses)
+├── 10.0.0.0/17 (32,768 addresses)
+│   ├── 10.0.0.0/18 (16,384 addresses)
+│   └── 10.0.64.0/18 (16,384 addresses)
+└── 10.0.128.0/17 (32,768 addresses)
+    ├── 10.0.128.0/18 (16,384 addresses)
+    └── 10.0.192.0/18 (16,384 addresses)
+```
+
+### Hierarchical Design Approach
+
+For cloud environments, a common hierarchical design might look like:
+
+```
+Base CIDR
+├── Account 1
+│   ├── Region 1
+│   │   ├── VPC 1
+│   │   │   ├── Subnet 1
+│   │   │   └── Subnet 2
+│   │   └── VPC 2
+│   └── Region 2
+└── Account 2
+```
+
+For Kubernetes deployments specifically, we recommend checking our detailed [Kubernetes Network Design](./guides/kubernetes-network-design/) guide, which provides a comprehensive approach to designing multi-AZ Kubernetes networks with optimized subnet sizing for high availability and efficient IP utilization.
+
+### Real-World Example
+
+In a multi-account AWS architecture, we might allocate:
+
+- `/12` for the entire organization
+- `/16` for each account
+- `/20` for each region within an account
+- `/22` or `/23` for each VPC
+- `/24` or `/25` for individual subnets
+
+This approach ensures adequate space at each level while preventing overlaps. By ensuring that different parts of your infrastructure use different, non-overlapping CIDRs, you facilitate future connectivity options like VPC peering, transit gateways, or direct connections.
+
+### Prefix Length Progression
+
+In a hierarchical design, each level uses a larger prefix length (smaller subnet):
+
+| Level    | Example Prefix | Addresses per Block |
+|----------|---------------|---------------------|
+| Base     | /8            | 16,777,216          |
+| Account  | /16           | 65,536              |
+| Region   | /20           | 4,096               |
+| AZ       | /22           | 1,024               |
+| Subnet   | /24           | 256                 |
+
+### Planning for Growth
+
+When allocating CIDRs hierarchically, always consider future growth:
+
+1. **Reserve space between allocations**: Leave gaps between accounts or regions
+2. **Use larger blocks than currently needed**: Allocate for 2-3x your current size
+3. **Balance depth and breadth**: Deeper hierarchies (more levels) give more flexibility
+4. **Plan for multi-region expansion**: Reserve space for new regions even if you start with one
+
+### Avoiding Common Pitfalls
+
+When implementing hierarchical CIDR allocation, avoid these common mistakes:
+
+1. **Starting too small**: Using a base CIDR that's too small (e.g., /16 instead of /8)
+2. **Insufficient gaps between entities**: Not leaving room for growth between accounts or regions
+3. **Inconsistent allocation patterns**: Using different patterns across accounts
+4. **Ignoring cloud provider limits**: Not considering the subnet size limitations of each cloud
+5. **Overlapping ranges**: Manually assigning ranges that overlap with existing allocations
+
+## Cloud Provider Specifics
+
+### AWS
+
+- VPCs can use CIDR blocks from /16 to /28
+- Subnets must be between /16 and /28
+- First 4 IPs and last IP in each subnet are reserved:
+  - Network address (first IP)
+  - VPC router (second IP)
+  - DNS server (third IP)
+  - Future use (fourth IP)
+  - Broadcast address (last IP)
+- Minimum subnet size is /28 (16 addresses, 11 usable)
+
+#### AWS-Specific Features
+
+- **Secondary CIDR blocks**: VPCs can have multiple non-contiguous CIDR blocks
+- **IPv6 support**: AWS can assign a /56 IPv6 CIDR block to your VPC
+- **Transit Gateway**: Connects multiple VPCs with non-overlapping CIDRs
+- **VPC Peering**: Requires non-overlapping CIDRs between peered VPCs
+
+#### AWS CIDR Best Practices
+
+- Use at least /16 for VPCs to accommodate future growth
+- Use consistent subnet sizes across all AZs for the same subnet type
+- Reserve dedicated subnet ranges for special purposes (VPN, Transit Gateway, etc.)
+- Plan for potential mergers of VPCs via peering or transit gateway
+
+### Azure
+
+- VNets can use CIDR blocks from /8 to /29
+- Subnets must be between /8 and /29
+- First 4 IPs and last IP in each subnet are reserved:
+  - Network address (first IP)
+  - Gateway (second IP)
+  - Reserved (third and fourth IPs)
+  - Broadcast address (last IP)
+- Minimum subnet size is /29 (8 addresses, 3 usable)
+
+#### Azure-Specific Features
+
+- **VNet peering**: Connects VNets with non-overlapping address spaces
+- **Service endpoints**: Provide direct connectivity to Azure services
+- **Private Link**: Dedicated connections to Azure services
+- **Virtual WAN**: Hub-and-spoke network architecture
+
+#### Azure CIDR Best Practices
+
+- Use at least /20 for VNets in production environments
+- Reserve subnets for Azure services (AzureFirewallSubnet, GatewaySubnet)
+- Plan subnetworks based on NSG requirements
+- Use unique CIDR ranges across all VNets in your organization
+
+### GCP
+
+- VPC networks use custom mode for flexible subnetting
+- Subnets must be between /8 and /29
+- First 2 IPs and last 2 IPs in each subnet are reserved:
+  - Network address (first IP)
+  - Gateway (second IP)
+  - Second-to-last IP (reserved)
+  - Broadcast address (last IP)
+- Minimum subnet size is /29 (8 addresses, 4 usable)
+
+#### GCP-Specific Features
+
+- **Global VPC**: Single VPC spans all regions
+- **Shared VPC**: Share VPC networks across multiple projects
+- **VPC Network Peering**: Connect VPCs with non-overlapping CIDRs
+- **Private Service Connect**: Access Google services privately
+
+#### GCP CIDR Best Practices
+
+- Use a hierarchical IP address plan that aligns with your resource hierarchy
+- Plan for expansion across regions with non-overlapping subnets
+- Reserve address space for specialized networking features
+- Consider future connectivity with on-premises networks
+
+## Multi-Cloud Considerations
+
+When allocating CIDRs across multiple cloud providers, consider these additional factors:
+
+1. **Non-overlapping ranges between providers**: Ensure each cloud provider has a unique range
+2. **Consistent allocation strategy**: Use the same hierarchical approach across all providers
+3. **Connectivity requirements**: Plan for VPN or direct connect between clouds
+4. **Transit routing**: Account for transit networks that connect multiple clouds
+5. **Consistent documentation**: Maintain unified documentation across all environments
+
+### Example Multi-Cloud Allocation
+
+```
+Enterprise: 10.0.0.0/8
+│
+├── AWS Environments: 10.0.0.0/12
+│   ├── Development: 10.0.0.0/16
+│   ├── Testing: 10.1.0.0/16
+│   └── Production: 10.2.0.0/16
+│
+├── Azure Environments: 10.16.0.0/12
+│   ├── Development: 10.16.0.0/16
+│   ├── Testing: 10.17.0.0/16
+│   └── Production: 10.18.0.0/16
+│
+└── GCP Environments: 10.32.0.0/12
+    ├── Development: 10.32.0.0/16
+    ├── Testing: 10.33.0.0/16
+    └── Production: 10.34.0.0/16
+```
+
+This approach ensures clear separation between cloud providers while maintaining a consistent addressing scheme.
+
+## CIDR Calculation Examples
+
+### Subdividing a CIDR Block
+
+To divide a /20 block into /22 blocks:
+
+1. Calculate the number of subnets: 2^(22-20) = 2^2 = 4
+2. Starting with 10.0.0.0/20:
+   - Subnet 1: 10.0.0.0/22
+   - Subnet 2: 10.0.4.0/22
+   - Subnet 3: 10.0.8.0/22
+   - Subnet 4: 10.0.12.0/22
+
+### Working with Binary Representation
+
+Understanding the binary representation helps grasp CIDR concepts:
+
+**10.0.0.0/20 in binary**  
+```
+00001010.00000000.0000|0000.00000000
+           Network (20 bits)  Host (12 bits)
+```
+
+**First /22 subnet (10.0.0.0/22)**  
+```
+00001010.00000000.0000 00|00.00000000
+           Network (22 bits)  Host (10 bits)
+```
+
+**Second /22 subnet (10.0.4.0/22)**  
+```
+00001010.00000000.0000 01|00.00000000
+                     ^^
+           Network (22 bits)  Host (10 bits)
+```
+
+Notice how only the host portion of the original /20 changes when creating the /22 subnets.
+
+### Calculating Subnet Boundaries
+
+To find the start address of the nth /24 subnet within a /16 block:
+
+1. Calculate the size of each subnet: 2^(24-16) = 2^8 = 256 addresses
+2. Multiply n by the subnet size: n × 256
+3. Add the result to the base address
+
+**Example**: The 5th /24 subnet (n=4, zero-indexed) in 10.0.0.0/16:
+- 10.0.0.0 + (4 × 256) = 10.0.4.0/24
+
+### Checking for Overlaps
+
+Two CIDRs overlap if one is a subset of the other or they share address space.
+
+**Example 1**: 10.0.0.0/24 and 10.0.1.0/24
+- These do NOT overlap (different /24 blocks)
+
+**Example 2**: 10.0.0.0/24 and 10.0.0.0/25
+- These DO overlap (the /25 is contained within the /24)
+
+**Example 3**: 10.0.0.0/24 and 10.0.0.128/25
+- These DO overlap (the second /25 is contained within the /24)
+
+**Example 4**: 10.0.0.0/25 and 10.0.0.128/25
+- These do NOT overlap (these are the two halves of a /24)
+
+## Tools and Resources
+
+- **Subnetter Tool**: Use this tool for automated, hierarchical CIDR allocation
+- **IP Calculators**: Online tools like ipcalc.net for quick calculations
+- **Visualization Tools**: Draw.io or similar tools for network diagrams
+- **Cloud Documentation**: AWS, Azure, and GCP documentation on VPC/VNet addressing
+- **RFCs**: RFC 1918 (Private Address Space), RFC 4632 (CIDR), RFC 3021 (/31 subnets)
+
+---
+
+With this comprehensive guide to CIDR notation and IP subnetting, you should be well-equipped to plan and implement your cloud network architecture using the Subnetter tool. 

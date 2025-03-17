@@ -1,0 +1,28 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "default-account",
+      "cloudConfigs": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1"]
+        }
+      }
+    },
+    {
+      "name": "override-account",
+      "cloudConfigs": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "172.16.0.0/12",
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": [
+    { "name": "Public", "prefixLength": 24 }
+  ]
+} 

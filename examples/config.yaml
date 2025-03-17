@@ -1,0 +1,53 @@
+# Subnetter YAML Configuration Example
+
+# Base CIDR block for allocation
+baseCidr: 10.0.0.0/8
+
+# Optional prefix lengths for hierarchy levels
+prefixLengths:
+  account: 16
+  region: 20
+  az: 22
+
+# Supported cloud providers
+cloudProviders:
+  - aws
+  - azure
+  - gcp
+
+# Account definitions
+accounts:
+  - name: innovation-test
+    clouds:
+      aws:
+        regions:
+          - us-east-1
+          - eu-west-1
+
+  - name: acme-corp
+    clouds:
+      aws:
+        baseCidr: 172.16.0.0/12
+        regions:
+          - us-east-1
+          - us-west-2
+
+  - name: cloud-native
+    clouds:
+      aws:
+        baseCidr: 10.200.0.0/16
+        regions:
+          - us-east-1
+          - us-west-2
+      azure:
+        baseCidr: 10.201.0.0/16
+        regions:
+          - eastus
+          - westeurope
+
+# Subnet types with specific prefix lengths
+subnetTypes:
+  Public: 24
+  Private: 26
+  Data: 27
+  Management: 28 

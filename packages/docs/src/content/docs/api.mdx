@@ -1,0 +1,155 @@
+---
+title: Configuration Reference
+description: "Detailed schema reference for the Subnetter configuration file format."
+---
+
+# Configuration Reference
+
+This document provides details on the required configuration schema for Subnetter. For programmatic API usage, please see the [API Overview](/api/overview/) page.
+
+## Configuration Schema
+
+The configuration file must follow this schema:
+
+```typescript
+interface Config {
+  /**
+   * The base CIDR block to allocate subnets from
+   * @example "10.0.0.0/8"
+   */
+  baseCidr: string;
+
+  /**
+   * Optional prefix lengths for different levels of the hierarchy
+   */
+  prefixLengths?: {
+    account?: number;
+    region?: number;
+    az?: number;
+  };
+
+  /**
+   * List of cloud providers to support
+   * @example ["aws", "azure", "gcp"]
+   */
+  cloudProviders: string[];
+
+  /**
+   * List of accounts to allocate CIDRs for
+   */
+  accounts: Account[];
+
+  /**
+   * Subnet types to allocate in each availability zone
+   */
+  subnetTypes: Record<string, number>;
+}
+
+interface Account {
+  /**
+   * Account name
+   */
+  name: string;
+
+  /**
+   * Cloud-specific configurations
+   */
+  clouds: Record<string, CloudConfig>;
+}
+
+interface CloudConfig {
+  /**
+   * Optional CIDR block specific to this cloud provider
+   */
+  baseCidr?: string;
+
+  /**
+   * List of regions for this cloud provider
+   */
+  regions: string[];
+}
+```
+
+## Configuration Examples
+
+### Simple AWS Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "test-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 26
+  }
+}
+```
+
+### Multi-Cloud Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "multi-cloud-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        },
+        "azure": {
+          "regions": ["eastus", "westus"]
+        },
+        "gcp": {
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 26,
+    "Data": 28,
+    "Management": 29
+  }
+}
+```
+
+### Custom CIDR Blocks per Cloud
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "cloudProviders": ["aws", "azure"],
+  "accounts": [
+    {
+      "name": "custom-cidr-account",
+      "clouds": {
+        "aws": {
+          "baseCidr": "172.16.0.0/12",
+          "regions": ["us-east-1", "us-west-2"]
+        },
+        "azure": {
+          "baseCidr": "192.168.0.0/16",
+          "regions": ["eastus", "westus"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 26
+  }
+}
+``` 

@@ -1,0 +1,14 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "test-account",
+      "cloudConfigs": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ]
+} 

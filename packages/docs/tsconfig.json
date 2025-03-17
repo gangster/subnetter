@@ -1,0 +1,25 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["jest"],
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@utils/*": ["src/utils/*"],
+      "@test/*": ["__tests__/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "__tests__/**/*",
+    "vite.config.ts",
+    "vite.config.js",
+    "jest.config.cjs",
+    "jest.setup.cjs"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
