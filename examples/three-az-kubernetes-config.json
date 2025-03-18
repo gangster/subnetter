@@ -1,8 +1,8 @@
 {
   "baseCidr": "10.0.0.0/8",
   "prefixLengths": {
-    "account": 12,
-    "region": 20,
+    "account": 16,
+    "region": 21,
     "az": 24
   },
   "cloudProviders": [
@@ -12,138 +12,118 @@
   ],
   "accounts": [
     {
-      "name": "innovation-operations",
+      "name": "operations-aws",
       "clouds": {
         "aws": {
-          "baseCidr": "10.0.0.0/12",
-          "regions": [
-            "us-east-1", "us-east-2", "us-west-1", "us-west-2", 
-            "ca-central-1", "sa-east-1", 
-            "eu-west-1", "eu-west-2", "eu-central-1", "eu-north-1", 
-            "ap-northeast-1", "ap-southeast-1"
-          ]
-        },
-        "azure": {
-          "baseCidr": "10.16.0.0/12",
-          "regions": [
-            "eastus", "eastus2", "centralus", "westus2", 
-            "canadacentral", "brazilsouth", 
-            "westeurope", "uksouth", "germanywestcentral", "northeurope", 
-            "japaneast", "southeastasia"
-          ]
-        },
-        "gcp": {
-          "baseCidr": "10.32.0.0/12",
-          "regions": [
-            "us-east4", "us-east1", "us-central1", "us-west1", 
-            "northamerica-northeast1", "southamerica-east1", 
-            "europe-west1", "europe-west2", "europe-west3", "europe-north1", 
-            "asia-northeast1", "asia-southeast1"
-          ]
+          "baseCidr": "10.0.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
         }
       }
     },
     {
-      "name": "innovation-test",
+      "name": "operations-azure",
       "clouds": {
-        "aws": {
-          "baseCidr": "10.48.0.0/12",
-          "regions": [
-            "us-east-1", "us-east-2", "us-west-1", "us-west-2", 
-            "ca-central-1", "sa-east-1", 
-            "eu-west-1", "eu-west-2", "eu-central-1", "eu-north-1", 
-            "ap-northeast-1", "ap-southeast-1"
-          ]
-        },
         "azure": {
-          "baseCidr": "10.64.0.0/12",
-          "regions": [
-            "eastus", "eastus2", "centralus", "westus2", 
-            "canadacentral", "brazilsouth", 
-            "westeurope", "uksouth", "germanywestcentral", "northeurope", 
-            "japaneast", "southeastasia"
-          ]
-        },
-        "gcp": {
-          "baseCidr": "10.80.0.0/12",
-          "regions": [
-            "us-east4", "us-east1", "us-central1", "us-west1", 
-            "northamerica-northeast1", "southamerica-east1", 
-            "europe-west1", "europe-west2", "europe-west3", "europe-north1", 
-            "asia-northeast1", "asia-southeast1"
-          ]
+          "baseCidr": "10.1.0.0/16",
+          "regions": ["eastus", "westus2"]
         }
       }
     },
     {
-      "name": "innovation-preprod",
+      "name": "operations-gcp",
       "clouds": {
-        "aws": {
-          "baseCidr": "10.96.0.0/12",
-          "regions": [
-            "us-east-1", "us-east-2", "us-west-1", "us-west-2", 
-            "ca-central-1", "sa-east-1", 
-            "eu-west-1", "eu-west-2", "eu-central-1", "eu-north-1", 
-            "ap-northeast-1", "ap-southeast-1"
-          ]
-        },
-        "azure": {
-          "baseCidr": "10.112.0.0/12",
-          "regions": [
-            "eastus", "eastus2", "centralus", "westus2", 
-            "canadacentral", "brazilsouth", 
-            "westeurope", "uksouth", "germanywestcentral", "northeurope", 
-            "japaneast", "southeastasia"
-          ]
-        },
         "gcp": {
-          "baseCidr": "10.128.0.0/12",
-          "regions": [
-            "us-east4", "us-east1", "us-central1", "us-west1", 
-            "northamerica-northeast1", "southamerica-east1", 
-            "europe-west1", "europe-west2", "europe-west3", "europe-north1", 
-            "asia-northeast1", "asia-southeast1"
-          ]
+          "baseCidr": "10.2.0.0/16",
+          "regions": ["us-east4", "us-west1"]
         }
       }
-    },    
+    },
     {
-      "name": "innovation-prod",
+      "name": "test-aws",
       "clouds": {
         "aws": {
-          "baseCidr": "10.144.0.0/12",
-          "regions": [
-            "us-east-1", "us-east-2", "us-west-1", "us-west-2", 
-            "ca-central-1", "sa-east-1", 
-            "eu-west-1", "eu-west-2", "eu-central-1", "eu-north-1", 
-            "ap-northeast-1", "ap-southeast-1"
-          ]
-        },
+          "baseCidr": "10.3.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "test-azure",
+      "clouds": {
         "azure": {
-          "baseCidr": "10.160.0.0/12",
-          "regions": [
-            "eastus", "eastus2", "centralus", "westus2", 
-            "canadacentral", "brazilsouth", 
-            "westeurope", "uksouth", "germanywestcentral", "northeurope", 
-            "japaneast", "southeastasia"
-          ]
-        },
+          "baseCidr": "10.4.0.0/16",
+          "regions": ["eastus", "westus2"]
+        }
+      }
+    },
+    {
+      "name": "test-gcp",
+      "clouds": {
         "gcp": {
-          "baseCidr": "10.176.0.0/12",
-          "regions": [
-            "us-east4", "us-east1", "us-central1", "us-west1", 
-            "northamerica-northeast1", "southamerica-east1", 
-            "europe-west1", "europe-west2", "europe-west3", "europe-north1", 
-            "asia-northeast1", "asia-southeast1"
-          ]
+          "baseCidr": "10.5.0.0/16",
+          "regions": ["us-east4", "us-west1"]
+        }
+      }
+    },
+    {
+      "name": "preprod-aws",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.6.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "preprod-azure",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.7.0.0/16",
+          "regions": ["eastus", "westus2"]
+        }
+      }
+    },
+    {
+      "name": "preprod-gcp",
+      "clouds": {
+        "gcp": {
+          "baseCidr": "10.8.0.0/16",
+          "regions": ["us-east4", "us-west1"]
+        }
+      }
+    },
+    {
+      "name": "prod-aws",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.9.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "prod-azure",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.10.0.0/16",
+          "regions": ["eastus", "westus2"]
+        }
+      }
+    },
+    {
+      "name": "prod-gcp",
+      "clouds": {
+        "gcp": {
+          "baseCidr": "10.11.0.0/16",
+          "regions": ["us-east4", "us-west1"]
         }
       }
     }
   ],
   "subnetTypes": {
-    "Kubernetes": 25,
-    "Services": 26,
-    "Endpoints": 27,
-    "Transit": 28
+    "Kubernetes": 26,
+    "Services": 27,
+    "Endpoints": 28,
+    "Transit": 29
   }
 } 
