@@ -1,0 +1,73 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 21,
+    "az": 24
+  },
+  "cloudProviders": [
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "accounts": [
+    {
+      "name": "operations-aws",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/16",
+          "regions": [
+            "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+            "ca-central-1", "sa-east-1", "eu-west-1", "eu-west-2",
+            "eu-west-3", "eu-central-1", "eu-central-2", "eu-north-1", 
+            "eu-south-1", "eu-south-2", "ap-northeast-1", "ap-northeast-2",
+            "ap-northeast-3", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", 
+            "ap-south-1", "ap-south-2", "ap-east-1", "me-south-1",
+            "me-central-1", "af-south-1", "il-central-1", "ca-west-1",
+            "us-gov-east-1", "us-gov-west-1", "cn-north-1", "cn-northwest-1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "operations-azure",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.1.0.0/16",
+          "regions": [
+            "eastus", "eastus2", "centralus", "westus", "westus2", "westus3",
+            "northcentralus", "southcentralus", "westcentralus", "canadacentral", 
+            "canadaeast", "brazilsouth", "brazilsoutheast", "northeurope", "westeurope", 
+            "uksouth", "ukwest", "germanywestcentral", "germanynorth", "francecentral", 
+            "francesouth", "switzerlandnorth", "switzerlandwest", "norwayeast", "norwaywest",
+            "swedencentral", "swedensouth", "italynorth", "southafricanorth", "southafricawest",
+            "uaenorth", "uaecentral"
+          ]
+        }
+      }
+    },
+    {
+      "name": "operations-gcp",
+      "clouds": {
+        "gcp": {
+          "baseCidr": "10.2.0.0/16",
+          "regions": [
+            "us-east1", "us-east4", "us-east5", "us-central1", "us-west1", "us-west2", 
+            "us-west3", "us-west4", "us-south1", "northamerica-northeast1", "northamerica-northeast2", 
+            "southamerica-east1", "southamerica-west1", "europe-west1", "europe-west2", 
+            "europe-west3", "europe-west4", "europe-west6", "europe-west8", "europe-west9", 
+            "europe-west10", "europe-west12", "europe-central2", "europe-north1", "europe-southwest1", 
+            "asia-east1", "asia-east2", "asia-northeast1", "asia-northeast2", "asia-northeast3", 
+            "asia-southeast1", "asia-southeast2"
+          ]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Kubernetes": 26,
+    "Services": 27,
+    "Endpoints": 28,
+    "Transit": 29
+  }
+} 
