@@ -12,110 +12,170 @@
   ],
   "accounts": [
     {
-      "name": "operations-aws",
+      "name": "innovation-operations-aws",
       "clouds": {
         "aws": {
           "baseCidr": "10.0.0.0/16",
-          "regions": ["us-east-1", "us-west-2"]
+          "regions": [
+            "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+            "ca-central-1", "sa-east-1", "eu-west-1", "eu-west-2",
+            "eu-central-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
+            "ap-south-1", "me-central-1", "af-south-1", "il-central-1"
+          ]
         }
       }
     },
     {
-      "name": "operations-azure",
+      "name": "innovation-operations-azure",
       "clouds": {
         "azure": {
           "baseCidr": "10.1.0.0/16",
-          "regions": ["eastus", "westus2"]
+          "regions": [
+            "eastus", "eastus2", "centralus", "westus",
+            "westus2", "westus3", "canadacentral", "brazilsouth",
+            "westeurope", "northeurope", "uksouth", "germanywestcentral", 
+            "francecentral", "japaneast", "southeastasia", "australiaeast"
+          ]
         }
       }
     },
     {
-      "name": "operations-gcp",
+      "name": "innovation-operations-gcp",
       "clouds": {
         "gcp": {
           "baseCidr": "10.2.0.0/16",
-          "regions": ["us-east4", "us-west1"]
+          "regions": [
+            "us-east1", "us-east4", "us-central1", "us-west1", 
+            "us-west2", "us-west3", "northamerica-northeast1", "southamerica-east1",
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+            "europe-north1", "asia-east1", "asia-southeast1", "asia-northeast1"
+          ]
         }
       }
     },
     {
-      "name": "test-aws",
+      "name": "innovation-test-aws",
       "clouds": {
         "aws": {
           "baseCidr": "10.3.0.0/16",
-          "regions": ["us-east-1", "us-west-2"]
+          "regions": [
+            "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+            "ca-central-1", "sa-east-1", "eu-west-1", "eu-west-2",
+            "eu-central-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
+            "ap-south-1", "me-central-1", "af-south-1", "il-central-1"
+          ]
         }
       }
     },
     {
-      "name": "test-azure",
+      "name": "innovation-test-azure",
       "clouds": {
         "azure": {
           "baseCidr": "10.4.0.0/16",
-          "regions": ["eastus", "westus2"]
+          "regions": [
+            "eastus", "eastus2", "centralus", "westus",
+            "westus2", "westus3", "canadacentral", "brazilsouth",
+            "westeurope", "northeurope", "uksouth", "germanywestcentral", 
+            "francecentral", "japaneast", "southeastasia", "australiaeast"
+          ]
         }
       }
     },
     {
-      "name": "test-gcp",
+      "name": "innovation-test-gcp",
       "clouds": {
         "gcp": {
           "baseCidr": "10.5.0.0/16",
-          "regions": ["us-east4", "us-west1"]
+          "regions": [
+            "us-east1", "us-east4", "us-central1", "us-west1", 
+            "us-west2", "us-west3", "northamerica-northeast1", "southamerica-east1",
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+            "europe-north1", "asia-east1", "asia-southeast1", "asia-northeast1"
+          ]
         }
       }
     },
     {
-      "name": "preprod-aws",
+      "name": "innovation-preprod-aws",
       "clouds": {
         "aws": {
           "baseCidr": "10.6.0.0/16",
-          "regions": ["us-east-1", "us-west-2"]
+          "regions": [
+            "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+            "ca-central-1", "sa-east-1", "eu-west-1", "eu-west-2",
+            "eu-central-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
+            "ap-south-1", "me-central-1", "af-south-1", "il-central-1"
+          ]
         }
       }
     },
     {
-      "name": "preprod-azure",
+      "name": "innovation-preprod-azure",
       "clouds": {
         "azure": {
           "baseCidr": "10.7.0.0/16",
-          "regions": ["eastus", "westus2"]
+          "regions": [
+            "eastus", "eastus2", "centralus", "westus",
+            "westus2", "westus3", "canadacentral", "brazilsouth",
+            "westeurope", "northeurope", "uksouth", "germanywestcentral", 
+            "francecentral", "japaneast", "southeastasia", "australiaeast"
+          ]
         }
       }
     },
     {
-      "name": "preprod-gcp",
+      "name": "innovation-preprod-gcp",
       "clouds": {
         "gcp": {
           "baseCidr": "10.8.0.0/16",
-          "regions": ["us-east4", "us-west1"]
+          "regions": [
+            "us-east1", "us-east4", "us-central1", "us-west1", 
+            "us-west2", "us-west3", "northamerica-northeast1", "southamerica-east1",
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+            "europe-north1", "asia-east1", "asia-southeast1", "asia-northeast1"
+          ]
         }
       }
     },
     {
-      "name": "prod-aws",
+      "name": "innovation-prod-aws",
       "clouds": {
         "aws": {
           "baseCidr": "10.9.0.0/16",
-          "regions": ["us-east-1", "us-west-2"]
+          "regions": [
+            "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+            "ca-central-1", "sa-east-1", "eu-west-1", "eu-west-2",
+            "eu-central-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
+            "ap-south-1", "me-central-1", "af-south-1", "il-central-1"
+          ]
         }
       }
     },
     {
-      "name": "prod-azure",
+      "name": "innovation-prod-azure",
       "clouds": {
         "azure": {
           "baseCidr": "10.10.0.0/16",
-          "regions": ["eastus", "westus2"]
+          "regions": [
+            "eastus", "eastus2", "centralus", "westus",
+            "westus2", "westus3", "canadacentral", "brazilsouth",
+            "westeurope", "northeurope", "uksouth", "germanywestcentral", 
+            "francecentral", "japaneast", "southeastasia", "australiaeast"
+          ]
         }
       }
     },
     {
-      "name": "prod-gcp",
+      "name": "innovation-prod-gcp",
       "clouds": {
         "gcp": {
           "baseCidr": "10.11.0.0/16",
-          "regions": ["us-east4", "us-west1"]
+          "regions": [
+            "us-east1", "us-east4", "us-central1", "us-west1", 
+            "us-west2", "us-west3", "northamerica-northeast1", "southamerica-east1",
+            "europe-west1", "europe-west2", "europe-west3", "europe-west4",
+            "europe-north1", "asia-east1", "asia-southeast1", "asia-northeast1"
+          ]
         }
       }
     }
