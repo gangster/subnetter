@@ -57,6 +57,16 @@ export class CidrTracker {
   }
 
   /**
+   * Checks if a CIDR exists in the tracker (exact match).
+   * 
+   * @param cidr The CIDR to check
+   * @returns True if the CIDR exists in the tracker
+   */
+  public has(cidr: string): boolean {
+    return this.allocatedCidrs.includes(cidr);
+  }
+
+  /**
    * Checks if a CIDR is already allocated or overlaps with an allocated CIDR.
    * 
    * @param cidr The CIDR to check

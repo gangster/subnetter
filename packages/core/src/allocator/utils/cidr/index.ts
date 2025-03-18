@@ -5,4 +5,7 @@ export {
   subdivideIpv4Cidr,
   calculateRequiredPrefixLength,
   calculateOptimalPrefixLength
-} from './calculator'; 
+} from './calculator';
+
+export { ContiguousAllocator } from './contiguous-allocator';
+export { HierarchicalAllocator } from './hierarchical-allocator'; 
