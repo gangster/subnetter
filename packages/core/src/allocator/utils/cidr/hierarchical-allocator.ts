@@ -19,6 +19,104 @@ export class HierarchicalAllocator {
   private allocations: Allocation[] = [];
   
   /**
+   * Region-specific AWS availability zone mappings
+   * Maps AWS regions to their specific AZ suffixes
+   * @private
+   */
+  private readonly awsRegionToAzMap: Record<string, string[]> = {
+    'us-east-1': ['a', 'b', 'c', 'd', 'e', 'f'],
+    'us-east-2': ['a', 'b', 'c'],
+    'us-west-1': ['a', 'c'],
+    'us-west-2': ['a', 'b', 'c', 'd'],
+    'ca-central-1': ['a', 'b', 'd'],
+    'ca-west-1': ['a', 'b', 'c'],
+    'sa-east-1': ['a', 'b', 'c'],
+    'eu-west-1': ['a', 'b', 'c'],
+    'eu-west-2': ['a', 'b', 'c'],
+    'eu-west-3': ['a', 'b', 'c'],
+    'eu-north-1': ['a', 'b', 'c'],
+    'eu-south-1': ['a', 'b', 'c'],
+    'eu-south-2': ['a', 'b', 'c'],
+    'eu-central-1': ['a', 'b', 'c'],
+    'eu-central-2': ['a', 'b', 'c'],
+    'ap-northeast-1': ['a', 'c', 'd'],
+    'ap-northeast-2': ['a', 'b', 'c'],
+    'ap-northeast-3': ['a', 'b', 'c'],
+    'ap-southeast-1': ['a', 'b', 'c'],
+    'ap-southeast-2': ['a', 'b', 'c'],
+    'ap-southeast-3': ['a', 'b', 'c'],
+    'ap-southeast-4': ['a', 'b', 'c'],
+    'ap-south-1': ['a', 'b', 'c'],
+    'ap-south-2': ['a', 'b', 'c'],
+    'ap-east-1': ['a', 'b', 'c'],
+    'me-south-1': ['a', 'b', 'c'],
+    'me-central-1': ['a', 'b', 'c'],
+    'af-south-1': ['a', 'b', 'c'],
+    'il-central-1': ['a', 'b', 'c']
+  };
+
+  /**
+   * List of Azure regions that support availability zones
+   * @private
+   */
+  private readonly azureSupportedZoneRegions: string[] = [
+    'brazilsouth', 'canadacentral', 'centralus', 'eastus', 'eastus2', 
+    'southcentralus', 'westus2', 'westus3', 'francecentral', 
+    'germanywestcentral', 'northeurope', 'norwayeast', 'swedencentral', 
+    'switzerlandnorth', 'uksouth', 'westeurope', 'australiaeast', 
+    'centralindia', 'japaneast', 'koreacentral', 'southeastasia', 
+    'qatarcentral', 'southafricanorth', 'uaenorth'
+  ];
+
+  /**
+   * Region-specific GCP availability zone mappings
+   * Maps GCP regions to their specific zone suffixes
+   * @private
+   */
+  private readonly gcpRegionToZoneMap: Record<string, string[]> = {
+    'us-central1': ['a', 'b', 'c', 'f'],
+    'us-east1': ['b', 'c', 'd'],
+    'us-east4': ['a', 'b', 'c'],
+    'us-east5': ['a', 'b', 'c'],
+    'us-south1': ['a', 'b', 'c'],
+    'us-west1': ['a', 'b', 'c'],
+    'us-west2': ['a', 'b', 'c'],
+    'us-west3': ['a', 'b', 'c'],
+    'us-west4': ['a', 'b', 'c'],
+    'northamerica-northeast1': ['a', 'b', 'c'],
+    'northamerica-northeast2': ['a', 'b', 'c'],
+    'southamerica-east1': ['a', 'b', 'c'],
+    'southamerica-west1': ['a', 'b', 'c'],
+    'europe-central2': ['a', 'b', 'c'],
+    'europe-north1': ['a', 'b', 'c'],
+    'europe-southwest1': ['a', 'b', 'c'],
+    'europe-west1': ['b', 'c', 'd'],
+    'europe-west2': ['a', 'b', 'c'],
+    'europe-west3': ['a', 'b', 'c'],
+    'europe-west4': ['a', 'b', 'c'],
+    'europe-west6': ['a', 'b', 'c'],
+    'europe-west8': ['a', 'b', 'c'],
+    'europe-west9': ['a', 'b', 'c'],
+    'europe-west10': ['a', 'b', 'c'],
+    'europe-west12': ['a', 'b', 'c'],
+    'asia-east1': ['a', 'b', 'c'],
+    'asia-east2': ['a', 'b', 'c'],
+    'asia-northeast1': ['a', 'b', 'c'],
+    'asia-northeast2': ['a', 'b', 'c'],
+    'asia-northeast3': ['a', 'b', 'c'],
+    'asia-south1': ['a', 'b', 'c'],
+    'asia-south2': ['a', 'b', 'c'],
+    'asia-southeast1': ['a', 'b', 'c'],
+    'asia-southeast2': ['a', 'b', 'c'],
+    'australia-southeast1': ['a', 'b', 'c'],
+    'australia-southeast2': ['a', 'b', 'c'],
+    'me-central1': ['a', 'b', 'c'],
+    'me-central2': ['a', 'b', 'c'],
+    'me-west1': ['a', 'b', 'c'],
+    'africa-south1': ['a', 'b', 'c']
+  };
+
+  /**
    * Creates a new HierarchicalAllocator with the specified configuration.
    * 
    * @param config The configuration to use for allocation
@@ -338,23 +436,53 @@ export class HierarchicalAllocator {
    * @private
    */
   private getAzNames(regionName: string, providerName: string): string[] {
+    // Default to 3 AZs if not otherwise specified
+    const defaultCount = 3;
+    
     // For AWS, AZs are region + letters (a, b, c, etc.)
     if (providerName === 'aws') {
-      return ['a', 'b', 'c'].map(letter => `${regionName}${letter}`);
+      // Use region-specific AZ suffixes if available, or fall back to a, b, c
+      const azSuffixes = this.awsRegionToAzMap[regionName] || ['a', 'b', 'c'];
+      // Limit to the first 3 AZs by default to avoid excessive allocations
+      const effectiveSuffixes = azSuffixes.slice(0, defaultCount);
+      
+      logger.debug(`Using AWS AZ suffixes for ${regionName}: ${effectiveSuffixes.join(', ')}`);
+      return effectiveSuffixes.map(suffix => `${regionName}${suffix}`);
     }
     
-    // For Azure, AZs are numbered (1, 2, 3)
+    // For Azure, check if the region supports AZs
     if (providerName === 'azure') {
-      return [1, 2, 3].map(num => `${regionName}-${num}`);
+      // Normalize region name to lower case
+      const normalizedRegion = regionName.toLowerCase();
+      
+      // Check if the region supports AZs
+      const supportsZones = this.azureSupportedZoneRegions.includes(normalizedRegion);
+      
+      if (!supportsZones) {
+        logger.warn(`Azure region ${regionName} may not support availability zones. Proceeding with default naming.`);
+      }
+      
+      // Azure uses numeric zone designations (1, 2, 3)
+      const azNumbers = [1, 2, 3].slice(0, defaultCount);
+      logger.debug(`Using Azure AZ numbers for ${regionName}: ${azNumbers.join(', ')}`);
+      
+      // Return in the format: regionName-1, regionName-2, regionName-3
+      return azNumbers.map(num => `${regionName}-${num}`);
     }
     
-    // For GCP, AZs are region + -a, -b, -c
+    // For GCP, AZs are region + -a, -b, -c (with specific variations)
     if (providerName === 'gcp') {
-      return ['a', 'b', 'c'].map(letter => `${regionName}-${letter}`);
+      // Use region-specific zone suffixes if available, or fall back to a, b, c
+      const zoneSuffixes = this.gcpRegionToZoneMap[regionName] || ['a', 'b', 'c'];
+      // Limit to the first 3 zones by default to avoid excessive allocations
+      const effectiveSuffixes = zoneSuffixes.slice(0, defaultCount);
+      
+      logger.debug(`Using GCP zone suffixes for ${regionName}: ${effectiveSuffixes.join(', ')}`);
+      return effectiveSuffixes.map(suffix => `${regionName}-${suffix}`);
     }
     
-    // Default: just append numbers
+    // Default: just append numbers with az prefix for unknown providers
     logger.warn(`Unknown provider ${providerName}, using generic AZ naming`);
-    return [1, 2, 3].map(num => `${regionName}-az${num}`);
+    return Array.from({ length: defaultCount }, (_, i) => `${regionName}-az${i+1}`);
   }
 } 
