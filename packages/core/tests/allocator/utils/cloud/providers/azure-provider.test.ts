@@ -53,6 +53,24 @@ describe('AzureCloudProvider', () => {
       expect(azNames).toEqual(['eastus-1', 'eastus-2', 'eastus-3']);
     });
     
+    it('should handle regions without AZ support', () => {
+      // For this test, let's assume a region that doesn't support AZs
+      const nonAzRegion = 'brazilsoutheast'; // A region not in the azureSupportedZoneRegions list
+      const azNames = provider.generateAzNames(nonAzRegion, 3);
+      expect(azNames).toEqual([`${nonAzRegion}-1`, `${nonAzRegion}-2`, `${nonAzRegion}-3`]);
+      // We should still get AZ names, but a warning would be logged (can't verify directly in tests)
+    });
+    
+    it('should verify supported AZ regions', () => {
+      // Test a few regions that should support AZs
+      const supportedRegions = ['eastus', 'westeurope', 'australiaeast', 'southeastasia'];
+      
+      supportedRegions.forEach(region => {
+        const azNames = provider.generateAzNames(region, 3);
+        expect(azNames).toEqual([`${region}-1`, `${region}-2`, `${region}-3`]);
+      });
+    });
+    
     it('should limit AZ count to the maximum for the region', () => {
       // Request more than the maximum allowed for the region
       const azNames = provider.generateAzNames('eastus', 10);

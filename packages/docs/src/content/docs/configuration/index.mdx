@@ -503,4 +503,60 @@ If validation fails, Subnetter will provide detailed error messages to help you 
 }
 ```
 
-In this example, the account-specific subnet types will override the global subnet types for the "production" account's AWS resources. 
+In this example, the account-specific subnet types will override the global subnet types for the "production" account's AWS resources.
+
+## Cloud Providers
+
+Each cloud provider defined in your configuration has specific attributes:
+
+```json
+{
+  "cloudProviders": {
+    "aws": {
+      "regions": ["us-east-1", "us-west-2"],
+      "azCount": 3
+    },
+    "gcp": {
+      "regions": ["us-central1", "europe-west3"],
+      "azCount": 3
+    },
+    "azure": {
+      "regions": ["eastus", "westeurope"],
+      "azCount": 3
+    }
+  }
+}
+```
+
+- `regions`: Array of region identifiers for the cloud provider
+- `azCount`: Number of availability zones to use within each region (optional)
+
+### Availability Zone Naming
+
+Subnetter uses cloud-provider specific naming conventions for availability zones:
+
+#### AWS
+
+AWS availability zones follow the pattern `region + letter` (e.g., `us-east-1a`). Subnetter supports region-specific AZ naming patterns:
+
+- Most regions use sequential letters (a, b, c, ...)
+- Some regions like `us-west-1` use non-sequential letters (a, c)
+- Regions like `ap-northeast-1` have specific patterns (a, c, d)
+
+The system respects these region-specific patterns when generating AZ names. For example, requesting 3 AZs in `ap-northeast-1` will generate `ap-northeast-1a`, `ap-northeast-1c`, and `ap-northeast-1d`.
+
+#### Azure
+
+Azure availability zones use numbers (1, 2, 3) and are named as `region-number` (e.g., `eastus-1`). 
+
+Not all Azure regions support availability zones. Subnetter validates that regions like `eastus`, `westeurope`, and `centralus` support AZs, while others like `brazilsoutheast` do not. A warning is logged when using AZs in unsupported regions.
+
+#### GCP
+
+GCP zones follow the pattern `region + letter` (e.g., `us-central1-a`). Subnetter supports region-specific zone patterns:
+
+- Most regions use sequential letters (a, b, c, ...)
+- Some regions like `us-east1` use non-sequential letters (b, c, d)
+- Regions like `europe-west1` have specific patterns (b, c, d)
+
+The system respects these patterns when generating zone names. For example, requesting 3 zones in `us-east1` will generate `us-east1-b`, `us-east1-c`, and `us-east1-d`. 

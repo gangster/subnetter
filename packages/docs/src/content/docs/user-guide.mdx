@@ -1908,4 +1908,829 @@ startup/aws/us-east-1/az-b/Public:   10.0.1.0/26
 }
 ```
 
+This configuration demonstrates how to use custom CIDR overrides to provide dedicated address spaces for each account with adequate space for multiple regions and subnet types.
+
+## Cloud Provider Availability Zone Support
+
+Subnetter provides accurate availability zone (AZ) naming for major cloud providers, respecting the unique naming patterns of each provider and region.
+
+### AWS Availability Zones
+
+AWS availability zones follow the pattern `region + letter` (e.g., `us-east-1a`). 
+
+- Most AWS regions use sequential letters starting with `a` (a, b, c, ...)
+- Some regions use non-sequential letters. For example:
+  - `us-west-1` has only zones `a` and `c`
+  - `ap-northeast-1` has zones `a`, `c`, and `d`
+
+When specifying `azCount` in your configuration, Subnetter will generate the correct sequence of availability zone names for the specific region.
+
+```json
+{
+  "cloudProviders": {
+    "aws": {
+      "regions": ["us-west-1", "ap-northeast-1"],
+      "azCount": 3
+    }
+  }
+}
+```
+
+With this configuration:
+- For `us-west-1`, the AZs will be `["us-west-1a", "us-west-1c"]` (only 2 AZs are available)
+- For `ap-northeast-1`, the AZs will be `["ap-northeast-1a", "ap-northeast-1c", "ap-northeast-1d"]`
+
+### Azure Availability Zones
+
+Azure availability zones use numbers (1, 2, 3) and are named as `region-number` (e.g., `eastus-1`). 
+
+Not all Azure regions support availability zones. Subnetter validates zone support for regions and logs warnings when using AZs in unsupported regions.
+
+Regions with AZ support include:
+- `eastus`, `westeurope`, `centralus`, `northeurope`, and others
+
+```json
+{
+  "cloudProviders": {
+    "azure": {
+      "regions": ["eastus", "brazilsoutheast"],
+      "azCount": 3
+    }
+  }
+}
+```
+
+With this configuration:
+- For `eastus`, the AZs will be `["eastus-1", "eastus-2", "eastus-3"]`
+- For `brazilsoutheast`, AZs will be created but a warning will be logged since this region doesn't officially support AZs
+
+### GCP Availability Zones
+
+GCP zones follow the pattern `region-letter` (e.g., `us-central1-a`). Like AWS, GCP also has region-specific zone patterns:
+
+- Most regions use sequential letters (a, b, c, ...)
+- Some regions like `us-east1` use specific letters (b, c, d)
+- Regions like `europe-west1` also have specific patterns (b, c, d)
+
+```json
+{
+  "cloudProviders": {
+    "gcp": {
+      "regions": ["us-central1", "us-east1"],
+      "azCount": 3
+    }
+  }
+}
+```
+
+With this configuration:
+- For `us-central1`, the zones will be `["us-central1-a", "us-central1-b", "us-central1-c"]`
+- For `us-east1`, the zones will be `["us-east1-b", "us-east1-c", "us-east1-d"]`
+
+## Conclusion
+
+With Subnetter, you can automate the complex task of CIDR allocation across your cloud infrastructure. By following the patterns and best practices outlined in this guide, you'll be able to create a scalable, manageable, and conflict-free network architecture.
+
+Remember these key principles:
+1. Plan for future growth
+2. Maintain consistent patterns
+3. Document your design decisions
+4. Use version control for configurations
+5. Integrate with your Infrastructure as Code workflow
+
+For additional help or to report issues, please visit the GitHub repository or refer to the other documentation files.
+
+We hope this guide helps you get started with Subnetter. If you have any questions or need further assistance, please refer to the rest of the documentation or open an issue on GitHub.
+
+{/* Documentation updated: 2025-03-15 */}
+
+## Command Line Interface
+
+Subnetter provides a simple CLI for generating and validating allocations:
+
+### Basic Commands
+
+```bash
+# Generate allocations
+subnetter generate --config config.json --output allocations.csv
+
+# Validate configuration
+subnetter validate --config config.json
+
+# Show version
+subnetter --version
+```
+
+### Generate Command Options
+
+- `--config, -c`: Path to configuration file (required, supports JSON or YAML formats)
+- `--output, -o`: Path to output CSV file (default: allocations.csv)
+- `--provider, -p`: Filter results by cloud provider
+- `--base-cidr, -b`: Override base IPv4 CIDR block
+- `--verbose, -v`: Enable verbose logging
+- `--log-level, -l`: Set log level (silent, error, warn, info, debug, trace)
+- `--no-color`: Disable colored output
+- `--timestamps`: Include timestamps in log output
+
+### Validate Command Options
+
+- `--config, -c`: Path to configuration file (required, supports JSON or YAML formats)
+- `--verbose, -v`: Enable verbose logging
+- `--log-level, -l`: Set log level (silent, error, warn, info, debug, trace)
+- `--no-color`: Disable colored output
+- `--timestamps`: Include timestamps in log output
+
+### Filtering by Cloud Provider
+
+You can filter the output to include only allocations for a specific cloud provider:
+
+```bash
+subnetter generate --config config.json --output allocations.csv --provider aws
+```
+
+## Example Scenarios
+
+This section presents hypothetical scenarios showing how organizations could use Subnetter to solve complex IP addressing challenges across different environments and use cases.
+
+### Enterprise Multi-Cloud Migration
+
+#### Challenge
+
+A large enterprise with 10,000+ employees needs to migrate from a legacy on-premises infrastructure to a multi-cloud architecture across AWS, Azure, and GCP. The organization has the following requirements:
+
+* Support for 4 distinct environments (Development, Test, Pre-Production, Production)
+* Global presence across 15+ regions worldwide
+* Consistent networking model across all cloud providers
+* No IP address overlaps with existing on-premises networks (10.0.0.0/16 and 172.16.0.0/12)
+* Room for future expansion
+
+#### Solution
+
+The organization could use Subnetter to create a comprehensive IP addressing plan:
+
+```json
+{
+  "baseCidr": "192.168.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22,
+    "subnet": 24
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "dev",
+      "clouds": {
+        "aws": {
+          "baseCidr": "192.0.0.0/16",
+          "regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        },
+        "azure": {
+          "baseCidr": "192.1.0.0/16",
+          "regions": ["eastus", "westeurope", "southeastasia"]
+        },
+        "gcp": {
+          "baseCidr": "192.2.0.0/16",
+          "regions": ["us-central1", "europe-west1", "asia-southeast1"]
+        }
+      }
+    },
+    {
+      "name": "test",
+      "clouds": {
+        "aws": {
+          "baseCidr": "192.3.0.0/16",
+          "regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        },
+        "azure": {
+          "baseCidr": "192.4.0.0/16",
+          "regions": ["eastus", "westeurope", "southeastasia"]
+        },
+        "gcp": {
+          "baseCidr": "192.5.0.0/16",
+          "regions": ["us-central1", "europe-west1", "asia-southeast1"]
+        }
+      }
+    }
+    // Pre-prod and prod configurations follow the same pattern
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 23,
+    "Database": 25,
+    "Management": 26
+  }
+}
+```
+
+#### Cloud Resource Mapping
+
+This allocation would create the following cloud resources:
+
+* **AWS**: Each account gets its own unique VPC in each region (e.g., dev-us-east-1-vpc: 192.0.0.0/20)  
+   * Each VPC contains subnets in all availability zones (us-east-1a, us-east-1b, etc.)  
+   * Each AZ contains four subnet types, sized appropriately:  
+         * Public subnets (/24): 254 usable IPs for load balancers, bastion hosts  
+         * Private subnets (/23): 510 usable IPs for application workloads  
+         * Database subnets (/25): 126 usable IPs for RDS/database instances  
+         * Management subnets (/26): 62 usable IPs for control plane services
+* **Azure**: Each account gets dedicated Virtual Networks in each region  
+   * Subnets follow the same sizing as AWS for consistency  
+   * Cross-provider integration is simplified by non-overlapping CIDRs
+* **GCP**: Each account gets dedicated VPC networks in each region  
+   * Subnets are created per region (not per AZ since GCP uses a different availability model)
+
+#### Key Takeaways
+
+* Using different base CIDRs for different cloud providers simplifies firewall rules
+* Subnet-specific prefix lengths allow efficient use of IP space (larger subnets for workloads requiring more IPs)
+* Hierarchical approach makes it easy to add new regions later
+
+### Startup Scaling from Single to Multi-Region
+
+#### Challenge
+
+A fast-growing SaaS startup initially deployed their application in a single AWS region (us-west-2). As they expand internationally, they need to:
+
+* Deploy to 3 additional regions (us-east-1, eu-west-1, ap-southeast-1)
+* Maintain existing IP allocations in us-west-2 to avoid disruption
+* Allow for future expansion to more regions
+* Support different subnet sizes based on workload requirements
+
+#### Solution
+
+The startup could use Subnetter to create an expandable allocation plan:
+
+```json
+{
+  "baseCidr": "10.0.0.0/16",
+  "prefixLengths": {
+    "account": 16,
+    "region": 19,
+    "az": 21
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-west-2", "us-east-1", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Application": 22,
+    "Database": 25,
+    "Cache": 26,
+    "Management": 27
+  }
+}
+```
+
+#### Expansion Strategy
+
+This allocation enables:
+
+1. **Preserving Existing Allocations**: The first CIDRs allocated will match their existing us-west-2 allocations
+2. **Region-Specific Allocations**: Each region gets a clear CIDR block:
+   * us-west-2: 10.0.0.0/19
+   * us-east-1: 10.0.32.0/19
+   * eu-west-1: 10.0.64.0/19
+   * ap-southeast-1: 10.0.96.0/19
+3. **Additional Future Regions**: Space for 4 more regions is reserved
+4. **Workload-Appropriate Subnets**: Larger subnets (/22) for application tier, smaller subnets for specialized workloads
+
+#### Key Takeaways
+
+* Using a structured allocation approach allows for predictable expansion
+* Workload-specific subnet sizes optimize IP allocation
+* Clear documentation helps prevent IP conflicts as the environment grows
+
+### Financial Services Compliance
+
+#### Challenge
+
+A financial services organization needs to implement cloud networking that meets stringent regulatory requirements:
+
+* Complete network isolation between different banking functions
+* Auditable boundaries between environment tiers
+* Multi-layer security zones with varying security levels
+* Comprehensive logging and monitoring
+* Support for both AWS and Azure (multi-cloud strategy)
+
+#### Solution
+
+The organization could use Subnetter to implement a compliant architecture:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "cloudProviders": ["aws", "azure"],
+  "accounts": [
+    {
+      "name": "finance-shared-services",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.1.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "finance-retail-banking",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.2.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "finance-investment",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.3.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "finance-insurance",
+      "clouds": {
+        "azure": {
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "finance-analytics",
+      "clouds": {
+        "gcp": {
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "DMZ": 24,
+    "Presentation": 24,
+    "Application": 23,
+    "Data": 25,
+    "HighSecurity": 26,
+    "Management": 28,
+    "Audit": 27
+  }
+}
+```
+
+#### Security Architecture
+
+This allocation enables a security architecture with:
+
+1. **Account-Level Isolation**: Each banking function gets its own dedicated account
+2. **Regional Compliance**: Different regions for different regulatory jurisdictions
+3. **Security Zones**: Multiple subnet tiers with different security postures
+   * DMZ zone: Internet-facing services with tightly controlled access
+   * Presentation tier: Web applications with carefully restricted connectivity
+   * Application tier: Business logic with no direct external access
+   * Data tier: Databases with strictly limited connectivity
+   * High-security zone: Sensitive systems with highly restricted access
+4. **Audit Infrastructure**: Dedicated subnets for logging, monitoring, and audit systems
+
+#### Key Takeaways
+
+* Account-level isolation provides strong security boundaries
+* Different subnet types enable appropriate security controls for each tier
+* Multi-cloud strategy allows for provider-specific compliance features
+* Clear IP boundaries facilitate audit and documentation
+
+### Hybrid Cloud Implementation
+
+#### Challenge
+
+A media production company plans to implement a hybrid cloud architecture that spans their on-premises data centers and multiple cloud providers. They require:
+
+* Seamless connectivity between on-premises and cloud resources
+* Consistent IP addressing across all environments
+* Separate address spaces for different workload types
+* Support for AWS and Azure as primary cloud providers
+* Reserved space for GCP expansion in the future
+
+#### Solution
+
+The company could use Subnetter to create a comprehensive hybrid architecture:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "on-premises",
+      "clouds": {
+        "datacenter": {
+          "regions": ["dc1", "dc2"]
+        }
+      }
+    },
+    {
+      "name": "cloud-primary",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "cloud-secondary",
+      "clouds": {
+        "azure": {
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "MediaIngest": 24,
+    "MediaProcessing": 22,
+    "MediaDelivery": 23,
+    "MediaArchive": 24,
+    "SharedServices": 25,
+    "Management": 26
+  }
+}
+```
+
+#### Integration Architecture
+
+This allocation enables:
+
+1. **Consistent Addressing**: The same IP structure is used across on-premises and cloud environments
+2. **Workload-Specific Allocations**: Different subnet types for different media workloads:
+   * Media Ingest: For receiving raw content from cameras and production systems
+   * Media Processing: Larger subnets (/22) for compute-intensive rendering and processing
+   * Media Delivery: For content distribution infrastructure
+   * Media Archive: For long-term storage systems
+3. **Shared Services**: Common services that span environments
+4. **Management Infrastructure**: Dedicated management plane for operations
+
+#### Network Integration
+
+* Direct Connect/ExpressRoute circuits connect on-premises and cloud environments
+* VPN tunnels provide secure backup connectivity
+* Consistent routing tables across all environments
+* Shared services accessible from all environments
+
+#### Key Takeaways
+
+* Consistent addressing simplifies network integration
+* Workload-specific subnet sizing optimizes IP allocation
+* Reserved space for future expansion supports business growth
+
+### Mergers and Acquisitions
+
+#### Challenge
+
+A large technology conglomerate regularly acquires smaller companies and needs to integrate them into its cloud infrastructure. The challenges include:
+
+* Dealing with overlapping IP address spaces
+* Standardizing network architecture across acquired companies
+* Maintaining temporary isolation during migration
+* Supporting both AWS and Azure environments
+* Planning for future acquisitions
+
+#### Solution
+
+The conglomerate could use Subnetter to implement an acquisition-friendly architecture:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "parent-company",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/12",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        },
+        "azure": {
+          "baseCidr": "10.16.0.0/12",
+          "regions": ["eastus", "westeurope", "southeastasia"]
+        }
+      }
+    },
+    {
+      "name": "acquisition-1",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.32.0.0/16",
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "acquisition-2",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.33.0.0/16",
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "future-acquisitions",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.34.0.0/14",
+          "regions": []
+        },
+        "azure": {
+          "baseCidr": "10.38.0.0/14",
+          "regions": []
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "AppTier": 23,
+    "DataTier": 24,
+    "SharedServices": 25,
+    "Management": 26,
+    "Migration": 24
+  }
+}
+```
+
+#### Acquisition Integration Strategy
+
+This allocation enables:
+
+1. **Parent Company Infrastructure**: Large allocations for the parent company's established resources
+2. **Acquisition-Specific Spaces**: Dedicated address spaces for each acquisition
+3. **Reserved Future Space**: Pre-allocated space for future acquisitions
+4. **Migration Subnets**: Dedicated subnets for migration activities
+5. **Multi-Cloud Support**: Consistent addressing across AWS and Azure resources
+
+#### Migration Process
+
+For each acquisition:
+1. Allocate dedicated CIDR ranges using Subnetter
+2. Set up temporary connectivity between acquired resources and parent infrastructure
+3. Gradually migrate services to standardized architecture
+4. Reallocate address space as needed for efficiency
+
+#### Key Takeaways
+
+* Reserved address blocks prevent fragmentation during acquisitions
+* Standardized subnet types enforce architectural consistency
+* Migration-specific subnets facilitate orderly transitions
+
+## Understanding CIDR Allocation
+
+### How the Allocation Algorithm Works
+
+Subnetter uses a sophisticated, deterministic algorithm for allocating CIDR blocks. Understanding how this algorithm works will help you design your network architecture more effectively.
+
+#### Hierarchical Allocation
+
+The allocation process follows a strict hierarchy:
+
+1. **Base CIDR**: The starting point for all allocations (e.g., `10.0.0.0/8`)
+2. **Account Level**: Each account gets a portion of the base CIDR
+3. **Region Level**: Each region gets a portion of its account's CIDR
+4. **Availability Zone Level**: Each AZ gets a portion of its region's CIDR
+5. **Subnet Level**: Each subnet type gets a portion of its AZ's CIDR
+
+This hierarchical approach ensures that:
+- Related resources are grouped together in the IP address space
+- No overlaps occur between different parts of the hierarchy
+- The allocation is deterministic and reproducible
+
+#### Contiguous Allocation
+
+At each level of the hierarchy, the allocation is performed contiguously. This means:
+
+1. Blocks are allocated sequentially from the available space
+2. Each new allocation starts immediately after the previous one
+3. There are no gaps between allocations at the same level
+
+For example, if you allocate a `/16` block for each account, they would be allocated as:
+- Account 1: `10.0.0.0/16`
+- Account 2: `10.1.0.0/16`
+- Account 3: `10.2.0.0/16`
+
+And so on.
+
+### Customizing the Allocation Process
+
+You can influence how the allocation works through several configuration options:
+
+#### Prefix Lengths
+
+The `prefixLengths` option lets you control the size of blocks allocated at each level:
+
+```json
+{
+  "prefixLengths": {
+    "account": 16,  // Each account gets a /16 (65,536 IPs)
+    "region": 20,   // Each region gets a /20 (4,096 IPs)
+    "az": 24        // Each AZ gets a /24 (256 IPs)
+  }
+}
+```
+
+Larger prefix numbers mean smaller blocks. For optimal allocation:
+- Account prefix should be larger than the base CIDR prefix (e.g., `/16` for a `/8` base)
+- Region prefix should be larger than account prefix (e.g., `/20` for `/16` accounts)
+- AZ prefix should be larger than region prefix (e.g., `/24` for `/20` regions)
+
+#### CIDR Overrides
+
+You can override the allocation at various levels:
+
+1. **Account Overrides**: Specify a `baseCidr` for an entire account
+   ```json
+   {
+     "name": "production",
+     "clouds": {
+       "aws": {
+         "provider": "aws",
+         "baseCidr": "10.100.0.0/16"
+       }
+     }
+   }
+   ```
+
+2. **Provider Overrides**: Use different address spaces for different cloud providers
+   ```json
+   {
+     "name": "hybrid",
+     "clouds": {
+       "aws": {
+         "provider": "aws",
+         "baseCidr": "10.0.0.0/16"
+       },
+       "azure": {
+         "provider": "azure",
+         "baseCidr": "172.16.0.0/16"
+       }
+     }
+   }
+   ```
+
+3. **CLI Overrides**: Override the base CIDR for all allocations
+   ```bash
+   subnetter generate -c config.json -b 192.168.0.0/16
+   ```
+
+### Space Utilization
+
+Subnetter calculates the required space for each level of the hierarchy based on:
+1. **Number of accounts**: Determines total accounts space needed
+2. **Regions per account**: Determines per-account space needed
+3. **AZs per region**: Determines per-region space needed
+4. **Subnet types**: Determines per-AZ space needed
+
+The tool will check if there's enough space for all allocations and provide clear error messages if not.
+
+Example error:
+```
+[ERROR] [CLI] ❌ Error: [3002] Not enough space left for allocation with prefix /20
+[INFO] [CLI] 💡 Help: Your CIDR block is too small for the requested allocation. Use a larger CIDR block or reduce the number of subnets.
+```
+
+### Handling IP Space Constraints
+
+If you encounter space limitations, you have several options:
+
+1. **Use a larger base CIDR**: Change from `10.0.0.0/8` to `0.0.0.0/0` to use the entire IPv4 space
+2. **Reduce the number of regions**: Consolidate regions to reduce address space needs
+3. **Use larger subnet prefixes**: Use `/27` instead of `/24` to create smaller subnets
+4. **Override specific accounts**: Use custom CIDRs for accounts that need more space
+5. **Split by provider**: Use different address spaces for different cloud providers
+
+### Real-World Allocation Examples
+
+#### Small Deployment (1 account, 2 regions, 3 subnets)
+
+```json
+{
+  "baseCidr": "10.0.0.0/16",  // Smaller base for a small deployment
+  "prefixLengths": {
+    "account": 16,  // Single account gets the entire /16
+    "region": 20,   // Each region gets a /20
+    "az": 24        // Each AZ gets a /24
+  },
+  "accounts": [
+    {
+      "name": "startup",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26,
+    "Database": 26
+  }
+}
+```
+
+Resulting allocations (simplified):
+```
+startup/aws/us-east-1/az-a/Public:   10.0.0.0/26
+startup/aws/us-east-1/az-a/Private:  10.0.0.64/26
+startup/aws/us-east-1/az-a/Database: 10.0.0.128/26
+startup/aws/us-east-1/az-b/Public:   10.0.1.0/26
+// ... and so on
+```
+
+#### Large Enterprise (4 accounts, multiple regions, custom overrides)
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.100.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "staging",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.101.0.0/16",
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "development",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.102.0.0/16",
+          "regions": ["us-east-1"]
+        }
+      }
+    },
+    {
+      "name": "tools",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.103.0.0/16",
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "PrivateWebTier": 25,
+    "PrivateAppTier": 24,
+    "PrivateDataTier": 26,
+    "Management": 27
+  }
+}
+```
+
 This configuration demonstrates how to use custom CIDR overrides to provide dedicated address spaces for each account with adequate space for multiple regions and subnet types. 

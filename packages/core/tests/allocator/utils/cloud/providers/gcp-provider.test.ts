@@ -94,6 +94,27 @@ describe('GcpCloudProvider', () => {
       expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c']);
     });
     
+    it('should handle regions with non-standard zone patterns', () => {
+      // us-central1 actually has zones a, b, c, f
+      const zoneNames = provider.generateAzNames('us-central1', 4);
+      expect(zoneNames).toHaveLength(4);
+      expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c', 'us-central1f']);
+    });
+    
+    it('should correctly handle us-east1', () => {
+      // us-east1 has zones b, c, d (no a)
+      const zoneNames = provider.generateAzNames('us-east1', 3);
+      expect(zoneNames).toHaveLength(3);
+      expect(zoneNames).toEqual(['us-east1b', 'us-east1c', 'us-east1d']);
+    });
+    
+    it('should correctly handle europe-west1', () => {
+      // europe-west1 has zones b, c, d (no a)
+      const zoneNames = provider.generateAzNames('europe-west1', 3);
+      expect(zoneNames).toHaveLength(3);
+      expect(zoneNames).toEqual(['europe-west1b', 'europe-west1c', 'europe-west1d']);
+    });
+    
     it('should limit the number of zones to the region maximum', () => {
       // All GCP regions in our test have a max of 3 zones
       const zoneNames = provider.generateAzNames('us-central1', 5);

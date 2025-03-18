@@ -1,6 +1,88 @@
-# Subnetter Example Configurations
+# Subnetter Examples
 
-This directory contains example configuration files for the Subnetter tool that demonstrate various usage patterns and network architectures.
+This directory contains example configurations for Subnetter.
+
+## Standard Examples
+
+- `config.json` - A basic configuration with AWS and GCP
+- `config.yaml` - The same configuration in YAML format
+- `kubernetes-config.json` - A configuration optimized for Kubernetes deployments
+- `three-az-kubernetes-config.json` - Kubernetes configuration with explicit 3-AZ design
+- `config-with-diverse-account-names.json` - Example showing various account naming patterns
+- `overlap-test-config.json` - Test configuration demonstrating CIDR overlap detection
+
+## Specialized Examples
+
+- `az-naming-test-config.json` - Test configuration showcasing region-specific availability zone naming patterns for all cloud providers:
+  - AWS regions with non-sequential AZs (e.g., us-west-1 with 'a' and 'c')
+  - AWS regions with unique patterns (e.g., ap-northeast-1 with 'a', 'c', and 'd')
+  - Azure regions with and without AZ support
+  - GCP regions with non-standard zone patterns (e.g., us-east1 with 'b', 'c', 'd')
+
+## Cloud Provider Availability Zone Naming Patterns
+
+Subnetter supports accurate region-specific availability zone naming for all major cloud providers:
+
+### AWS Availability Zones
+
+- Most regions follow sequential naming (us-east-1a, us-east-1b, etc.)
+- Some regions have non-sequential AZs:
+  - `us-west-1`: a, c (no b)
+  - `ap-northeast-1`: a, c, d (no b)
+  - And other patterns as documented by AWS
+
+### Azure Availability Zones
+
+- Azure uses numeric zones (1, 2, 3) formatted as `region-number`
+- Not all Azure regions support availability zones
+- Subnetter validates AZ support for regions like `eastus`, `westeurope`, etc.
+
+### GCP Zones
+
+- Most regions follow sequential naming (us-central1-a, us-central1-b, etc.)
+- Some regions have non-standard patterns:
+  - `us-east1`: b, c, d (no a)
+  - `europe-west1`: b, c, d (no a)
+  - And other patterns as documented by GCP
+
+## Example Usage
+
+To use these examples, run the following commands:
+
+```bash
+# Generate allocations from a JSON config
+subnetter generate --config examples/config.json --output allocations.csv
+
+# Generate allocations from a YAML config
+subnetter generate --config examples/config.yaml --output allocations.csv
+
+# Generate Kubernetes-specific allocations
+subnetter generate --config examples/kubernetes-config.json --output k8s-allocations.csv
+
+# Test availability zone naming patterns
+subnetter generate --config examples/az-naming-test-config.json --output az-naming-test.csv
+```
+
+## Testing
+
+The `test-configs` directory contains various configurations used for testing edge cases and error handling.
+The `test-outputs` directory contains expected outputs for testing.
+
+## Creating Your Own Configuration
+
+1. Start with one of these examples
+2. Modify the cloud providers, regions, and accounts as needed
+3. Adjust subnet types and prefixes based on your requirements
+4. Run `subnetter validate` to check your configuration
+5. Generate allocations with `subnetter generate`
+
+## Best Practices
+
+- Use descriptive account names that reflect your organizational structure
+- Choose subnet types that align with your cloud architecture
+- Use consistent region naming across providers
+- Select prefix lengths that allow for future growth
+- Document any custom CIDR overrides in your configuration
 
 ## Configuration Format
 
