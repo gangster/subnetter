@@ -345,7 +345,7 @@ export class HierarchicalAllocator {
     
     // For Azure, AZs are numbered (1, 2, 3)
     if (providerName === 'azure') {
-      return [1, 2, 3].map(num => `${regionName}${num}`);
+      return [1, 2, 3].map(num => `${regionName}-${num}`);
     }
     
     // For GCP, AZs are region + -a, -b, -c
