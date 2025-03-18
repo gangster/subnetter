@@ -9,35 +9,73 @@ import MermaidDiagram from '../../components/MermaidDiagram.astro';
 
 This document outlines the current implementation status of Subnetter's features and the planned enhancements for future releases. It serves as a guide for users and contributors to understand the project's direction and priorities.
 
-## Current Implementation Status
+## Completed Features
 
-The following table summarizes the current implementation status of key features:
+### Core Functionality
 
-| Feature | Status | Details |
-|---------|--------|---------|
-| Core CIDR Allocation | ✅ Implemented | The basic hierarchical allocation algorithm is fully functional |
-| AWS Provider Support | ✅ Implemented | AWS region and AZ handling is complete |
-| Azure Provider Support | ✅ Implemented | Full support for Azure regions and availability zones |
-| GCP Provider Support | ✅ Implemented | Complete support for Google Cloud regions and zones |
-| Documentation | 🔄 Ongoing | Comprehensive guides and API references with continuous improvements |
-| Configuration Validation | ✅ Implemented | Schema validation using Zod is functional |
-| CSV Output | ✅ Implemented | Basic CSV output format is available |
-| CLI Interface | ✅ Implemented | Core commands are functional |
-| Variable Subnet Sizing | ✅ Implemented | Support for different prefix lengths for different subnet types |
-| Account-Level Overrides | ✅ Implemented | Support for overriding base CIDRs at the account level |
-| Base CIDR Override via CLI | ✅ Implemented | Ability to override base CIDR through command-line options |
-| CIDR Tracking | ✅ Implemented | System for tracking allocated CIDRs to prevent overlaps |
-| Schema Evolution | 🟨 Partial | Basic normalization of older formats, but limited |
-| Error Handling | ✅ Implemented | Comprehensive error handling with error hierarchy, error codes, context information, and actionable help text |
-| Logging | ✅ Implemented | Configurable logging system with multiple levels and output options |
-| Testing Coverage | ✅ Implemented | Comprehensive test suite with >90% line coverage for core functionality, including unit, integration, and E2E tests |
-| Extension Points | 🟠 Planned | Architecture supports extension but formal interfaces not yet implemented |
-| IaC Outputs | 🟠 Planned | Only CSV output currently implemented |
-| Plugin System | 🟠 Planned | Not yet implemented |
-| Web Interface | 🟠 Planned | Not yet implemented |
-| IPv6 Support | 🟠 Planned | Not yet implemented |
-| Visualization | 🟠 Planned | Not yet implemented |
-| IPAM Integration | 🟠 Planned | Not yet implemented |
+- ✅ **Hierarchical CIDR Allocation**: Implemented a deterministic, hierarchical allocation system that follows a strict account > region > AZ > subnet type hierarchy.
+- ✅ **Contiguous Allocation Strategy**: Developed an optimized algorithm for allocating CIDR blocks contiguously from a base CIDR, ensuring efficient space utilization.
+- ✅ **Multi-Cloud Support**: Added complete support for AWS, Azure, and GCP cloud providers, with provider-specific validations.
+- ✅ **Custom CIDR Overrides**: Implemented the ability to override automatically allocated CIDR blocks at the account and cloud provider levels.
+- ✅ **Configuration Validation**: Enhanced validation for configuration files to detect common errors and provide helpful error messages.
+- ✅ **CSV Output**: Added support for generating CSV output for easy import into other tools.
+- ✅ **Prefix Length Control**: Implemented fine-grained control over prefix lengths at each level in the hierarchy.
+
+### Usability Improvements
+
+- ✅ **Command-Line Interface**: Developed a comprehensive CLI for generating and validating CIDR allocations.
+- ✅ **Error Handling Enhancements**: Improved error messages and added comprehensive documentation for troubleshooting allocation errors.
+- ✅ **Documentation Overhaul**: Completely revised documentation with detailed guides, examples, and troubleshooting sections.
+
+## In Progress
+
+### Performance Optimizations
+
+- 🟡 **Memory Efficiency**: Optimizing memory usage for handling extremely large configurations.
+- 🟡 **Allocation Algorithm Refinements**: Further improving the allocation algorithm to handle edge cases and complex scenarios.
+
+### User Experience
+
+- 🟡 **Interactive CLI Mode**: Adding an interactive mode to the CLI for step-by-step configuration creation.
+- 🟡 **Configuration Wizards**: Developing wizards to help users create and modify configurations.
+
+## Planned Features
+
+### Core Enhancements
+
+- 🔲 **IPv6 Support**: Extending the allocation system to support IPv6 addresses.
+- 🔲 **Custom Allocation Strategies**: Supporting pluggable allocation strategies beyond the current contiguous allocation.
+- 🔲 **Allocation Versioning**: Adding support for tracking changes to allocations over time.
+- 🔲 **Dynamic Allocation Adjustments**: Implementing algorithms to dynamically adjust allocations based on actual usage patterns.
+
+### Integration Improvements
+
+- 🔲 **Terraform Integration**: Generating Terraform code directly from CIDR allocations.
+- 🔲 **CloudFormation Integration**: Supporting AWS CloudFormation template generation.
+- 🔲 **CI/CD Pipeline Integration**: Creating tools for integrating CIDR allocation into CI/CD pipelines.
+- 🔲 **Cloud Provider APIs**: Direct integration with cloud provider APIs for applying allocations.
+
+### Visualization and Analysis
+
+- 🔲 **CIDR Visualization**: Graphical representation of CIDR allocations and hierarchy.
+- 🔲 **Usage Analysis**: Tools for analyzing IP address usage and recommending optimizations.
+- 🔲 **Conflict Detection**: Enhanced detection of routing conflicts and overlapping allocations in existing infrastructure.
+
+### Advanced Features
+
+- 🔲 **Custom Hierarchy Levels**: Supporting user-defined hierarchy levels beyond the default account > region > AZ > subnet structure.
+- 🔲 **Non-RFC1918 Support**: Enhanced support for handling non-RFC1918 address spaces.
+- 🔲 **Migration Planning**: Tools for planning migrations from existing CIDR allocations to new ones.
+- 🔲 **Reservation System**: Supporting the reservation of specific CIDR blocks for future use.
+
+## Timeline
+
+- **Q3 2023**: ✅ Core functionality and multi-cloud support 
+- **Q4 2023**: ✅ Configuration validation, CSV output, and prefix length control
+- **Q1 2024**: ✅ Hierarchical and contiguous allocation algorithms
+- **Q2 2024**: 🟡 Performance optimizations and user experience improvements
+- **Q3 2024**: Integration improvements and visualization features
+- **Q4 2024**: Advanced features and IPv6 support
 
 ## Development Priorities
 

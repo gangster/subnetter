@@ -42,6 +42,23 @@ interface Config {
    * @example { "Public": 24, "Private": 23, "Database": 25 }
    */
   subnetTypes: Record<string, number>;
+
+  /**
+   * Optional allocation strategy configuration
+   */
+  allocation?: {
+    /**
+     * Whether to use strict validation rules for CIDR allocations
+     * @default true
+     */
+    strictValidation?: boolean;
+    
+    /**
+     * Whether to allow automatic expansion of the base CIDR if needed
+     * @default false
+     */
+    autoExpand?: boolean;
+  };
 }
 
 interface Account {
@@ -226,4 +243,264 @@ accounts:
 
 - [User Guide](/user-guide/) - For detailed usage instructions
 - [API Documentation](/api/overview/) - For programmatic usage
-- [Example Scenarios](/user-guide/#example-scenarios) - For real-world configuration examples 
+- [Example Scenarios](/user-guide/#example-scenarios) - For real-world configuration examples
+
+## Advanced Configuration Options
+
+### Allocation Strategy Control
+
+Subnetter uses a sophisticated allocation strategy to ensure that CIDR blocks are optimally distributed without overlaps. You can influence how this allocation works through several configuration options:
+
+```typescript
+interface Config {
+  // ... other fields ...
+  
+  /**
+   * Optional allocation strategy configuration
+   */
+  allocation?: {
+    /**
+     * Whether to use strict validation rules for CIDR allocations
+     * @default true
+     */
+    strictValidation?: boolean;
+    
+    /**
+     * Whether to allow automatic expansion of the base CIDR if needed
+     * @default false
+     */
+    autoExpand?: boolean;
+  };
+}
+```
+
+### Account-Level CIDR Overrides
+
+For greater control over specific sections of your IP address space, you can override the automatically allocated CIDR blocks at the account level. This is particularly useful when you're migrating existing infrastructure into Subnetter:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.1.0.0/16",  // Override the auto-allocated CIDR
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ]
+}
+```
+
+The allocation algorithm will respect these overrides while ensuring that no overlaps occur with other accounts or providers.
+
+### Cloud Provider-Specific Overrides
+
+You can also provide cloud provider-specific CIDR blocks to segment your IP space by provider:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "development",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.0.0.0/16",
+          "regions": ["us-east-1"]
+        },
+        "azure": {
+          "provider": "azure",
+          "baseCidr": "172.16.0.0/16",  // Completely different address space
+          "regions": ["eastus"]
+        }
+      }
+    }
+  ]
+}
+```
+
+This allows you to use separate address spaces for different cloud providers if needed.
+
+### Hierarchical Allocation Process
+
+The allocation process follows a hierarchical structure:
+
+1. **Base CIDR** → Starting point (e.g., `10.0.0.0/8`)
+2. **Account Level** → Each account gets a portion (typically `/16`)
+3. **Region Level** → Each region gets a portion of the account's allocation (typically `/20`)
+4. **Availability Zone Level** → Each AZ gets a portion of the region's allocation (typically `/24`)
+5. **Subnet Level** → Each subnet type gets a portion of the AZ's allocation (defined in `subnetTypes`)
+
+The prefix lengths at each level are configurable through the `prefixLengths` option:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,  // Each account gets a /16
+    "region": 20,   // Each region gets a /20
+    "az": 24        // Each AZ gets a /24
+  },
+  // ... rest of config
+}
+```
+
+### Subnet Type Configuration
+
+Subnet types define the different kinds of subnets you want to create and their respective sizes:
+
+```json
+{
+  // ... other config
+  "subnetTypes": {
+    "Public": 26,    // Public subnets get a /26 (62 usable IPs)
+    "Private": 24,   // Private subnets get a /24 (254 usable IPs)
+    "Database": 27,  // Database subnets get a /27 (30 usable IPs)
+    "Management": 28 // Management subnets get a /28 (14 usable IPs)
+  }
+}
+```
+
+The larger the prefix number, the smaller the subnet. For example, a `/24` subnet (256 IPs) is larger than a `/26` subnet (64 IPs).
+
+## Configuration Validation
+
+Subnetter performs extensive validation on your configuration file to ensure it will produce valid allocations:
+
+1. **CIDR Format Validation**: Ensures all CIDR blocks are in valid format (e.g., `10.0.0.0/8`)
+2. **Prefix Length Validation**: Confirms prefix lengths are appropriate for each level
+3. **Overlap Detection**: Checks that manual CIDR overrides don't overlap
+4. **Space Verification**: Confirms there's enough IP space for all requested subnets
+
+If validation fails, Subnetter will provide detailed error messages to help you fix the issues.
+
+## Example Configurations
+
+### Basic Single-Cloud Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 24,
+    "Database": 27
+  }
+}
+```
+
+### Advanced Multi-Cloud Configuration with Overrides
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.100.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+        },
+        "azure": {
+          "provider": "azure",
+          "baseCidr": "10.200.0.0/16",
+          "regions": ["eastus", "westeurope"]
+        },
+        "gcp": {
+          "provider": "gcp",
+          "baseCidr": "10.300.0.0/16",
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    },
+    {
+      "name": "development",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1"]
+        },
+        "azure": {
+          "provider": "azure",
+          "regions": ["eastus"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 24,
+    "Database": 27,
+    "Management": 28
+  }
+}
+```
+
+### Configuration with Variable Subnet Sizing
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1"],
+          "subnetTypes": {
+            "LoadBalancer": 26,
+            "WebTier": 25,
+            "AppTier": 24,
+            "DatabaseTier": 27,
+            "Management": 28
+          }
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 24
+  }
+}
+```
+
+In this example, the account-specific subnet types will override the global subnet types for the "production" account's AWS resources. 

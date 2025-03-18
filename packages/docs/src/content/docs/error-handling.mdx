@@ -269,6 +269,345 @@ export class CustomError extends SubnetterError {
 }
 ```
 
+## CIDR Allocation Errors
+
+Errors related to CIDR allocation are among the most common issues when using Subnetter. This section covers the most frequent allocation errors, their causes, and how to resolve them.
+
+### Error Code 3001: Invalid CIDR Format
+
+**Error Message**: `Invalid CIDR format: {cidr}`
+
+**Cause**: The CIDR notation provided does not follow the standard format (e.g., `10.0.0.0/8`). This error commonly occurs in:
+- Base CIDR definitions
+- Account-level CIDR overrides
+- Cloud provider CIDR overrides
+
+**Resolution**:
+1. Check the CIDR syntax to ensure it follows the format `IP_ADDRESS/PREFIX_LENGTH`
+2. Verify that the IP address is valid (e.g., `10.0.0.0`, not `10.0.0.256`)
+3. Ensure the prefix length is between 0 and 32
+
+```json
+// ❌ Invalid
+"baseCidr": "10.0.0/8"  // Missing an octet
+
+// ✅ Valid
+"baseCidr": "10.0.0.0/8"
+```
+
+### Error Code 3002: Not Enough Space
+
+**Error Message**: `Not enough space left for allocation with prefix /{prefix}`
+
+**Cause**: The allocator attempted to allocate a CIDR block, but there wasn't enough space left in the parent CIDR. This commonly occurs when:
+- The base CIDR is too small for the number of allocations requested
+- The prefix lengths are too small (resulting in larger subnets)
+- There are too many accounts, regions, AZs, or subnet types configured
+
+**Resolution**:
+1. Use a larger base CIDR (e.g., change from `/16` to `/8`)
+2. Reduce the number of accounts, regions, or AZs
+3. Use larger prefix lengths for subnet types (e.g., change from `/24` to `/26`)
+4. Split your configuration into multiple separate configurations
+
+**Example Fix**:
+```json
+// ❌ Problem: Base CIDR too small
+{
+  "baseCidr": "10.0.0.0/16",  // Only 65,536 addresses
+  "accounts": [
+    // 10 accounts, each needing a /20 (4,096 addresses)
+    // 10 * 4,096 = 40,960 addresses (fits in /16)
+    // But with regions, AZs, and subnets, it's not enough
+  ]
+}
+
+// ✅ Solution: Use larger base CIDR
+{
+  "baseCidr": "10.0.0.0/12",  // 1,048,576 addresses (16x more space)
+  "accounts": [
+    // Same 10 accounts, but now with plenty of space
+  ]
+}
+```
+
+### Error Code 3003: Subnet Type Not Found
+
+**Error Message**: `Subnet type '{type}' not found in configuration`
+
+**Cause**: A subnet type referenced in the allocation process wasn't defined in the `subnetTypes` section of the configuration.
+
+**Resolution**:
+1. Add the missing subnet type to your configuration
+2. Check for typos in subnet type names (they are case-sensitive)
+
+```json
+// ❌ Missing subnet type
+{
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26
+    // "Database" is missing but used elsewhere
+  }
+}
+
+// ✅ Corrected
+{
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26,
+    "Database": 26
+  }
+}
+```
+
+### Error Code 3004: CIDR Block Overlap
+
+**Error Message**: `CIDR block '{cidr1}' overlaps with '{cidr2}'`
+
+**Cause**: Two allocated CIDR blocks overlap, which would create routing conflicts. This commonly occurs when:
+- Custom CIDR overrides are used at different levels
+- Manual CIDR ranges are provided that overlap
+
+**Resolution**:
+1. Ensure that manually specified CIDRs do not overlap
+2. Let Subnetter handle allocation automatically if possible
+3. Use CIDR calculators to check for overlaps before specifying custom ranges
+
+```json
+// ❌ Overlapping CIDRs
+{
+  "accounts": [
+    {
+      "name": "prod",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.0.0.0/16"
+        }
+      }
+    },
+    {
+      "name": "staging",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.0.128.0/17"  // Overlaps with prod (10.0.0.0/16)
+        }
+      }
+    }
+  ]
+}
+
+// ✅ Non-overlapping CIDRs
+{
+  "accounts": [
+    {
+      "name": "prod",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.0.0.0/16"
+        }
+      }
+    },
+    {
+      "name": "staging",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.1.0.0/16"  // No overlap (different /16 block)
+        }
+      }
+    }
+  ]
+}
+```
+
+### Error Code 3005: Invalid Prefix Length
+
+**Error Message**: `Invalid prefix length: {prefix}. Must be between 0 and 32.`
+
+**Cause**: A prefix length specified in the configuration is outside the valid range.
+
+**Resolution**:
+1. Ensure all prefix lengths are between 0 and 32
+2. Check for typos or missing values
+
+```json
+// ❌ Invalid prefix length
+{
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 33,  // Invalid - must be <= 32
+    "Database": -1  // Invalid - must be >= 0
+  }
+}
+
+// ✅ Valid prefix lengths
+{
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26,
+    "Database": 27
+  }
+}
+```
+
+### Error Code 3006: Inconsistent Prefix Hierarchy
+
+**Error Message**: `Inconsistent prefix hierarchy: {level1} prefix ({prefix1}) must be less than {level2} prefix ({prefix2})`
+
+**Cause**: The prefix lengths in the hierarchy are inconsistent. For example, an account prefix is larger than a region prefix, which would result in regions being larger than accounts.
+
+**Resolution**:
+1. Ensure that prefix lengths increase as you move down the hierarchy:
+   - Base CIDR prefix < Account prefix < Region prefix < AZ prefix < Subnet prefix
+2. Adjust prefix lengths to maintain this hierarchy
+
+```json
+// ❌ Inconsistent prefix hierarchy
+{
+  "prefixLengths": {
+    "account": 24,  // Account subnets are /24 (256 addresses)
+    "region": 20,   // Region subnets are /20 (4,096 addresses) - WRONG!
+    "az": 28        // AZ subnets are /28 (16 addresses)
+  }
+}
+
+// ✅ Consistent prefix hierarchy
+{
+  "prefixLengths": {
+    "account": 16,  // Account subnets are /16 (65,536 addresses)
+    "region": 20,   // Region subnets are /20 (4,096 addresses)
+    "az": 24        // AZ subnets are /24 (256 addresses)
+  }
+}
+```
+
+### Error Code 3007: Invalid IP Address
+
+**Error Message**: `Invalid IP address: {ip}`
+
+**Cause**: An IP address in the CIDR notation is malformed or contains invalid values.
+
+**Resolution**:
+1. Ensure each octet of the IP address is between 0 and 255
+2. Check for typos or malformed addresses
+
+```json
+// ❌ Invalid IP addresses
+"baseCidr": "10.0.0.256/16"  // 256 is not valid (must be <= 255)
+"baseCidr": "10.0.0/16"      // Missing an octet
+"baseCidr": "10.0.0.0.0/16"  // Too many octets
+
+// ✅ Valid IP addresses
+"baseCidr": "10.0.0.0/16"
+"baseCidr": "192.168.1.0/24"
+```
+
+### Troubleshooting CIDR Allocation
+
+If you're experiencing CIDR allocation issues, try these troubleshooting steps:
+
+1. **Verify Configuration**:
+   Run validation on your configuration without generating allocations:
+   ```bash
+   subnetter validate -c config.json
+   ```
+
+2. **Check Space Requirements**:
+   Use a CIDR calculator to estimate your space needs:
+   ```
+   Number of Accounts × Number of Regions × Number of AZs × Number of Subnet Types × Subnet Size
+   ```
+
+3. **Simplify and Incrementally Add**:
+   Start with a minimal configuration and gradually add components:
+   ```bash
+   # Start with 1 account, 1 region, basic subnet types
+   subnetter generate -c simple-config.json
+   
+   # Gradually add more accounts, regions, etc.
+   ```
+
+4. **Log Detailed Allocation**:
+   Enable debug mode to see detailed allocation steps:
+   ```bash
+   subnetter generate -c config.json --debug
+   ```
+
+5. **Validate CIDR Overrides**:
+   If using custom CIDR overrides, verify they don't overlap:
+   ```bash
+   # Check each override with a tool like ipcalc
+   ipcalc 10.0.0.0/16 10.0.128.0/17
+   ```
+
+### Common Allocation Scenarios and Solutions
+
+#### Scenario 1: Too Many Accounts for Available Space
+
+**Problem**:
+Your base CIDR is too small for the number of accounts you're trying to allocate.
+
+**Solution**:
+1. Use a larger base CIDR
+2. Use individual baseCidr overrides for each account
+3. Increase the account prefix (smaller allocations)
+
+#### Scenario 2: Regional Expansion
+
+**Problem**:
+You need to add new regions, but don't have enough space left.
+
+**Solution**:
+1. Reserve space for future regions during initial allocation
+2. Use explicit CIDR overrides for new regions
+3. Create a separate configuration for new regions
+
+#### Scenario 3: Multi-Cloud Allocation
+
+**Problem**:
+You need to allocate separate non-overlapping CIDR blocks for different cloud providers.
+
+**Solution**:
+1. Use different RFC1918 ranges for different clouds:
+   - AWS: 10.0.0.0/8
+   - Azure: 172.16.0.0/12
+   - GCP: 192.168.0.0/16
+2. Configure cloud-specific overrides:
+   ```json
+   "clouds": {
+     "aws": {
+       "provider": "aws",
+       "baseCidr": "10.0.0.0/8"
+     },
+     "azure": {
+       "provider": "azure",
+       "baseCidr": "172.16.0.0/12"
+     }
+   }
+   ```
+
+#### Scenario 4: Need Larger Subnets for Specific Types
+
+**Problem**:
+Some subnet types (like container subnets) need more IP addresses than others.
+
+**Solution**:
+1. Adjust subnet type prefix lengths:
+   ```json
+   "subnetTypes": {
+     "Public": 26,          // 62 usable IPs
+     "PrivateWebTier": 25,  // 126 usable IPs
+     "PrivateAppTier": 24,  // 254 usable IPs
+     "ContainerTier": 20,   // 4,094 usable IPs
+     "PrivateDataTier": 26  // 62 usable IPs
+   }
+   ```
+2. Consider using larger CIDR blocks at the region level to accommodate larger subnet types
+
 ## Conclusion
 
 Subnetter's error handling system is designed to provide clear, actionable information when something goes wrong. By understanding the different error types and their causes, you can quickly diagnose and resolve issues with your CIDR allocations. 

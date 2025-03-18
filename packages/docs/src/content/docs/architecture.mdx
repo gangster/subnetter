@@ -359,109 +359,171 @@ The output generator is responsible for:
 Key files:
 - `packages/core/src/output/csv-writer.ts`: CSV output generation
 
-## 4. Error Handling and Observability
+## 4. Core CIDR Allocation System
 
-### 4.1 Error Handling
+The CIDR allocation system is the heart of Subnetter. It takes a parsed and validated configuration and generates a complete set of non-overlapping CIDR allocations for all accounts, regions, availability zones, and subnets.
 
-The system uses a hierarchical error handling approach:
+### 4.1 Allocation Architecture
+
+The allocation architecture follows a hierarchical approach, with two main components:
+
+1. **HierarchicalAllocator**: Manages the overall allocation hierarchy
+2. **ContiguousAllocator**: Handles specific CIDR allocations at each level
 
 <MermaidDiagram chart={`classDiagram
-    class Error {
-        +string message
-        +string name
+    class HierarchicalAllocator {
+        -Config config
+        -ContiguousAllocator rootAllocator
+        -Allocation[] allocations
+        +generateAllocations() Allocation[]
+        -processAccount(Account)
+        -processCloudConfig(accountName, providerName, CloudConfig, accountAllocator)
+        -processRegion(accountName, regionName, providerName, accountAllocator)
+        -processAz(accountName, regionName, azName, providerName, regionAllocator)
+        -processSubnet(accountName, regionName, azName, providerName, subnetType, prefixLength, azAllocator)
     }
     
-    class ConfigValidationError {
-        +string message
-        +ZodError errors
+    class ContiguousAllocator {
+        -string baseCidr
+        -IPv4 baseIp
+        -number basePrefix
+        -IPv4 currentIp
+        -string[] allocatedCidrs
+        +allocate(prefixLength) string
+        +getAvailableSpace() string
+        +reset()
+        +getAllocatedCidrs() string[]
     }
     
-    class CidrError {
-        +string message
+    HierarchicalAllocator --> ContiguousAllocator : uses
+    
+    class CidrAllocator {
+        -Config config
+        -HierarchicalAllocator allocator
+        +generateAllocations() Allocation[]
+        +filterByProvider(provider) Allocation[]
     }
     
-    class AllocationError {
-        +string message
-    }
+    CidrAllocator --> HierarchicalAllocator : uses`} />
+
+### 4.2 Allocation Hierarchy
+
+The allocation process follows this hierarchy:
+
+1. **Base CIDR**: The starting point for all allocations (e.g., `10.0.0.0/8`)
+2. **Account Level**: Divides the base CIDR among accounts (typically with `/16` prefix)
+3. **Region Level**: Subdivides account CIDRs among regions (typically with `/20` prefix)
+4. **Availability Zone Level**: Subdivides region CIDRs among AZs (typically with `/24` prefix)
+5. **Subnet Level**: Final division into specific subnet types (with variable prefixes like `/26`, `/27`, etc.)
+
+Each level uses a ContiguousAllocator instance to ensure that allocations at that level are contiguous and non-overlapping.
+
+### 4.3 Contiguous Allocation Algorithm
+
+The ContiguousAllocator implements a sequential allocation algorithm that:
+
+1. Starts with a base CIDR block
+2. Tracks the current allocation position within that block
+3. Allocates new CIDR blocks sequentially, advancing the position after each allocation
+4. Ensures all allocations are non-overlapping
+5. Verifies that there is sufficient space for each allocation
+
+<MermaidDiagram chart={`flowchart TD
+    Start([Start]) --> Init[Initialize with base CIDR]
+    Init --> Parse[Parse IP and prefix]
+    Parse --> SetCurrentIP[Set current IP to base IP]
+    SetCurrentIP --> ProcessAlloc{Allocation request?}
     
-    class OutputError {
-        +string message
-    }
+    ProcessAlloc -->|Yes| ValidatePrefix[Validate prefix length]
+    ValidatePrefix --> CalcSize[Calculate block size]
+    CalcSize --> CheckSpace{Enough space?}
     
-    Error <|-- ConfigValidationError
-    Error <|-- CidrError
-    Error <|-- AllocationError
-    Error <|-- OutputError`} />
-
-1. **Domain-specific errors**: `CidrError`, `AllocationError`, `ConfigValidationError`
-2. **Contextual error wrapping**: Errors are wrapped with context about where they occurred
-3. **Helpful error messages**: Error messages include specific details about what went wrong
-
-### 4.2 Error Recovery Strategies
-
-When errors occur, the system provides clear guidance on how to fix them. Common error scenarios and their solutions include:
-
-| Error Type | Possible Causes | Recovery Strategy |
-|------------|----------------|-------------------|
-| Invalid CIDR Format | Malformed CIDR notation | Check the CIDR notation format (e.g., 10.0.0.0/8) |
-| Insufficient IP Space | Base CIDR too small for requested allocations | Use a larger base CIDR or reduce the number of allocations |
-| Overlapping CIDRs | Manually specified CIDRs overlap | Adjust the CIDRs to remove the overlap |
-| Invalid Prefix Length | Prefix length out of range | Ensure prefix lengths are between 8 and 28 |
-| Unknown Cloud Provider | Unsupported provider specified | Check the supported cloud providers list |
-
-The system also provides validation modes:
-
-1. **Strict Mode**: Fails on any validation error
-2. **Warning Mode**: Logs warnings but proceeds with safe defaults
-3. **Verbose Mode**: Provides detailed information about validation issues
-
-### 4.3 Logging and Observability
-
-The system includes comprehensive logging to track allocation operations and diagnose issues:
-
-- **Structured Logging**: JSON-formatted logs for machine parsing
-- **Log Levels**: ERROR, WARN, INFO, DEBUG, TRACE
-- **Contextual Information**: Each log entry includes operation context
-- **Performance Metrics**: Timing data for performance-critical operations
-
-<MermaidDiagram chart={`graph TD
-    operation[Operation] --> |"generates"| logs[Structured Logs]
-    logs --> |"filtered by"| level[Log Level]
-    logs --> |"enriched with"| context[Operation Context]
-    logs --> |"includes"| metrics[Performance Metrics]
-    logs --> |"can be sent to"| console[Console]
-    logs --> |"can be sent to"| file[File]
+    CheckSpace -->|Yes| CreateCIDR[Create CIDR block]
+    CheckSpace -->|No| ThrowError[Throw insufficient space error]
     
-    style operation fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333333
-    style logs fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px,color:#333333
-    style level fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
-    style context fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
-    style metrics fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333333
-    style console fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333
-    style file fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,color:#333333`} />
+    CreateCIDR --> AdvanceIP[Advance current IP position]
+    AdvanceIP --> TrackCIDR[Track allocated CIDR]
+    TrackCIDR --> Return[Return allocated CIDR]
+    Return --> ProcessAlloc
+    
+    ProcessAlloc -->|No| End([End])
+    ThrowError --> End`} />
 
-Sample log entry:
-```json
-{
-  "level": "INFO",
-  "timestamp": "2023-06-15T12:34:56.789Z",
-  "message": "Allocated subnet CIDR",
-  "context": {
-    "accountName": "Production",
-    "regionName": "us-east-1",
-    "azName": "us-east-1a",
-    "subnetType": "Public"
-  },
-  "data": {
-    "cidr": "10.0.0.0/24",
-    "ipCount": 256,
-    "usableIps": 251
-  },
-  "durationMs": 1.23
-}
-```
+### 4.4 Hierarchical Allocation Process
 
-> **Current Implementation Status**: A comprehensive logging system is now implemented with support for multiple log levels, structured output formats, and performance metrics. The system provides both human-readable console output and machine-parseable JSON format for integration with monitoring tools.
+The HierarchicalAllocator manages the overall allocation process:
+
+1. **Account Processing**: 
+   - Checks for account-specific base CIDRs
+   - Either uses a specified CIDR or allocates from the root allocator
+   
+2. **Cloud Provider Processing**:
+   - Handles provider-specific configurations
+   - Processes each cloud provider separately within an account
+   
+3. **Region Processing**:
+   - Maps to cloud-specific regions
+   - Allocates CIDR blocks for each region from the account's allocation
+   
+4. **Availability Zone Processing**:
+   - Determines the AZs for each region based on provider-specific patterns
+   - Allocates CIDR blocks for each AZ from the region's allocation
+   
+5. **Subnet Processing**:
+   - Creates subnet allocations for each subnet type in each AZ
+   - Applies subnet-specific prefix lengths
+
+### 4.5 Allocation Overrides
+
+The allocation system supports several types of overrides:
+
+1. **Account-Level Overrides**: Specify a custom base CIDR for an entire account
+2. **Provider-Level Overrides**: Override the base CIDR for a specific cloud provider within an account
+3. **Prefix Length Overrides**: Customize the prefix lengths used at each level of the hierarchy
+4. **Subnet Type Overrides**: Define different subnet types with specific prefix lengths
+
+These overrides provide flexibility while maintaining the hierarchical structure and preventing overlaps.
+
+### 4.6 Error Handling
+
+The allocation system includes comprehensive error handling:
+
+1. **Validation Errors**: Detect invalid configurations before allocation starts
+2. **Space Exhaustion Errors**: Detect when there's not enough IP space for requested allocations
+3. **Overlap Detection**: Ensure no CIDRs overlap within the hierarchy
+4. **Detailed Context**: Provide detailed context information with errors for debugging
+
+<MermaidDiagram chart={`flowchart TD
+    Start([Start Allocation]) --> ValidConfig{Valid config?}
+    ValidConfig -->|No| ConfigError[Configuration error]
+    ValidConfig -->|Yes| ProcessAccounts[Process accounts]
+    
+    ProcessAccounts --> AccountSpace{Enough space\nfor accounts?}
+    AccountSpace -->|No| SpaceError[Space exhaustion error]
+    AccountSpace -->|Yes| ProcessRegions[Process regions]
+    
+    ProcessRegions --> RegionSpace{Enough space\nfor regions?}
+    RegionSpace -->|No| SpaceError
+    RegionSpace -->|Yes| ProcessAZs[Process availability zones]
+    
+    ProcessAZs --> AZSpace{Enough space\nfor AZs?}
+    AZSpace -->|No| SpaceError
+    AZSpace -->|Yes| ProcessSubnets[Process subnets]
+    
+    ProcessSubnets --> SubnetSpace{Enough space\nfor subnets?}
+    SubnetSpace -->|No| SpaceError
+    SubnetSpace -->|Yes| VerifyNoOverlaps[Verify no overlaps]
+    
+    VerifyNoOverlaps --> Overlaps{Overlaps detected?}
+    Overlaps -->|Yes| OverlapError[Overlap error]
+    Overlaps -->|No| Complete([Complete])
+    
+    ConfigError --> ErrorHandling[Error handling]
+    SpaceError --> ErrorHandling
+    OverlapError --> ErrorHandling
+    
+    ErrorHandling --> ProvideContext[Provide context]
+    ProvideContext --> SuggestFix[Suggest fix]`} />
 
 ## 5. Project Structure and Workflow
 

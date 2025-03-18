@@ -419,6 +419,184 @@ Two CIDRs overlap if one is a subset of the other or they share address space.
 - **Cloud Documentation**: AWS, Azure, and GCP documentation on VPC/VNet addressing
 - **RFCs**: RFC 1918 (Private Address Space), RFC 4632 (CIDR), RFC 3021 (/31 subnets)
 
+## Practical Application of CIDR Allocation
+
+### Hierarchical Allocation Strategy
+
+When planning your network infrastructure, a hierarchical allocation strategy offers several advantages:
+
+1. **Organization**: A clear hierarchy makes network documentation and troubleshooting easier
+2. **Expandability**: Reserved space at each level allows for future growth
+3. **Consistency**: Following patterns simplifies automation and validation
+
+A typical hierarchy might look like:
+
+```
+Enterprise (10.0.0.0/8)
+├── Business Unit A (10.0.0.0/12)
+│   ├── Production (10.0.0.0/14)
+│   │   ├── Region 1 (10.0.0.0/16)
+│   │   ├── Region 2 (10.1.0.0/16)
+│   │   └── ... 
+│   ├── Staging (10.4.0.0/14)
+│   └── ...
+├── Business Unit B (10.16.0.0/12)
+│   └── ...
+└── ...
+```
+
+### Calculating Network Addresses and Broadcast Addresses
+
+For any CIDR block, you can calculate:
+
+- **Network Address**: The first address in the block (not usable for hosts)
+- **Broadcast Address**: The last address in the block (not usable for hosts)
+- **Usable Range**: All addresses between network and broadcast addresses
+
+Example for `10.0.0.0/24`:
+- Network address: `10.0.0.0`
+- Broadcast address: `10.0.0.255`
+- Usable range: `10.0.0.1` - `10.0.0.254`
+- Total usable addresses: 254
+
+### Subnet Sizing Best Practices
+
+When deciding on subnet sizes, consider these guidelines:
+
+1. **Plan for growth**: Allocate 2-3x your current needs where possible
+2. **Consider special requirements**: IoT networks might need very large subnets, while security zones might be small
+3. **Standardize where possible**: Use consistent sizes for similar workloads
+4. **Avoid overly large subnets**: Balance growth needs with security boundaries
+5. **Consider cloud provider limits**: Azure, AWS, and GCP have different subnet size limitations
+
+#### Recommended Subnet Sizes for Common Use Cases:
+
+| Subnet Type      | Typical Size | Usable IPs | Use Case                                |
+|------------------|--------------|------------|----------------------------------------|
+| Public           | /24 to /27   | 254 to 30  | Internet-facing load balancers, NAT gateways |
+| Private Web Tier | /24 to /26   | 254 to 62  | Web servers, application frontends     |
+| Private App Tier | /23 to /25   | 510 to 126 | Application servers, containers        |
+| Data Tier        | /26 to /28   | 62 to 14   | Databases, caches                      |
+| Management       | /27 to /29   | 30 to 6    | Jump servers, monitoring               |
+| Transit          | /28 to /30   | 14 to 2    | VPN connections, transit gateways      |
+
+### Avoiding Fragmentation with Contiguous Allocation
+
+Contiguous allocation ensures that related subnets are allocated from adjacent address space. This brings several benefits:
+
+1. **Simplified routing**: Related resources can often share route table entries
+2. **Efficient ACLs**: Security rules can target larger CIDR blocks
+3. **Future aggregation**: Adjacent blocks can be combined if needed
+
+Example of contiguous allocation for regions within an account:
+
+```
+Account (10.0.0.0/16)
+├── us-east-1 (10.0.0.0/20)
+├── us-west-2 (10.0.16.0/20)
+├── eu-west-1 (10.0.32.0/20)
+└── ap-northeast-1 (10.0.48.0/20)
+```
+
+### Handling Multi-Cloud Environments
+
+When allocating CIDRs across multiple cloud providers, you have two main strategies:
+
+1. **Unified Address Space**: Use a single cohesive allocation scheme across all providers
+   - Advantages: Simplicity, potential for cross-cloud connectivity
+   - Challenges: Coordinating overlaps, different provider constraints
+
+2. **Segmented Address Space**: Use different address ranges for each provider
+   - Advantages: Independence, flexibility, isolation
+   - Challenges: May require more NAT/translation at connection points
+
+Example of segmented address space:
+
+```
+Enterprise
+├── AWS (10.0.0.0/8)
+│   └── ...
+├── Azure (172.16.0.0/12)
+│   └── ...
+└── GCP (192.168.0.0/16)
+    └── ...
+```
+
+### Address Utilization Calculations
+
+To calculate how many addresses you need:
+
+1. **For each account**: (Regions × AZs × Subnet Types) addresses
+2. **Add buffer**: At least 20% for future growth
+3. **Consider expansion**: Both horizontal (new regions) and vertical (new subnet types)
+
+Example calculation for a company with:
+- 3 accounts (prod, staging, dev)
+- 3 regions per account
+- 3 AZs per region
+- 5 subnet types per AZ
+
+Minimum addresses needed:
+3 accounts × 3 regions × 3 AZs × 5 subnet types = 135 subnets
+
+If each subnet is a /24 (256 addresses), that's 135 × 256 = 34,560 addresses.
+With a 20% buffer: 41,472 addresses (which fits in a /15 CIDR).
+
+### Real-World Applications
+
+#### Cloud Migration Strategy
+
+When migrating to the cloud, you can use CIDR allocation to plan your migration phases:
+
+1. **Current On-Premises**: Document existing CIDR allocations
+2. **Transition Phase**: Allocate non-overlapping CIDRs for cloud resources
+3. **Future State**: Plan for expanded cloud footprint
+
+Example:
+```
+Current: On-Premises (10.0.0.0/16)
+Phase 1: AWS Initial Migration (10.1.0.0/16)
+Phase 2: AWS Expanded Workloads (10.2.0.0/16)
+Phase 3: Multi-Cloud Expansion - Azure (172.16.0.0/16)
+```
+
+#### Enterprise Multi-Region Architecture
+
+For a global enterprise with regional deployments:
+
+```
+Enterprise (10.0.0.0/8)
+├── Production (10.0.0.0/11)
+│   ├── Americas
+│   │   ├── us-east-1 (10.0.0.0/16)
+│   │   │   ├── AZ-a (10.0.0.0/20)
+│   │   │   │   ├── Public (10.0.0.0/24)
+│   │   │   │   ├── PrivateWeb (10.0.1.0/24)
+│   │   │   │   ├── PrivateApp (10.0.2.0/23)
+│   │   │   │   └── PrivateData (10.0.4.0/24)
+│   │   │   ├── AZ-b (10.0.16.0/20)
+│   │   │   │   └── ...
+│   │   │   └── AZ-c (10.0.32.0/20)
+│   │   │       └── ...
+│   │   └── us-west-2 (10.1.0.0/16)
+│   │       └── ...
+│   ├── EMEA
+│   │   ├── eu-west-1 (10.2.0.0/16)
+│   │   └── ...
+│   └── APAC
+│       ├── ap-southeast-1 (10.3.0.0/16)
+│       └── ...
+├── Non-Production (10.32.0.0/11)
+│   ├── Staging (10.32.0.0/12)
+│   └── Development (10.48.0.0/12)
+└── Shared Services (10.64.0.0/11)
+    ├── Management (10.64.0.0/12)
+    ├── Security (10.80.0.0/12)
+    └── Transit (10.96.0.0/12)
+```
+
+This hierarchical approach ensures that there's room for growth at each level, while keeping related resources grouped together.
+
 ---
 
 With this comprehensive guide to CIDR notation and IP subnetting, you should be well-equipped to plan and implement your cloud network architecture using the Subnetter tool. 

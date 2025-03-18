@@ -1680,4 +1680,232 @@ For each acquisition:
 
 * Reserved address blocks prevent fragmentation during acquisitions
 * Standardized subnet types enforce architectural consistency
-* Migration-specific subnets facilitate orderly transitions 
+* Migration-specific subnets facilitate orderly transitions
+
+## Understanding CIDR Allocation
+
+### How the Allocation Algorithm Works
+
+Subnetter uses a sophisticated, deterministic algorithm for allocating CIDR blocks. Understanding how this algorithm works will help you design your network architecture more effectively.
+
+#### Hierarchical Allocation
+
+The allocation process follows a strict hierarchy:
+
+1. **Base CIDR**: The starting point for all allocations (e.g., `10.0.0.0/8`)
+2. **Account Level**: Each account gets a portion of the base CIDR
+3. **Region Level**: Each region gets a portion of its account's CIDR
+4. **Availability Zone Level**: Each AZ gets a portion of its region's CIDR
+5. **Subnet Level**: Each subnet type gets a portion of its AZ's CIDR
+
+This hierarchical approach ensures that:
+- Related resources are grouped together in the IP address space
+- No overlaps occur between different parts of the hierarchy
+- The allocation is deterministic and reproducible
+
+#### Contiguous Allocation
+
+At each level of the hierarchy, the allocation is performed contiguously. This means:
+
+1. Blocks are allocated sequentially from the available space
+2. Each new allocation starts immediately after the previous one
+3. There are no gaps between allocations at the same level
+
+For example, if you allocate a `/16` block for each account, they would be allocated as:
+- Account 1: `10.0.0.0/16`
+- Account 2: `10.1.0.0/16`
+- Account 3: `10.2.0.0/16`
+
+And so on.
+
+### Customizing the Allocation Process
+
+You can influence how the allocation works through several configuration options:
+
+#### Prefix Lengths
+
+The `prefixLengths` option lets you control the size of blocks allocated at each level:
+
+```json
+{
+  "prefixLengths": {
+    "account": 16,  // Each account gets a /16 (65,536 IPs)
+    "region": 20,   // Each region gets a /20 (4,096 IPs)
+    "az": 24        // Each AZ gets a /24 (256 IPs)
+  }
+}
+```
+
+Larger prefix numbers mean smaller blocks. For optimal allocation:
+- Account prefix should be larger than the base CIDR prefix (e.g., `/16` for a `/8` base)
+- Region prefix should be larger than account prefix (e.g., `/20` for `/16` accounts)
+- AZ prefix should be larger than region prefix (e.g., `/24` for `/20` regions)
+
+#### CIDR Overrides
+
+You can override the allocation at various levels:
+
+1. **Account Overrides**: Specify a `baseCidr` for an entire account
+   ```json
+   {
+     "name": "production",
+     "clouds": {
+       "aws": {
+         "provider": "aws",
+         "baseCidr": "10.100.0.0/16"
+       }
+     }
+   }
+   ```
+
+2. **Provider Overrides**: Use different address spaces for different cloud providers
+   ```json
+   {
+     "name": "hybrid",
+     "clouds": {
+       "aws": {
+         "provider": "aws",
+         "baseCidr": "10.0.0.0/16"
+       },
+       "azure": {
+         "provider": "azure",
+         "baseCidr": "172.16.0.0/16"
+       }
+     }
+   }
+   ```
+
+3. **CLI Overrides**: Override the base CIDR for all allocations
+   ```bash
+   subnetter generate -c config.json -b 192.168.0.0/16
+   ```
+
+### Space Utilization
+
+Subnetter calculates the required space for each level of the hierarchy based on:
+1. **Number of accounts**: Determines total accounts space needed
+2. **Regions per account**: Determines per-account space needed
+3. **AZs per region**: Determines per-region space needed
+4. **Subnet types**: Determines per-AZ space needed
+
+The tool will check if there's enough space for all allocations and provide clear error messages if not.
+
+Example error:
+```
+[ERROR] [CLI] ❌ Error: [3002] Not enough space left for allocation with prefix /20
+[INFO] [CLI] 💡 Help: Your CIDR block is too small for the requested allocation. Use a larger CIDR block or reduce the number of subnets.
+```
+
+### Handling IP Space Constraints
+
+If you encounter space limitations, you have several options:
+
+1. **Use a larger base CIDR**: Change from `10.0.0.0/8` to `0.0.0.0/0` to use the entire IPv4 space
+2. **Reduce the number of regions**: Consolidate regions to reduce address space needs
+3. **Use larger subnet prefixes**: Use `/27` instead of `/24` to create smaller subnets
+4. **Override specific accounts**: Use custom CIDRs for accounts that need more space
+5. **Split by provider**: Use different address spaces for different cloud providers
+
+### Real-World Allocation Examples
+
+#### Small Deployment (1 account, 2 regions, 3 subnets)
+
+```json
+{
+  "baseCidr": "10.0.0.0/16",  // Smaller base for a small deployment
+  "prefixLengths": {
+    "account": 16,  // Single account gets the entire /16
+    "region": 20,   // Each region gets a /20
+    "az": 24        // Each AZ gets a /24
+  },
+  "accounts": [
+    {
+      "name": "startup",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26,
+    "Database": 26
+  }
+}
+```
+
+Resulting allocations (simplified):
+```
+startup/aws/us-east-1/az-a/Public:   10.0.0.0/26
+startup/aws/us-east-1/az-a/Private:  10.0.0.64/26
+startup/aws/us-east-1/az-a/Database: 10.0.0.128/26
+startup/aws/us-east-1/az-b/Public:   10.0.1.0/26
+// ... and so on
+```
+
+#### Large Enterprise (4 accounts, multiple regions, custom overrides)
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.100.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "staging",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.101.0.0/16",
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "development",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.102.0.0/16",
+          "regions": ["us-east-1"]
+        }
+      }
+    },
+    {
+      "name": "tools",
+      "clouds": {
+        "aws": {
+          "provider": "aws",
+          "baseCidr": "10.103.0.0/16",
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "PrivateWebTier": 25,
+    "PrivateAppTier": 24,
+    "PrivateDataTier": 26,
+    "Management": 27
+  }
+}
+```
+
+This configuration demonstrates how to use custom CIDR overrides to provide dedicated address spaces for each account with adequate space for multiple regions and subnet types. 

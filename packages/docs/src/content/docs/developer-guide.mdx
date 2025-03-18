@@ -17,6 +17,7 @@ This guide provides comprehensive information for developers who want to underst
 - [Release Process](#release-process)
 - [Common Development Tasks](#common-development-tasks)
 - [CI/CD Pipeline](#ci-cd-pipeline)
+- [Core Allocation System](#core-allocation-system)
 
 ## Project Structure
 
@@ -874,3 +875,292 @@ The `cidr-utils` package sits at the bottom of the dependency tree, so it needs 
 ```
 
 The CI/CD pipeline is configured to build packages in the correct order automatically.
+
+## Core Allocation System
+
+The heart of Subnetter is its CIDR allocation system, which is built around two main classes: `HierarchicalAllocator` and `ContiguousAllocator`. These classes work together to provide a deterministic, hierarchical allocation of CIDR blocks.
+
+### ContiguousAllocator
+
+The `ContiguousAllocator` is responsible for allocating CIDR blocks sequentially from a base CIDR block. It ensures that all allocations are contiguous and do not overlap.
+
+#### Design Principles
+
+1. **Deterministic Allocation**: The allocator always produces the same output for the same input.
+2. **Sequential Allocation**: CIDR blocks are allocated in sequence, without gaps.
+3. **Validation**: The allocator validates that requested allocations fit within the available space.
+
+#### Implementation Details
+
+```typescript
+export class ContiguousAllocator {
+  private baseCidr: string;
+  private currentIp: bigint;
+  private endIp: bigint;
+  private allocated: string[] = [];
+
+  constructor(baseCidr: string) {
+    validateCidr(baseCidr);
+    this.baseCidr = baseCidr;
+    
+    // Calculate the start and end IP addresses for the base CIDR
+    const [baseIp, prefixLength] = this.baseCidr.split("/");
+    const ipInt = ipToInt(baseIp);
+    const maskLength = parseInt(prefixLength, 10);
+    
+    this.currentIp = ipInt;
+    this.endIp = ipInt + (1n << BigInt(32 - maskLength)) - 1n;
+  }
+
+  allocate(prefixLength: number): string {
+    // Calculate required size
+    const size = 1n << BigInt(32 - prefixLength);
+    
+    // Align the current IP to the required boundary
+    const alignedIp = this.currentIp + ((size - (this.currentIp % size)) % size);
+    
+    // Check if there's enough space
+    if (alignedIp + size - 1n > this.endIp) {
+      throw new Error(`Not enough space left for allocation with prefix /${prefixLength}`);
+    }
+    
+    // Create the CIDR
+    const cidr = `${intToIp(alignedIp)}/${prefixLength}`;
+    
+    // Update the current IP
+    this.currentIp = alignedIp + size;
+    
+    // Record the allocation
+    this.allocated.push(cidr);
+    
+    return cidr;
+  }
+
+  // ... other methods (reset, getAvailableSpace, getAllocated) ...
+}
+```
+
+#### Key Methods
+
+- **allocate(prefixLength)**: Allocates a CIDR block with the specified prefix length
+- **reset()**: Resets the allocator to its initial state
+- **getAvailableSpace()**: Returns the amount of space still available
+- **getAllocated()**: Returns all allocated CIDR blocks
+
+### HierarchicalAllocator
+
+The `HierarchicalAllocator` builds on the `ContiguousAllocator` to provide a hierarchical allocation strategy that follows the account > region > availability zone > subnet hierarchy.
+
+#### Design Principles
+
+1. **Hierarchical Structure**: Allocations follow a strict hierarchy
+2. **Override Support**: Allows overriding allocations at any level
+3. **Configuration-Driven**: Allocations are driven by a configuration object
+
+#### Implementation Details
+
+```typescript
+export class HierarchicalAllocator {
+  private config: Config;
+  private rootAllocator: ContiguousAllocator;
+  private allocations: Allocation[] = [];
+
+  constructor(config: Config) {
+    this.config = config;
+    validateCidr(config.baseCidr);
+    this.rootAllocator = new ContiguousAllocator(config.baseCidr);
+  }
+
+  generateAllocations(): Allocation[] {
+    // Reset state
+    this.allocations = [];
+    this.rootAllocator.reset();
+    
+    // Process each account
+    for (const account of this.config.accounts) {
+      this.processAccount(account);
+    }
+    
+    return this.allocations;
+  }
+
+  private processAccount(account: Account): void {
+    // Check if the account has a base CIDR override
+    let accountAllocator: ContiguousAllocator;
+    
+    if (account.baseCidr) {
+      // Use the override
+      accountAllocator = new ContiguousAllocator(account.baseCidr);
+    } else {
+      // Allocate from the root
+      const accountCidr = this.rootAllocator.allocate(this.config.prefixLengths.account);
+      accountAllocator = new ContiguousAllocator(accountCidr);
+    }
+    
+    // Process each cloud provider for this account
+    for (const [cloudKey, cloud] of Object.entries(account.clouds)) {
+      this.processCloud(account, cloudKey, cloud, accountAllocator);
+    }
+  }
+
+  private processCloud(account: Account, cloudKey: string, cloud: CloudConfig, accountAllocator: ContiguousAllocator): void {
+    // Similar logic for cloud, region, AZ, and subnet levels...
+    // ... see actual implementation for full details
+  }
+}
+```
+
+#### Key Methods
+
+- **generateAllocations()**: Generates all allocations based on the configuration
+- **processAccount(account)**: Processes an account and its children
+- **processCloud(account, cloudKey, cloud, allocator)**: Processes a cloud provider
+- **processRegion(account, cloudKey, cloud, region, allocator)**: Processes a region
+- **processAZ(account, cloudKey, cloud, region, az, allocator)**: Processes an availability zone
+- **addAllocation(allocation)**: Adds an allocation to the results
+
+### Integration and Usage
+
+The allocation system is integrated into the Subnetter CLI and can be used programmatically:
+
+```typescript
+import { HierarchicalAllocator } from '@subnetter/core';
+
+// Create a configuration
+const config = {
+  baseCidr: '10.0.0.0/8',
+  prefixLengths: {
+    account: 16,
+    region: 20,
+    az: 24
+  },
+  accounts: [
+    // ... account configuration
+  ],
+  subnetTypes: {
+    // ... subnet types
+  }
+};
+
+// Create the allocator
+const allocator = new HierarchicalAllocator(config);
+
+// Generate allocations
+const allocations = allocator.generateAllocations();
+
+// Use the allocations
+console.log(allocations);
+```
+
+### Extending the Allocation System
+
+The allocation system is designed to be extensible. Here are some ways to extend it:
+
+#### Custom Allocation Strategies
+
+You can create custom allocation strategies by implementing the allocator interface:
+
+```typescript
+interface IAllocator {
+  allocate(prefixLength: number): string;
+  reset(): void;
+  getAvailableSpace(): bigint;
+  getAllocated(): string[];
+}
+
+// Example: An allocator that allocates from the end of the CIDR block
+export class ReverseAllocator implements IAllocator {
+  private baseCidr: string;
+  private currentIp: bigint;
+  private startIp: bigint;
+  private allocated: string[] = [];
+
+  constructor(baseCidr: string) {
+    validateCidr(baseCidr);
+    this.baseCidr = baseCidr;
+    
+    const [baseIp, prefixLength] = this.baseCidr.split("/");
+    const ipInt = ipToInt(baseIp);
+    const maskLength = parseInt(prefixLength, 10);
+    
+    this.startIp = ipInt;
+    this.currentIp = ipInt + (1n << BigInt(32 - maskLength)) - 1n;
+  }
+
+  allocate(prefixLength: number): string {
+    // Allocate from the end of the CIDR block
+    // ... implementation details
+  }
+
+  // ... other methods
+}
+```
+
+#### Custom Hierarchy Levels
+
+The hierarchical allocator supports the default hierarchy (account > cloud > region > AZ > subnet), but you can create a custom hierarchy by implementing a new allocator:
+
+```typescript
+export class CustomHierarchicalAllocator {
+  // ... similar to HierarchicalAllocator, but with custom hierarchy levels
+  
+  generateAllocations(): Allocation[] {
+    // Process custom hierarchy levels
+    // ...
+  }
+}
+```
+
+#### Integration with Other Systems
+
+The allocation system can be integrated with other systems, such as Terraform or CloudFormation:
+
+```typescript
+export class TerraformGenerator {
+  private allocations: Allocation[];
+  
+  constructor(allocations: Allocation[]) {
+    this.allocations = allocations;
+  }
+  
+  generateTerraform(): string {
+    // Generate Terraform code from allocations
+    // ...
+  }
+}
+```
+
+### Testing Allocation Algorithms
+
+The allocation system is extensively tested using Jest. Here's an example of testing the `ContiguousAllocator`:
+
+```typescript
+describe('ContiguousAllocator', () => {
+  it('should allocate CIDR blocks sequentially', () => {
+    const allocator = new ContiguousAllocator('10.0.0.0/16');
+    
+    expect(allocator.allocate(24)).toBe('10.0.0.0/24');
+    expect(allocator.allocate(24)).toBe('10.0.1.0/24');
+    expect(allocator.allocate(24)).toBe('10.0.2.0/24');
+  });
+  
+  it('should throw an error when out of space', () => {
+    const allocator = new ContiguousAllocator('10.0.0.0/24');
+    
+    expect(allocator.allocate(25)).toBe('10.0.0.0/25');
+    expect(allocator.allocate(25)).toBe('10.0.0.128/25');
+    
+    expect(() => allocator.allocate(25)).toThrow();
+  });
+});
+```
+
+### Performance Considerations
+
+The allocation system is designed to be efficient and performant. Here are some considerations:
+
+1. **Memory Usage**: The allocator stores only the base CIDR, current position, and allocated CIDRs
+2. **Computational Complexity**: Allocation operations are O(1) in time complexity
+3. **Scaling**: The system can handle thousands of allocations efficiently
+
+For very large configurations, consider breaking them down into smaller configurations or using a streaming approach to process allocations in batches.
