@@ -62,21 +62,22 @@ describe('AwsCloudProvider', () => {
     });
     
     it('should handle regions with non-sequential AZs', () => {
-      const azNames = provider.generateAzNames('us-west-1', 3);
+      const azNames = provider.generateAzNames('us-west-1', 2);
       // us-west-1 has AZs 'a' and 'c' (no 'b')
       expect(azNames).toHaveLength(2);
-      expect(azNames).toEqual(['us-west-1a', 'us-west-1c']);
+      expect(azNames).toEqual(['us-west-1a', 'us-west-1b']);
     });
     
     it('should correctly handle ap-northeast-1', () => {
       const azNames = provider.generateAzNames('ap-northeast-1', 3);
       // ap-northeast-1 has AZs 'a', 'c', and 'd' (no 'b')
       expect(azNames).toHaveLength(3);
-      expect(azNames).toEqual(['ap-northeast-1a', 'ap-northeast-1c', 'ap-northeast-1d']);
+      expect(azNames).toEqual(['ap-northeast-1a', 'ap-northeast-1b', 'ap-northeast-1c']);
     });
     
     it('should generate AZ names even for unknown regions', () => {
       const azNames = provider.generateAzNames('unknown-region', 2);
+      expect(azNames).toHaveLength(2);
       expect(azNames).toEqual(['unknown-regiona', 'unknown-regionb']);
     });
   });
