@@ -37,6 +37,19 @@ describe('CSV Writer', () => {
       subnetCidr: '10.1.0.0/28',
       subnetRole: 'Private',
       usableIps: 14
+    },
+    {
+      accountName: 'dev-account',
+      vpcName: 'dev-account-vpc',
+      cloudProvider: 'aws',
+      regionName: 'us-west-2',
+      availabilityZone: 'us-west-2a',
+      regionCidr: '10.2.0.0/20',
+      vpcCidr: '10.2.0.0/16',
+      azCidr: '10.2.0.0/24',
+      subnetCidr: '10.2.0.0/28',
+      subnetRole: 'Public',
+      usableIps: 14
     }
   ];
   
@@ -72,22 +85,40 @@ describe('CSV Writer', () => {
       expect(createObjectCsvWriter).toHaveBeenCalledWith({
         path: mockOutputPath,
         header: expect.arrayContaining([
-          { id: 'accountName', title: 'Account Name' },
-          { id: 'vpcName', title: 'VPC Name' },
-          { id: 'cloudProvider', title: 'Cloud Provider' },
-          { id: 'regionName', title: 'Region Name' },
-          { id: 'availabilityZone', title: 'Availability Zone' },
-          { id: 'regionCidr', title: 'Region CIDR' },
-          { id: 'vpcCidr', title: 'VPC CIDR' },
-          { id: 'azCidr', title: 'AZ CIDR' },
-          { id: 'subnetCidr', title: 'Subnet CIDR' },
-          { id: 'subnetRole', title: 'Subnet Role' },
-          { id: 'usableIps', title: 'Usable IPs' }
+          { id: 'Cloud Provider', title: 'Cloud Provider' },
+          { id: 'Account Name', title: 'Account Name' },
+          { id: 'VPC Name', title: 'VPC Name' },
+          { id: 'Region Name', title: 'Region Name' },
+          { id: 'Availability Zone', title: 'Availability Zone' },
+          { id: 'Region CIDR', title: 'Region CIDR' },
+          { id: 'VPC CIDR', title: 'VPC CIDR' },
+          { id: 'AZ CIDR', title: 'AZ CIDR' },
+          { id: 'Subnet CIDR', title: 'Subnet CIDR' },
+          { id: 'Subnet Role', title: 'Subnet Role' },
+          { id: 'Usable IPs', title: 'Usable IPs' }
         ])
       });
       
-      // Check that writeRecords was called with the allocations
-      expect(mockWriteRecords).toHaveBeenCalledWith(mockAllocations);
+      // Check that writeRecords was called with sorted and transformed allocations
+      expect(mockWriteRecords).toHaveBeenCalled();
+      const writtenAllocations = mockWriteRecords.mock.calls[0][0];
+      
+      // Verify the sorting (aws before azure, and dev-account before innovation-test for aws)
+      expect(writtenAllocations[0]['Cloud Provider']).toBe('aws');
+      expect(writtenAllocations[0]['Account Name']).toBe('dev-account');
+      expect(writtenAllocations[1]['Cloud Provider']).toBe('aws');
+      expect(writtenAllocations[1]['Account Name']).toBe('innovation-test');
+      expect(writtenAllocations[2]['Cloud Provider']).toBe('azure');
+      
+      // Verify the fields of the first record
+      expect(writtenAllocations[0]['Cloud Provider']).toBe('aws');
+      expect(writtenAllocations[0]['Account Name']).toBe('dev-account');
+      expect(writtenAllocations[0]['VPC Name']).toBe('dev-account-vpc');
+      expect(writtenAllocations[0]['Region Name']).toBe('us-west-2');
+      expect(writtenAllocations[0]['Availability Zone']).toBe('us-west-2a');
+      expect(writtenAllocations[0]['Region CIDR']).toBe('10.2.0.0/20');
+      expect(writtenAllocations[0]['Subnet Role']).toBe('Public');
+      expect(writtenAllocations[0]['Usable IPs']).toBe(14);
     });
     
     it('should create directory if it does not exist', async () => {
@@ -111,25 +142,18 @@ describe('CSV Writer', () => {
   });
   
   describe('filterAllocationsByProvider', () => {
-    it('should filter allocations by provider', () => {
-      const awsAllocations = filterAllocationsByProvider(mockAllocations, 'aws');
-      expect(awsAllocations).toHaveLength(1);
-      expect(awsAllocations[0].cloudProvider).toBe('aws');
+    it('should filter allocations by provider name (case-insensitive)', () => {
+      const filteredAws = filterAllocationsByProvider(mockAllocations, 'aws');
+      expect(filteredAws).toHaveLength(2);
+      expect(filteredAws[0].cloudProvider).toBe('aws');
+      expect(filteredAws[1].cloudProvider).toBe('aws');
       
-      const azureAllocations = filterAllocationsByProvider(mockAllocations, 'azure');
-      expect(azureAllocations).toHaveLength(1);
-      expect(azureAllocations[0].cloudProvider).toBe('azure');
-    });
-    
-    it('should handle case-insensitive provider names', () => {
-      const awsAllocations = filterAllocationsByProvider(mockAllocations, 'AWS');
-      expect(awsAllocations).toHaveLength(1);
-      expect(awsAllocations[0].cloudProvider).toBe('aws');
-    });
-    
-    it('should return empty array if no matching provider', () => {
-      const gcpAllocations = filterAllocationsByProvider(mockAllocations, 'gcp');
-      expect(gcpAllocations).toHaveLength(0);
+      const filteredAzure = filterAllocationsByProvider(mockAllocations, 'AZURE');
+      expect(filteredAzure).toHaveLength(1);
+      expect(filteredAzure[0].cloudProvider).toBe('azure');
+      
+      const filteredGcp = filterAllocationsByProvider(mockAllocations, 'gcp');
+      expect(filteredGcp).toHaveLength(0);
     });
   });
 }); 

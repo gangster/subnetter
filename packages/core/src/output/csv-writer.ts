@@ -27,19 +27,66 @@ export async function writeAllocationsToCsv(allocations: Allocation[], outputPat
       fs.mkdirSync(directory, { recursive: true });
     }
     
-    // Define the CSV header based on allocation properties
+    // Sort allocations by cloudProvider first, then accountName
+    const sortedAllocations = [...allocations].sort((a, b) => {
+      // First sort by cloud provider
+      const cloudComparison = a.cloudProvider.localeCompare(b.cloudProvider);
+      if (cloudComparison !== 0) {
+        return cloudComparison;
+      }
+      
+      // Then by account name
+      const accountComparison = a.accountName.localeCompare(b.accountName);
+      if (accountComparison !== 0) {
+        return accountComparison;
+      }
+      
+      // Then by region name
+      const regionComparison = a.regionName.localeCompare(b.regionName);
+      if (regionComparison !== 0) {
+        return regionComparison;
+      }
+      
+      // Then by availability zone
+      const azComparison = a.availabilityZone.localeCompare(b.availabilityZone);
+      if (azComparison !== 0) {
+        return azComparison;
+      }
+      
+      // Finally by subnet role
+      return a.subnetRole.localeCompare(b.subnetRole);
+    });
+    
+    logger.debug('Allocations sorted by cloud provider and account name');
+    
+    // Create a CSV-friendly version of the allocations with titles that match the fields
+    const csvAllocations = sortedAllocations.map(allocation => ({
+      'Cloud Provider': allocation.cloudProvider,
+      'Account Name': allocation.accountName,
+      'VPC Name': allocation.vpcName,
+      'Region Name': allocation.regionName,
+      'Availability Zone': allocation.availabilityZone,
+      'Region CIDR': allocation.regionCidr,
+      'VPC CIDR': allocation.vpcCidr,
+      'AZ CIDR': allocation.azCidr,
+      'Subnet CIDR': allocation.subnetCidr,
+      'Subnet Role': allocation.subnetRole,
+      'Usable IPs': allocation.usableIps
+    }));
+    
+    // Define the CSV header - order must match the property order in csvAllocations
     const header = [
-      { id: 'accountName', title: 'Account Name' },
-      { id: 'vpcName', title: 'VPC Name' },
-      { id: 'cloudProvider', title: 'Cloud Provider' },
-      { id: 'regionName', title: 'Region Name' },
-      { id: 'availabilityZone', title: 'Availability Zone' },
-      { id: 'regionCidr', title: 'Region CIDR' },
-      { id: 'vpcCidr', title: 'VPC CIDR' },
-      { id: 'azCidr', title: 'AZ CIDR' },
-      { id: 'subnetCidr', title: 'Subnet CIDR' },
-      { id: 'subnetRole', title: 'Subnet Role' },
-      { id: 'usableIps', title: 'Usable IPs' }
+      { id: 'Cloud Provider', title: 'Cloud Provider' },
+      { id: 'Account Name', title: 'Account Name' },
+      { id: 'VPC Name', title: 'VPC Name' },
+      { id: 'Region Name', title: 'Region Name' },
+      { id: 'Availability Zone', title: 'Availability Zone' },
+      { id: 'Region CIDR', title: 'Region CIDR' },
+      { id: 'VPC CIDR', title: 'VPC CIDR' },
+      { id: 'AZ CIDR', title: 'AZ CIDR' },
+      { id: 'Subnet CIDR', title: 'Subnet CIDR' },
+      { id: 'Subnet Role', title: 'Subnet Role' },
+      { id: 'Usable IPs', title: 'Usable IPs' }
     ];
     
     logger.trace(`CSV Header: ${header.map(h => h.title).join(', ')}`);
@@ -52,9 +99,9 @@ export async function writeAllocationsToCsv(allocations: Allocation[], outputPat
     
     // Write the allocations to the CSV file
     logger.debug('Writing records to CSV');
-    await csvWriter.writeRecords(allocations);
+    await csvWriter.writeRecords(csvAllocations);
     
-    logger.info(`Successfully wrote ${allocations.length} allocations to ${outputPath}`);
+    logger.info(`Successfully wrote ${sortedAllocations.length} allocations to ${outputPath}`);
   } catch (error) {
     logger.error(`Failed to write CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw new IOError(
