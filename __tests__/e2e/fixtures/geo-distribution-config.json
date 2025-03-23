@@ -59,14 +59,8 @@
       }
     }
   ],
-  "subnetTypes": [
-    {
-      "name": "Public",
-      "prefixLength": 26
-    },
-    {
-      "name": "Private",
-      "prefixLength": 26
-    }
-  ]
+  "subnetTypes": {
+    "Private": 26,
+    "Public": 26
+  }
 }

@@ -155,9 +155,9 @@
     }
   ],
   "subnetTypes": {
-    "Public": 26,
-    "Private": 26,
+    "Management": 26,
     "Data": 26,
-    "Management": 26
+    "Private": 26,
+    "Public": 26
   }
 }
