@@ -478,7 +478,7 @@ describe('Production Configuration E2E Tests', () => {
               provider: 'gcp',
               baseCidr: '10.122.0.0/16',
               regions: [
-                'us-west2',            // North America West
+                'us-west-2',            // North America West
                 'us-east1',            // North America East
                 'europe-west3',        // Europe West (Frankfurt)
                 'europe-west4',        // Europe Central (Netherlands)

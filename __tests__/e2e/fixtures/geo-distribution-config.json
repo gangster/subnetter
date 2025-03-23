@@ -46,7 +46,7 @@
           "provider": "gcp",
           "baseCidr": "10.122.0.0/16",
           "regions": [
-            "us-west2",
+            "us-west-2",
             "us-east1",
             "europe-west3",
             "europe-west4",
