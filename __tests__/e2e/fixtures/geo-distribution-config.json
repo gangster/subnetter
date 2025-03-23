@@ -15,7 +15,7 @@
       "name": "geo-distribution-account",
       "clouds": {
         "aws": {
-          
+          "provider": "aws",
           "baseCidr": "10.120.0.0/16",
           "regions": [
             "us-west-2",
@@ -29,7 +29,7 @@
           ]
         },
         "azure": {
-          
+          "provider": "azure",
           "baseCidr": "10.121.0.0/16",
           "regions": [
             "westus2",
@@ -43,7 +43,7 @@
           ]
         },
         "gcp": {
-          
+          "provider": "gcp",
           "baseCidr": "10.122.0.0/16",
           "regions": [
             "us-west2",
@@ -59,8 +59,14 @@
       }
     }
   ],
-  "subnetTypes": {
-    "Public": 26,
-    "Private": 26
-  }
+  "subnetTypes": [
+    {
+      "name": "Public",
+      "prefixLength": 26
+    },
+    {
+      "name": "Private",
+      "prefixLength": 26
+    }
+  ]
 }

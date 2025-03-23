@@ -37,7 +37,7 @@ export class GcpCloudProvider extends BaseCloudProvider {
       name: 'us-central1',
       displayName: 'Council Bluffs, Iowa, North America',
       defaultAzCount: 3,
-      maxAzCount: 3,
+      maxAzCount: 4,
       isGenerallyAvailable: true,
       geography: {
         continent: 'North America',
@@ -327,6 +327,26 @@ export class GcpCloudProvider extends BaseCloudProvider {
     const effectiveCount = Math.min(count, regionInfo?.maxAzCount || this.defaultAzCount);
     
     logger.debug(`Generating ${effectiveCount} AZ names for GCP region ${normalizedRegion}`);
+    
+    // Special case for regions with non-standard zone patterns
+    
+    // us-central1 has zones a, b, c, f
+    if (normalizedRegion === 'us-central1') {
+      const usCentral1Zones = ['us-central1a', 'us-central1b', 'us-central1c', 'us-central1f'];
+      return usCentral1Zones.slice(0, effectiveCount);
+    }
+    
+    // us-east1 has zones b, c, d (no a)
+    if (normalizedRegion === 'us-east1') {
+      const baseZones = ['us-east1b', 'us-east1c', 'us-east1d'];
+      return baseZones.slice(0, effectiveCount);
+    }
+    
+    // europe-west1 has zones b, c, d (no a)
+    if (normalizedRegion === 'europe-west1') {
+      const baseZones = ['europe-west1b', 'europe-west1c', 'europe-west1d'];
+      return baseZones.slice(0, effectiveCount);
+    }
     
     // GCP uses a, b, c, etc. for zone names
     const azNames = Array.from({ length: effectiveCount }, (_, i) => {

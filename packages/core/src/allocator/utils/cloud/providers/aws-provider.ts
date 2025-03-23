@@ -285,6 +285,19 @@ export class AwsCloudProvider extends BaseCloudProvider {
       actualCount = regionInfo.maxAzCount;
     }
     
+    // Special case for regions with non-sequential AZs
+    const normalizedRegion = this.normalizeRegionName(regionName);
+    
+    // Special case for us-west-1 (a, c)
+    if (normalizedRegion === 'us-west-1' && actualCount >= 2) {
+      return ['us-west-1a', 'us-west-1c'].slice(0, actualCount);
+    }
+    
+    // Special case for ap-northeast-1 (a, c, d)
+    if (normalizedRegion === 'ap-northeast-1' && actualCount >= 3) {
+      return ['ap-northeast-1a', 'ap-northeast-1c', 'ap-northeast-1d'].slice(0, actualCount);
+    }
+    
     const azNames: string[] = [];
     
     // Generate AWS-style AZ names (e.g., us-east-1a, us-east-1b, us-east-1c)

@@ -65,7 +65,7 @@ describe('GcpCloudProvider', () => {
       expect(regionInfo?.name).toBe('us-central1');
       expect(regionInfo?.displayName).toBe('Council Bluffs, Iowa, North America');
       expect(regionInfo?.defaultAzCount).toBe(3);
-      expect(regionInfo?.maxAzCount).toBe(3);
+      expect(regionInfo?.maxAzCount).toBe(4);
       expect(regionInfo?.isGenerallyAvailable).toBe(true);
       expect(regionInfo?.geography?.continent).toBe('North America');
       expect(regionInfo?.geography?.country).toBe('United States');
@@ -97,27 +97,29 @@ describe('GcpCloudProvider', () => {
     it('should handle regions with non-standard zone patterns', () => {
       // us-central1 actually has zones a, b, c, f
       const zoneNames = provider.generateAzNames('us-central1', 4);
-      expect(zoneNames).toHaveLength(3);
-      expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c']);
+      expect(zoneNames).toHaveLength(4);
+      expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c', 'us-central1f']);
     });
     
     it('should correctly handle us-east1', () => {
+      // us-east1 has zones b, c, d (no a)
       const zoneNames = provider.generateAzNames('us-east1', 3);
       expect(zoneNames).toHaveLength(3);
-      expect(zoneNames).toEqual(['us-east1a', 'us-east1b', 'us-east1c']);
+      expect(zoneNames).toEqual(['us-east1b', 'us-east1c', 'us-east1d']);
     });
     
     it('should correctly handle europe-west1', () => {
+      // europe-west1 has zones b, c, d (no a)
       const zoneNames = provider.generateAzNames('europe-west1', 3);
       expect(zoneNames).toHaveLength(3);
-      expect(zoneNames).toEqual(['europe-west1a', 'europe-west1b', 'europe-west1c']);
+      expect(zoneNames).toEqual(['europe-west1b', 'europe-west1c', 'europe-west1d']);
     });
     
     it('should limit the number of zones to the region maximum', () => {
-      // All GCP regions in our test have a max of 3 zones
+      // us-central1 has a max of 4 zones
       const zoneNames = provider.generateAzNames('us-central1', 5);
-      expect(zoneNames).toHaveLength(3);
-      expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c']);
+      expect(zoneNames).toHaveLength(4);
+      expect(zoneNames).toEqual(['us-central1a', 'us-central1b', 'us-central1c', 'us-central1f']);
     });
     
     it('should handle unknown regions', () => {

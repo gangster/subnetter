@@ -3718,14 +3718,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@subnetter/cidr-utils@file:../cidr-utils::locator=%40subnetter%2Fcore%40workspace%3Apackages%2Fcore":
-  version: 1.0.0
-  resolution: "@subnetter/cidr-utils@file:../cidr-utils#../cidr-utils::hash=3fd8a4&locator=%40subnetter%2Fcore%40workspace%3Apackages%2Fcore"
-  checksum: 10/8d1f1cc6257dc4c7ceb5a5dbd33c6f11e75bd6ec9a2c96c23c6a4be4a49550c4bbe2f05532b78300dbbdeeabdfa99d67b310377230980191a928d84c9c1025be
-  languageName: node
-  linkType: hard
-
-"@subnetter/cidr-utils@workspace:^, @subnetter/cidr-utils@workspace:packages/cidr-utils":
+"@subnetter/cidr-utils@npm:1.0.0, @subnetter/cidr-utils@workspace:packages/cidr-utils":
   version: 0.0.0-use.local
   resolution: "@subnetter/cidr-utils@workspace:packages/cidr-utils"
   dependencies:
@@ -3745,6 +3738,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@subnetter/cli@workspace:packages/cli"
   dependencies:
+    "@subnetter/cidr-utils": "npm:1.0.0"
     "@subnetter/core": "npm:1.0.0"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.10"
@@ -3761,7 +3755,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@subnetter/core@workspace:packages/core"
   dependencies:
-    "@subnetter/cidr-utils": ../cidr-utils
+    "@subnetter/cidr-utils": "npm:1.0.0"
     "@types/jest": "npm:^29.5.14"
     "@types/js-yaml": "npm:^4.0.9"
     "@types/node": "npm:^22.13.10"
@@ -8933,6 +8927,13 @@ __metadata:
   version: 5.0.0
   resolution: "ip-regex@npm:5.0.0"
   checksum: 10/4098b2df89c015f1484a5946e733ec126af8c1828719d90e09f04af23ce487e1a852670e4d3f51b0dc6dfbaf7d8bfab23fd7893ca60e69833da99b7b1ee3623b
+  languageName: node
+  linkType: hard
+
+"ip@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "ip@npm:2.0.1"
+  checksum: 10/d6dd154e1bc5e8725adfdd6fb92218635b9cbe6d873d051bd63b178f009777f751a5eea4c67021723a7056325fc3052f8b6599af0a2d56f042c93e684b4a0349
   languageName: node
   linkType: hard
 
@@ -14695,7 +14696,7 @@ __metadata:
     "@semantic-release/git": "npm:^10.0.1"
     "@semantic-release/github": "npm:^11.0.1"
     "@semantic-release/release-notes-generator": "npm:^14.0.3"
-    "@subnetter/cidr-utils": "workspace:^"
+    "@subnetter/cidr-utils": "npm:1.0.0"
     "@types/react": "npm:^19.0.10"
     "@types/react-dom": "npm:^19.0.4"
     "@typescript-eslint/eslint-plugin": "npm:^8.25.0"
@@ -14709,6 +14710,7 @@ __metadata:
     fast-cidr-tools: "npm:^0.3.2"
     globals: "npm:^16.0.0"
     husky: "npm:^9.0.11"
+    ip: "npm:^2.0.1"
     jest: "npm:^29.7.0"
     lcov-result-merger: "npm:^5.0.1"
     prettier: "npm:^3.1.1"

@@ -15,6 +15,7 @@
       "name": "hybrid-sizing-test",
       "clouds": {
         "aws": {
+          "provider": "aws",
           "regions": [
             "us-east-1"
           ]

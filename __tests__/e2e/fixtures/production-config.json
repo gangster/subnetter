@@ -15,6 +15,7 @@
       "name": "innovation-operations",
       "clouds": {
         "aws": {
+          "provider": "aws",
           "baseCidr": "10.100.0.0/16",
           "regions": [
             "us-east-1",
@@ -36,6 +37,7 @@
           ]
         },
         "azure": {
+          "provider": "azure",
           "baseCidr": "10.101.0.0/16",
           "regions": [
             "eastus",
@@ -57,6 +59,7 @@
           ]
         },
         "gcp": {
+          "provider": "gcp",
           "baseCidr": "10.102.0.0/16",
           "regions": [
             "us-central1",
@@ -83,6 +86,7 @@
       "name": "innovation-test",
       "clouds": {
         "aws": {
+          "provider": "aws",
           "baseCidr": "10.103.0.0/16",
           "regions": [
             "us-east-1",
@@ -104,6 +108,7 @@
           ]
         },
         "azure": {
+          "provider": "azure",
           "baseCidr": "10.104.0.0/16",
           "regions": [
             "eastus",
@@ -125,6 +130,7 @@
           ]
         },
         "gcp": {
+          "provider": "gcp",
           "baseCidr": "10.105.0.0/16",
           "regions": [
             "us-central1",

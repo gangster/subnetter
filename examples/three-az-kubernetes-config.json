@@ -184,6 +184,7 @@
     "Kubernetes": 26,
     "Services": 27,
     "Endpoints": 28,
-    "Transit": 29
+    "Transit": 29,
+    "Public": 29
   }
 } 

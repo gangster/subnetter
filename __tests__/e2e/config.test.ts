@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { loadConfig, CidrAllocator } from '@subnetter/core';
 
-describe('Streamlined Configuration End-to-End Test', () => {
+describe('Configuration End-to-End Test', () => {
   // Use a file name that doesn't include 'config.json' to avoid Jest mocks
   const configPath = path.resolve(__dirname, 'fixtures/streamlined-format.json');
   
@@ -13,7 +13,7 @@ describe('Streamlined Configuration End-to-End Test', () => {
     }
   });
   
-  it('should load and process a streamlined configuration file', () => {
+  it('should load and process a configuration file', () => {
     // Load configuration
     const config = loadConfig(configPath);
     
@@ -47,7 +47,7 @@ describe('Streamlined Configuration End-to-End Test', () => {
     expect(config.subnetTypes.Management).toBe(29);
   });
   
-  it('should successfully generate allocations from a streamlined configuration', () => {
+  it('should successfully generate allocations from a configuration', () => {
     // Load configuration
     const config = loadConfig(configPath);
     

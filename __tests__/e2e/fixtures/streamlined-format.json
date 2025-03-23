@@ -10,12 +10,14 @@
       "name": "streamlined-account",
       "clouds": {
         "aws": {
+          "provider": "aws",
           "regions": [
             "us-east-1",
             "us-west-2"
           ]
         },
         "azure": {
+          "provider": "azure",
           "baseCidr": "172.16.0.0/12",
           "regions": [
             "eastus",
@@ -23,6 +25,7 @@
           ]
         },
         "gcp": {
+          "provider": "gcp",
           "regions": [
             "us-central1",
             "europe-west1"

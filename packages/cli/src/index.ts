@@ -8,6 +8,7 @@ import {
   CidrAllocator, 
   writeAllocationsToCsv, 
   filterAllocationsByProvider,
+  validateNoOverlappingCidrs,
   Account,
   CloudConfig,
   createLogger,
@@ -85,6 +86,28 @@ program
         allocatorLogger.debug(`Filtering by provider: ${options.provider}`);
         allocations = filterAllocationsByProvider(allocations, options.provider);
         allocatorLogger.debug(`Filtered to ${allocations.length} allocations`);
+      }
+
+      // Validate allocations for CIDR overlaps
+      cliLogger.debug('Validating allocations for CIDR overlaps');
+      const validationResult = validateNoOverlappingCidrs(allocations, false);
+      
+      if (!validationResult.valid) {
+        cliLogger.warn(`⚠️ Warning: Found ${validationResult.overlaps.length} CIDR overlaps in the allocations.`);
+        
+        // Log the first few overlaps
+        const maxOverlapsToShow = 5;
+        validationResult.overlaps.slice(0, maxOverlapsToShow).forEach((overlap, index) => {
+          cliLogger.warn(`  Overlap ${index + 1}: ${overlap.cidr1} (${overlap.allocation1.accountName}, ${overlap.allocation1.regionName}) ↔ ${overlap.cidr2} (${overlap.allocation2.accountName}, ${overlap.allocation2.regionName})`);
+        });
+        
+        if (validationResult.overlaps.length > maxOverlapsToShow) {
+          cliLogger.warn(`  ... and ${validationResult.overlaps.length - maxOverlapsToShow} more overlaps`);
+        }
+        
+        cliLogger.warn('⚠️ Proceeding with allocation output despite overlaps.');
+      } else {
+        cliLogger.info('✅ No CIDR overlaps detected in allocations.');
       }
 
       // Write to CSV
@@ -321,6 +344,121 @@ program
         Object.entries(accountsByProvider).forEach(([provider, count]) => {
           configLogger.debug(`  - ${provider}: ${count} accounts, ${regionsByProvider[provider]} regions`);
         });
+      }
+    } catch (error: unknown) {
+      if (error instanceof SubnetterError) {
+        const errorCode = error.code ? `[${error.code}] ` : '';
+        cliLogger.error(`❌ Error: ${errorCode}${error.message}`);
+        
+        // Display context information for debug level and above
+        if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
+          if (error.getContextString()) {
+            cliLogger.debug(`Context: ${error.getContextString()}`);
+          }
+        }
+        
+        // Always show help text for users
+        const helpText = error.getHelpText();
+        if (helpText) {
+          cliLogger.info(`💡 Help: ${helpText}`);
+        }
+        
+        // Only log the stack trace at debug level and above
+        if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
+          if (error.stack) {
+            cliLogger.debug(`❌ Stack trace: \n${error.stack}`);
+          }
+        }
+      } else {
+        cliLogger.error(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        if (error instanceof Error && error.stack && 
+            (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG)) {
+          cliLogger.debug(`❌ Stack trace: \n${error.stack}`);
+        }
+      }
+      
+      process.exit(1);
+    }
+  });
+
+// Register the validate-allocations command
+program
+  .command('validate-allocations')
+  .description('Validate an existing allocations CSV file for CIDR overlaps')
+  .requiredOption('-f, --file <path>', 'Path to allocations CSV file to validate')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('-l, --log-level <level>', 'Set log level (silent, error, warn, info, debug, trace)', 'info')
+  .option('--no-color', 'Disable colored output')
+  .option('--timestamps', 'Include timestamps in log output')
+  .action(async (options) => {
+    try {
+      // Configure the logger based on the options
+      configureLogger({
+        level: options.verbose ? LogLevel.DEBUG : parseLogLevel(options.logLevel),
+        useColor: options.color,
+        timestamps: options.timestamps
+      });
+      
+      const filePath = options.file;
+      cliLogger.debug(`Validating allocations file: ${filePath}`);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new SubnetterError(
+          `Allocations file not found: ${filePath}`,
+          ErrorCode.CONFIG_FILE_NOT_FOUND,
+          { filePath }
+        );
+      }
+      
+      // Read the CSV file
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const lines = fileContent.split('\n');
+      
+      // Skip header row
+      const dataLines = lines.slice(1).filter(line => line.trim().length > 0);
+      
+      cliLogger.debug(`Found ${dataLines.length} allocation entries in the file`);
+      
+      // Parse the CSV data into Allocation objects
+      const allocations = dataLines.map(line => {
+        const fields = line.split(',');
+        return {
+          accountName: fields[0] || '',
+          vpcName: fields[1] || '',
+          cloudProvider: fields[2] || '',
+          regionName: fields[3] || '',
+          availabilityZone: fields[4] || '',
+          regionCidr: fields[5] || '',
+          vpcCidr: fields[6] || '',
+          azCidr: fields[7] || '',
+          subnetCidr: fields[8] || '',
+          subnetRole: fields[9] || '',
+          usableIps: parseInt(fields[10] || '0', 10)
+        };
+      });
+      
+      // Validate for CIDR overlaps
+      cliLogger.debug(`Validating ${allocations.length} allocations for CIDR overlaps`);
+      const validationResult = validateNoOverlappingCidrs(allocations, false);
+      
+      if (!validationResult.valid) {
+        cliLogger.warn(`⚠️ Found ${validationResult.overlaps.length} CIDR overlaps in the allocations.`);
+        
+        // Log the first few overlaps
+        const maxOverlapsToShow = 10;
+        validationResult.overlaps.slice(0, maxOverlapsToShow).forEach((overlap, index) => {
+          cliLogger.warn(`  Overlap ${index + 1}: ${overlap.cidr1} (${overlap.allocation1.accountName}, ${overlap.allocation1.regionName}) ↔ ${overlap.cidr2} (${overlap.allocation2.accountName}, ${overlap.allocation2.regionName})`);
+        });
+        
+        if (validationResult.overlaps.length > maxOverlapsToShow) {
+          cliLogger.warn(`  ... and ${validationResult.overlaps.length - maxOverlapsToShow} more overlaps`);
+        }
+        
+        process.exit(1);
+      } else {
+        cliLogger.info(`✅ Success! No CIDR overlaps detected in ${allocations.length} allocations.`);
       }
     } catch (error: unknown) {
       if (error instanceof SubnetterError) {

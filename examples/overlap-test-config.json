@@ -1,0 +1,33 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "test-account-1",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/16",
+          "regions": ["us-east-1"]
+        }
+      }
+    },
+    {
+      "name": "test-account-2",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/20",
+          "regions": ["us-west-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 25,
+    "Private": 26
+  }
+} 
