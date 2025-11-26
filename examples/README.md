@@ -4,12 +4,13 @@ This directory contains example configurations for Subnetter.
 
 ## Standard Examples
 
-- `config.json` - A basic configuration with AWS and GCP
-- `config.yaml` - The same configuration in YAML format
+- `config.json` - A comprehensive multi-cloud configuration with multiple accounts across AWS, Azure, and GCP
+- `config.yaml` - A multi-cloud configuration in YAML format
 - `kubernetes-config.json` - A configuration optimized for Kubernetes deployments
 - `three-az-kubernetes-config.json` - Kubernetes configuration with explicit 3-AZ design
 - `config-with-diverse-account-names.json` - Example showing various account naming patterns
-- `overlap-test-config.json` - Test configuration demonstrating CIDR overlap detection
+- `32-regions-test.json` - Test configuration with 32 AWS regions
+- `all-providers-32-regions.json` - Multi-cloud configuration with 32 regions per provider
 
 ## Specialized Examples
 
@@ -65,8 +66,9 @@ subnetter generate --config examples/az-naming-test-config.json --output az-nami
 
 ## Testing
 
-The `test-configs` directory contains various configurations used for testing edge cases and error handling.
-The `test-outputs` directory contains expected outputs for testing.
+The `test-configs` directory contains various configurations used for testing:
+- Valid configurations for edge cases (minimal configs, multi-account, multi-cloud)
+- Invalid configurations for testing error handling (invalid CIDR format, missing fields, overlapping CIDRs)
 
 ## Creating Your Own Configuration
 

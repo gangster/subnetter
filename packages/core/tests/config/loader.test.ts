@@ -154,4 +154,167 @@ describe('Configuration Loader', () => {
     
     expect(() => validateConfig(invalidConfig)).toThrow(ConfigurationError);
   });
+  
+  describe('CIDR Overlap Validation', () => {
+    it('should throw ConfigurationError when two accounts have overlapping baseCidrs', () => {
+      const overlappingConfig = {
+        baseCidr: '10.0.0.0/8',
+        cloudProviders: ['aws'],
+        accounts: [
+          {
+            name: 'account-1',
+            clouds: {
+              aws: {
+                baseCidr: '10.0.0.0/16',
+                regions: ['us-east-1']
+              }
+            }
+          },
+          {
+            name: 'account-2',
+            clouds: {
+              aws: {
+                baseCidr: '10.0.0.0/20', // Overlaps with account-1's 10.0.0.0/16
+                regions: ['us-west-1']
+              }
+            }
+          }
+        ],
+        subnetTypes: {
+          'Public': 24,
+          'Private': 26
+        }
+      };
+      
+      expect(() => validateConfig(overlappingConfig)).toThrow(ConfigurationError);
+      expect(() => validateConfig(overlappingConfig)).toThrow(/Overlapping CIDRs detected/);
+    });
+    
+    it('should throw ConfigurationError when same account has overlapping cloud baseCidrs', () => {
+      const overlappingConfig = {
+        baseCidr: '10.0.0.0/8',
+        cloudProviders: ['aws', 'azure'],
+        accounts: [
+          {
+            name: 'multi-cloud-account',
+            clouds: {
+              aws: {
+                baseCidr: '10.0.0.0/16',
+                regions: ['us-east-1']
+              },
+              azure: {
+                baseCidr: '10.0.128.0/17', // Overlaps with aws's 10.0.0.0/16
+                regions: ['eastus']
+              }
+            }
+          }
+        ],
+        subnetTypes: {
+          'Public': 24,
+          'Private': 26
+        }
+      };
+      
+      expect(() => validateConfig(overlappingConfig)).toThrow(ConfigurationError);
+      expect(() => validateConfig(overlappingConfig)).toThrow(/Overlapping CIDRs detected/);
+    });
+    
+    it('should accept configurations with non-overlapping baseCidrs', () => {
+      const validConfig = {
+        baseCidr: '10.0.0.0/8',
+        cloudProviders: ['aws'],
+        accounts: [
+          {
+            name: 'account-1',
+            clouds: {
+              aws: {
+                baseCidr: '10.0.0.0/16',
+                regions: ['us-east-1']
+              }
+            }
+          },
+          {
+            name: 'account-2',
+            clouds: {
+              aws: {
+                baseCidr: '10.1.0.0/16', // Does not overlap
+                regions: ['us-west-1']
+              }
+            }
+          }
+        ],
+        subnetTypes: {
+          'Public': 24,
+          'Private': 26
+        }
+      };
+      
+      expect(() => validateConfig(validConfig)).not.toThrow();
+      const config = validateConfig(validConfig);
+      expect(config.accounts).toHaveLength(2);
+    });
+    
+    it('should accept configurations without baseCidr overrides', () => {
+      const validConfig = {
+        baseCidr: '10.0.0.0/8',
+        cloudProviders: ['aws'],
+        accounts: [
+          {
+            name: 'account-1',
+            clouds: {
+              aws: {
+                regions: ['us-east-1']
+              }
+            }
+          },
+          {
+            name: 'account-2',
+            clouds: {
+              aws: {
+                regions: ['us-west-1']
+              }
+            }
+          }
+        ],
+        subnetTypes: {
+          'Public': 24,
+          'Private': 26
+        }
+      };
+      
+      expect(() => validateConfig(validConfig)).not.toThrow();
+    });
+    
+    it('should accept configuration with only one baseCidr override', () => {
+      const validConfig = {
+        baseCidr: '10.0.0.0/8',
+        cloudProviders: ['aws'],
+        accounts: [
+          {
+            name: 'account-1',
+            clouds: {
+              aws: {
+                baseCidr: '10.0.0.0/16',
+                regions: ['us-east-1']
+              }
+            }
+          },
+          {
+            name: 'account-2',
+            clouds: {
+              aws: {
+                regions: ['us-west-1'] // No baseCidr override
+              }
+            }
+          }
+        ],
+        subnetTypes: {
+          'Public': 24,
+          'Private': 26
+        }
+      };
+      
+      expect(() => validateConfig(validConfig)).not.toThrow();
+    });
+  });
 }); 

@@ -25,6 +25,7 @@ The tool is designed to eliminate manual IP allocation errors, provide consisten
 - **Multi-Cloud Provider Support**: Support for AWS, Azure, and GCP with provider-specific region naming conventions.
 - **Flexible Configuration System**: JSON/YAML configuration files with Zod schema validation.
 - **Deterministic Allocation**: Same input configuration always produces the same allocation results.
+- **CIDR Overlap Detection**: Validates that no base CIDR values overlap at configuration load time, preventing duplicate allocations.
 - **CSV Output Format**: Generate allocations in CSV format for easy integration with other tools.
 - **Comprehensive Error Handling**: Hierarchical error system with specific error types, error codes, contextual information, and help text for all operations.
 - **Provider-Specific Filtering**: Filter allocation results by cloud provider.
@@ -267,6 +268,10 @@ Configuration validation occurs in multiple stages:
    - CIDR blocks must be valid
    - Prefix lengths must be appropriate for each level
    - Cloud provider names must be recognized
+4. **CIDR Overlap Detection**: Validate that no `baseCidr` values overlap:
+   - Checks all account/cloud-level CIDR overrides against each other
+   - Rejects configurations that would generate duplicate/overlapping allocations
+   - Provides clear error messages identifying which CIDRs conflict
 
 ### Cloud Provider Support
 

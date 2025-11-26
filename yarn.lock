@@ -7479,13 +7479,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-cidr-tools@npm:^0.3.2":
-  version: 0.3.2
-  resolution: "fast-cidr-tools@npm:0.3.2"
-  checksum: 10/0232880fa50fec750505436de6f07347a61c0abe058706762c8123277d57a110650c77a1e7aa24a023ca1dc1406a6fdfc96084e9a14ab065ace7bfe132590655
-  languageName: node
-  linkType: hard
-
 "fast-content-type-parse@npm:^2.0.0":
   version: 2.0.1
   resolution: "fast-content-type-parse@npm:2.0.1"
@@ -8927,13 +8920,6 @@ __metadata:
   version: 5.0.0
   resolution: "ip-regex@npm:5.0.0"
   checksum: 10/4098b2df89c015f1484a5946e733ec126af8c1828719d90e09f04af23ce487e1a852670e4d3f51b0dc6dfbaf7d8bfab23fd7893ca60e69833da99b7b1ee3623b
-  languageName: node
-  linkType: hard
-
-"ip@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "ip@npm:2.0.1"
-  checksum: 10/d6dd154e1bc5e8725adfdd6fb92218635b9cbe6d873d051bd63b178f009777f751a5eea4c67021723a7056325fc3052f8b6599af0a2d56f042c93e684b4a0349
   languageName: node
   linkType: hard
 
@@ -14707,10 +14693,8 @@ __metadata:
     csv-writer: "npm:^1.6.0"
     depcheck: "npm:^1.4.7"
     eslint: "npm:^9.20.1"
-    fast-cidr-tools: "npm:^0.3.2"
     globals: "npm:^16.0.0"
     husky: "npm:^9.0.11"
-    ip: "npm:^2.0.1"
     jest: "npm:^29.7.0"
     lcov-result-merger: "npm:^5.0.1"
     prettier: "npm:^3.1.1"

@@ -51,6 +51,7 @@ Subnetter solves these problems through automated, hierarchical CIDR allocation 
 - **Multi-Cloud Provider Support**: Support for AWS, Azure, and GCP with provider-specific region naming conventions
 - **Flexible Configuration System**: JSON/YAML configuration files with Zod schema validation
 - **Deterministic Allocation**: Same input configuration always produces the same allocation results
+- **CIDR Overlap Detection**: Validates configuration for overlapping base CIDRs and rejects invalid configurations before allocation
 - **CSV Output Format**: Generate allocations in CSV format for easy integration with other tools
 - **Comprehensive Error Handling**: Hierarchical error system with specialized error types, error codes, context information, and actionable help text
 - **Provider-Specific Filtering**: Filter allocation results by cloud provider
@@ -244,7 +245,7 @@ The configuration file should be a JSON file that follows this structure:
 
 - `prefixLengths`: Optional object to override the default prefix lengths for different levels of the hierarchy.
 
-<!-- Documentation updated: 2023-03-20 -->
+<!-- Documentation updated: 2025-11-26 -->
 
 ## Output Format
 

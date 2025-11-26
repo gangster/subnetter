@@ -1,5 +1,10 @@
 {
   "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
   "cloudProviders": ["aws"],
   "accounts": [
     {

@@ -1,54 +1,57 @@
-# Starlight Starter Kit: Basics
+# Subnetter Documentation
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+This package contains the documentation site for Subnetter, built with [Astro](https://astro.build) and [Starlight](https://starlight.astro.build).
+
+## Overview
+
+The documentation site provides comprehensive guides for using Subnetter:
+
+- **User Guide**: Complete usage examples and scenarios
+- **Configuration Reference**: Detailed schema documentation
+- **API Documentation**: Reference for programmatic usage
+- **Architecture**: Technical design and system components
+- **CIDR Primer**: Educational guide about IP addressing
+- **Troubleshooting Guide**: Solutions for common issues
+- **Developer Guide**: For contributors
+
+## Development
+
+### Prerequisites
+
+- Node.js ^18.18.0 || ^20.9.0 || >=21.1.0
+- Yarn (included in repository)
+
+### Commands
+
+All commands are run from the `packages/docs` directory:
+
+| Command | Action |
+|:--------|:-------|
+| `yarn dev` | Starts local dev server at `localhost:4321` |
+| `yarn build` | Build production site to `./dist/` |
+| `yarn preview` | Preview build locally before deploying |
+
+### Project Structure
 
 ```
-npm create astro@latest -- --template starlight
-```
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/starlight/tree/main/examples/basics)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/starlight/tree/main/examples/basics)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/withastro/starlight&create_from_path=examples/basics)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fwithastro%2Fstarlight%2Ftree%2Fmain%2Fexamples%2Fbasics&project-name=my-starlight-docs&repository-name=my-starlight-docs)
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
-.
-├── public/
+docs/
 ├── src/
-│   ├── assets/
+│   ├── assets/       # Images and static assets
 │   ├── content/
-│   │   ├── docs/
+│   │   └── docs/     # Documentation pages (.md/.mdx)
 │   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+├── astro.config.mjs  # Astro configuration
+└── package.json
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+### Adding Documentation
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+1. Create a new `.md` or `.mdx` file in `src/content/docs/`
+2. Add frontmatter with title and description
+3. The file path determines the URL route
 
-Static assets, like favicons, can be placed in the `public/` directory.
+### Deployment
 
-## 🧞 Commands
+The documentation site is automatically deployed to GitHub Pages when changes are pushed to the main branch (via the CI/CD workflow).
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+**Live Site**: [https://gangster.github.io/subnetter/](https://gangster.github.io/subnetter/)

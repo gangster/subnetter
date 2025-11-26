@@ -71,7 +71,7 @@
     }
   ],
   "subnetTypes": {
-    "Private": 26,
-    "Public": 26
+    "Public": 26,
+    "Private": 26
   }
 }

@@ -6,6 +6,7 @@ import { Config, RawConfig } from '../models/types';
 import { ZodError } from 'zod';
 import { Logger } from '../utils/logger';
 import { ConfigurationError, ErrorCode, IOError } from '../utils/errors';
+import { doCidrsOverlap } from '../allocator/utils/cidr/calculator';
 
 // Create logger instance for config operations
 const logger = new Logger('ConfigLoader');
@@ -74,6 +75,75 @@ function normalizeConfig(rawConfig: RawConfig): Config {
 }
 
 /**
+ * Validates that no baseCidr values in the configuration overlap with each other.
+ * This prevents configurations that would generate duplicate/overlapping subnet allocations.
+ * 
+ * @param config The raw configuration to validate
+ * @throws {ConfigurationError} If overlapping CIDRs are detected
+ */
+function validateNoCidrOverlaps(config: RawConfig): void {
+  logger.debug('Validating configuration for CIDR overlaps');
+  
+  const allCidrs: Array<{ cidr: string; path: string }> = [];
+  
+  // Collect all baseCidrs from config
+  // Note: We don't include the top-level baseCidr here because it's expected
+  // to be the parent of all other CIDRs. We only check cloud-specific overrides
+  // against each other.
+  
+  config.accounts.forEach((account, accountIndex) => {
+    if (account.clouds) {
+      Object.entries(account.clouds).forEach(([provider, cloud]) => {
+        if (cloud.baseCidr) {
+          allCidrs.push({
+            cidr: cloud.baseCidr,
+            path: `accounts[${accountIndex}].clouds.${provider}.baseCidr (${account.name})`
+          });
+        }
+      });
+    }
+  });
+  
+  // If there are less than 2 CIDRs with overrides, no overlap is possible
+  if (allCidrs.length < 2) {
+    logger.debug('Less than 2 CIDR overrides found, skipping overlap check');
+    return;
+  }
+  
+  logger.debug(`Checking ${allCidrs.length} CIDR overrides for overlaps`);
+  
+  // Check each pair for overlaps
+  for (let i = 0; i < allCidrs.length; i++) {
+    for (let j = i + 1; j < allCidrs.length; j++) {
+      try {
+        if (doCidrsOverlap(allCidrs[i].cidr, allCidrs[j].cidr)) {
+          const message = `Overlapping CIDRs detected in configuration: ${allCidrs[i].path} (${allCidrs[i].cidr}) overlaps with ${allCidrs[j].path} (${allCidrs[j].cidr})`;
+          logger.error(message);
+          throw new ConfigurationError(
+            message,
+            ErrorCode.CIDR_OVERLAP,
+            {
+              cidr1: allCidrs[i].cidr,
+              cidr1Path: allCidrs[i].path,
+              cidr2: allCidrs[j].cidr,
+              cidr2Path: allCidrs[j].path
+            }
+          );
+        }
+      } catch (error) {
+        // Re-throw ConfigurationError, wrap other errors
+        if (error instanceof ConfigurationError) {
+          throw error;
+        }
+        logger.warn(`Error checking CIDR overlap between ${allCidrs[i].cidr} and ${allCidrs[j].cidr}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }
+  
+  logger.debug('No CIDR overlaps detected in configuration');
+}
+
+/**
  * Loads and validates a configuration file.
  * Supports JSON and YAML formats.
  * 
@@ -120,6 +190,9 @@ export function loadConfig(configPath: string): Config {
         const validatedConfig = configSchema.parse(configData) as RawConfig;
         logger.info('Configuration validation successful');
         logger.debug(`Config has ${validatedConfig.accounts.length} accounts`);
+        
+        // Validate that no CIDRs overlap
+        validateNoCidrOverlaps(validatedConfig);
         
         // Normalize the configuration
         const normalizedConfig = normalizeConfig(validatedConfig);
@@ -203,11 +276,18 @@ export function validateConfig(config: unknown): Config {
     const validatedConfig = configSchema.parse(config) as RawConfig;
     logger.info('Configuration validation successful');
     
+    // Validate that no CIDRs overlap
+    validateNoCidrOverlaps(validatedConfig);
+    
     // Normalize the configuration
     const normalizedConfig = normalizeConfig(validatedConfig);
     
     return normalizedConfig;
   } catch (error) {
+    // Let ConfigurationError pass through (includes CIDR overlap errors)
+    if (error instanceof ConfigurationError) {
+      throw error;
+    }
     if (error instanceof ZodError) {
       logger.warn('Configuration validation failed for object');
       throw new ConfigurationError(
