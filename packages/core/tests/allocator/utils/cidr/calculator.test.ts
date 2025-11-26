@@ -130,5 +130,10 @@ describe('CIDR Calculator', () => {
     test('should throw AllocationError for invalid CIDR', () => {
       expect(() => calculateOptimalPrefixLength('invalid', 4)).toThrow(AllocationError);
     });
+
+    test('should throw AllocationError for invalid count (passed to calculateRequiredPrefixLength)', () => {
+      expect(() => calculateOptimalPrefixLength('10.0.0.0/16', 0)).toThrow(AllocationError);
+      expect(() => calculateOptimalPrefixLength('10.0.0.0/16', -5)).toThrow(AllocationError);
+    });
   });
 }); 

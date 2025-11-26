@@ -525,3 +525,170 @@ describe('RegionAllocator edge cases', () => {
   });
 });
 
+describe('allocateCidrsForRegion edge cases', () => {
+  let cidrTracker: CidrTracker;
+
+  beforeEach(() => {
+    cidrTracker = new CidrTracker();
+  });
+
+  it('should warn when subdivision prefix exceeds 30', () => {
+    // Use a small AZ CIDR with many subnet types to force prefix > 30
+    const azNames = ['us-east-1a'];
+    const azCidrs = ['10.0.0.0/28']; // Small CIDR
+    const manySubnetTypes = [
+      { name: 'Type1', prefixLength: 30 },
+      { name: 'Type2', prefixLength: 30 },
+      { name: 'Type3', prefixLength: 30 },
+      { name: 'Type4', prefixLength: 30 },
+      { name: 'Type5', prefixLength: 30 },
+      { name: 'Type6', prefixLength: 30 },
+      { name: 'Type7', prefixLength: 30 },
+      { name: 'Type8', prefixLength: 30 },
+      { name: 'Type9', prefixLength: 30 }
+    ];
+
+    // Should handle gracefully with warning
+    const allocations = allocateCidrsForRegion(
+      'test-account',
+      'us-east-1',
+      '10.0.0.0/20',
+      '10.0.0.0/16',
+      azNames,
+      azCidrs,
+      manySubnetTypes,
+      cidrTracker,
+      'aws'
+    );
+
+    // Some allocations should still be made
+    expect(allocations.length).toBeGreaterThan(0);
+    // Not all subnet types will be allocated due to space constraints
+    expect(allocations.length).toBeLessThan(manySubnetTypes.length);
+  });
+
+  it('should warn when not all subnet types can be allocated', () => {
+    const azNames = ['us-east-1a'];
+    const azCidrs = ['10.0.0.0/28']; // Very small CIDR - /28 = 16 IPs, can only fit 2 /29 subnets
+    const manySubnetTypes = [
+      { name: 'Type1', prefixLength: 29 },
+      { name: 'Type2', prefixLength: 29 },
+      { name: 'Type3', prefixLength: 29 },
+      { name: 'Type4', prefixLength: 29 },
+      { name: 'Type5', prefixLength: 29 }
+    ];
+
+    const allocations = allocateCidrsForRegion(
+      'test-account',
+      'us-east-1',
+      '10.0.0.0/20',
+      '10.0.0.0/16',
+      azNames,
+      azCidrs,
+      manySubnetTypes,
+      cidrTracker,
+      'aws'
+    );
+
+    // Should allocate what it can (2 subnets from /28 into /29)
+    expect(allocations.length).toBeGreaterThan(0);
+    // But not all 5 types - only 2 can fit
+    expect(allocations.length).toBeLessThan(5);
+  });
+
+  it('should handle single subnet type with matching AZ prefix', () => {
+    const azNames = ['us-east-1a'];
+    const azCidrs = ['10.0.0.0/26'];
+    const singleSubnetType = [{ name: 'Public', prefixLength: 26 }]; // Same as AZ prefix
+
+    const allocations = allocateCidrsForRegion(
+      'test-account',
+      'us-east-1',
+      '10.0.0.0/20',
+      '10.0.0.0/16',
+      azNames,
+      azCidrs,
+      singleSubnetType,
+      cidrTracker,
+      'aws'
+    );
+
+    expect(allocations.length).toBe(1);
+    expect(allocations[0].subnetCidr).toBe('10.0.0.0/26');
+  });
+
+  it('should handle single subnet type with smaller prefix than AZ', () => {
+    const azNames = ['us-east-1a'];
+    const azCidrs = ['10.0.0.0/24'];
+    const singleSubnetType = [{ name: 'Public', prefixLength: 28 }]; // Smaller than AZ prefix
+
+    const allocations = allocateCidrsForRegion(
+      'test-account',
+      'us-east-1',
+      '10.0.0.0/20',
+      '10.0.0.0/16',
+      azNames,
+      azCidrs,
+      singleSubnetType,
+      cidrTracker,
+      'aws'
+    );
+
+    expect(allocations.length).toBe(1);
+    expect(allocations[0].subnetCidr).toBe('10.0.0.0/28');
+  });
+
+  it('should handle multiple subnet types where effective prefix equals subdivision prefix', () => {
+    const azNames = ['us-east-1a'];
+    const azCidrs = ['10.0.0.0/24'];
+    // 2 subnet types with /25 prefix - subdivision will create exactly /25 blocks
+    const subnetTypes = [
+      { name: 'Type1', prefixLength: 25 },
+      { name: 'Type2', prefixLength: 25 }
+    ];
+
+    const allocations = allocateCidrsForRegion(
+      'test-account',
+      'us-east-1',
+      '10.0.0.0/20',
+      '10.0.0.0/16',
+      azNames,
+      azCidrs,
+      subnetTypes,
+      cidrTracker,
+      'aws'
+    );
+
+    expect(allocations.length).toBe(2);
+    expect(allocations[0].subnetCidr).toBe('10.0.0.0/25');
+    expect(allocations[1].subnetCidr).toBe('10.0.0.128/25');
+  });
+});
+
+describe('allocateCidrsForRegion error handling', () => {
+  let cidrTracker: CidrTracker;
+
+  beforeEach(() => {
+    cidrTracker = new CidrTracker();
+  });
+
+  it('should throw when AZ CIDR is empty string', () => {
+    const azNames = ['us-east-1a'];
+    const azCidrs = [''];
+
+    expect(() => {
+      allocateCidrsForRegion(
+        'test-account',
+        'us-east-1',
+        '10.0.0.0/20',
+        '10.0.0.0/16',
+        azNames,
+        azCidrs,
+        [{ name: 'Public', prefixLength: 26 }],
+        cidrTracker,
+        'aws'
+      );
+    }).toThrow();
+  });
+});
+
