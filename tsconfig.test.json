@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@subnetter/cidr-utils": ["packages/cidr-utils/src/index.ts"],
+      "@subnetter/core": ["packages/core/src/index.ts"],
+      "@subnetter/cli": ["packages/cli/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/tests/**/*.ts",
+    "__tests__/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/docs"
+  ]
+}
+

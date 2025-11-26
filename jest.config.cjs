@@ -22,7 +22,7 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { 
       useESM: false,
-      tsconfig: 'tsconfig.json'
+      tsconfig: 'tsconfig.test.json'
     }]
   },
   transformIgnorePatterns: [
