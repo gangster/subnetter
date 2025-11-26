@@ -88,3 +88,6 @@ chore: force docs deploy
 ## Dependabot
 
 The repository uses Dependabot for dependency updates. PRs are automatically created for outdated dependencies.
+
+---
+*Last updated: 2025-11-26*
