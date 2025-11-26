@@ -95,6 +95,8 @@
     "is-fullwidth-code-point": "3.0.0",
     "emoji-regex": "8.0.0",
     "eastasianwidth": "0.2.0",
-    "npm/hosted-git-info": "8.0.2"
+    "npm/hosted-git-info": "8.0.2",
+    "npm/normalize-package-data": "7.0.0",
+    "libnpmpublish/normalize-package-data": "7.0.0"
   }
 }
