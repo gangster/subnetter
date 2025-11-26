@@ -160,5 +160,40 @@ describe('CIDR Calculator Utilities', () => {
       expect(() => calculateSupernet('192.168.1.0/0', 1)).toThrow(CidrError);
       expect(() => calculateSupernet('invalid-cidr', 1)).toThrow(CidrError);
     });
+
+    test('throws error for negative prefixLengthDelta', () => {
+      expect(() => calculateSupernet('192.168.1.0/24', -1)).toThrow(CidrError);
+    });
+
+    test('handles supernet at different octet boundaries', () => {
+      // Going from /25 to /24 (within fourth octet)
+      expect(calculateSupernet('192.168.1.128/25', 1)).toBe('192.168.1.0/24');
+      
+      // Going from /17 to /16 (crossing third octet boundary)
+      expect(calculateSupernet('192.168.128.0/17', 1)).toBe('192.168.0.0/16');
+      
+      // Going from /9 to /8 (crossing second octet boundary)
+      expect(calculateSupernet('10.128.0.0/9', 1)).toBe('10.0.0.0/8');
+      
+      // Going from /4 to /1 (crossing first octet boundary)
+      // 192 in binary is 11000000, mask with /1 keeps only first bit = 10000000 = 128
+      expect(calculateSupernet('192.0.0.0/4', 3)).toBe('128.0.0.0/1');
+      
+      // Going to /8 from higher prefix
+      expect(calculateSupernet('10.20.30.0/24', 16)).toBe('10.0.0.0/8');
+      
+      // Mask within first octet
+      expect(calculateSupernet('128.0.0.0/2', 1)).toBe('128.0.0.0/1');
+      
+      // Mask within second octet
+      // 168 in binary is 10101000, mask with bits 9-10 gives 10000000 = 128
+      expect(calculateSupernet('192.168.0.0/12', 2)).toBe('192.128.0.0/10');
+      
+      // Mask within third octet
+      expect(calculateSupernet('192.168.32.0/20', 2)).toBe('192.168.0.0/18');
+      
+      // Mask within fourth octet
+      expect(calculateSupernet('192.168.1.64/26', 2)).toBe('192.168.1.0/24');
+    });
   });
 }); 

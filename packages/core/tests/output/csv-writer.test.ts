@@ -139,6 +139,136 @@ describe('CSV Writer', () => {
       await expect(writeAllocationsToCsv(mockAllocations, mockOutputPath))
         .rejects.toThrow(IOError);
     });
+
+    it('should sort by region when cloud provider and account match', async () => {
+      const allocationsWithSameAccount: Allocation[] = [
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-west-2',
+          availabilityZone: 'us-west-2a',
+          regionCidr: '10.2.0.0/20',
+          vpcCidr: '10.2.0.0/16',
+          azCidr: '10.2.0.0/24',
+          subnetCidr: '10.2.0.0/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        },
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1a',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.0/24',
+          subnetCidr: '10.0.0.0/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        }
+      ];
+      
+      await writeAllocationsToCsv(allocationsWithSameAccount, mockOutputPath);
+      
+      const writtenAllocations = mockWriteRecords.mock.calls[0][0];
+      // Should be sorted by region: us-east-1 before us-west-2
+      expect(writtenAllocations[0]['Region Name']).toBe('us-east-1');
+      expect(writtenAllocations[1]['Region Name']).toBe('us-west-2');
+    });
+
+    it('should sort by AZ when cloud provider, account, and region match', async () => {
+      const allocationsWithSameRegion: Allocation[] = [
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1c',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.128/25',
+          subnetCidr: '10.0.0.128/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        },
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1a',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.0/25',
+          subnetCidr: '10.0.0.0/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        }
+      ];
+      
+      await writeAllocationsToCsv(allocationsWithSameRegion, mockOutputPath);
+      
+      const writtenAllocations = mockWriteRecords.mock.calls[0][0];
+      // Should be sorted by AZ: us-east-1a before us-east-1c
+      expect(writtenAllocations[0]['Availability Zone']).toBe('us-east-1a');
+      expect(writtenAllocations[1]['Availability Zone']).toBe('us-east-1c');
+    });
+
+    it('should sort by subnet role when all other fields match', async () => {
+      const allocationsWithSameAz: Allocation[] = [
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1a',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.0/25',
+          subnetCidr: '10.0.0.64/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        },
+        {
+          accountName: 'test-account',
+          vpcName: 'test-vpc',
+          cloudProvider: 'aws',
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1a',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.0/25',
+          subnetCidr: '10.0.0.0/28',
+          subnetRole: 'Database',
+          usableIps: 14
+        }
+      ];
+      
+      await writeAllocationsToCsv(allocationsWithSameAz, mockOutputPath);
+      
+      const writtenAllocations = mockWriteRecords.mock.calls[0][0];
+      // Should be sorted by subnet role: Database before Public
+      expect(writtenAllocations[0]['Subnet Role']).toBe('Database');
+      expect(writtenAllocations[1]['Subnet Role']).toBe('Public');
+    });
+
+    it('should not create directory if path is current directory', async () => {
+      (path.dirname as jest.Mock).mockReturnValue('.');
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      
+      await writeAllocationsToCsv(mockAllocations, 'output.csv');
+      
+      // mkdirSync should not be called when directory is '.'
+      expect(fs.mkdirSync).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty allocations array', async () => {
+      await writeAllocationsToCsv([], mockOutputPath);
+      
+      expect(mockWriteRecords).toHaveBeenCalledWith([]);
+    });
   });
   
   describe('filterAllocationsByProvider', () => {
@@ -154,6 +284,28 @@ describe('CSV Writer', () => {
       
       const filteredGcp = filterAllocationsByProvider(mockAllocations, 'gcp');
       expect(filteredGcp).toHaveLength(0);
+    });
+
+    it('should handle allocations with undefined cloudProvider', () => {
+      const allocationsWithUndefined = [
+        ...mockAllocations,
+        {
+          accountName: 'test',
+          vpcName: 'test-vpc',
+          cloudProvider: undefined as unknown as string,
+          regionName: 'us-east-1',
+          availabilityZone: 'us-east-1a',
+          regionCidr: '10.0.0.0/20',
+          vpcCidr: '10.0.0.0/16',
+          azCidr: '10.0.0.0/24',
+          subnetCidr: '10.0.0.0/28',
+          subnetRole: 'Public',
+          usableIps: 14
+        }
+      ];
+      
+      const filtered = filterAllocationsByProvider(allocationsWithUndefined, 'aws');
+      expect(filtered).toHaveLength(2);
     });
   });
 }); 

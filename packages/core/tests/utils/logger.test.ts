@@ -133,6 +133,120 @@ describe('Logger Utility', () => {
     });
   });
 
+  describe('log formatting', () => {
+    it('should log error with additional data', () => {
+      configureLogger({ level: LogLevel.ERROR });
+      const logger = createLogger('TestComponent');
+      logger.error('Test error', { key: 'value' });
+      expect(mockConsoleError).toHaveBeenCalled();
+    });
+
+    it('should log warning with additional data', () => {
+      configureLogger({ level: LogLevel.WARN });
+      const logger = createLogger('TestComponent');
+      logger.warn('Test warning', { key: 'value' });
+      expect(mockConsoleWarn).toHaveBeenCalled();
+    });
+
+    it('should log info with additional data', () => {
+      configureLogger({ level: LogLevel.INFO });
+      const logger = createLogger('TestComponent');
+      logger.info('Test info', { key: 'value' });
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should log debug with additional data', () => {
+      configureLogger({ level: LogLevel.DEBUG });
+      const logger = createLogger('TestComponent');
+      logger.debug('Test debug', { key: 'value' });
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should log trace with additional data', () => {
+      configureLogger({ level: LogLevel.TRACE });
+      const logger = createLogger('TestComponent');
+      logger.trace('Test trace', { key: 'value' });
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should handle null data', () => {
+      configureLogger({ level: LogLevel.INFO });
+      const logger = createLogger('TestComponent');
+      logger.info('Test info', null);
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should handle undefined data', () => {
+      configureLogger({ level: LogLevel.INFO });
+      const logger = createLogger('TestComponent');
+      logger.info('Test info', undefined);
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should handle primitive data types', () => {
+      configureLogger({ level: LogLevel.INFO });
+      const logger = createLogger('TestComponent');
+      logger.info('Test number', 42);
+      logger.info('Test boolean', true);
+      logger.info('Test string', 'test string');
+      expect(mockConsoleInfo).toHaveBeenCalledTimes(3);
+    });
+
+    it('should log without color when useColor is false', () => {
+      configureLogger({ level: LogLevel.ERROR, useColor: false });
+      const logger = createLogger('TestComponent');
+      logger.error('Test error');
+      expect(mockConsoleError).toHaveBeenCalled();
+    });
+
+    it('should log all levels without color', () => {
+      configureLogger({ level: LogLevel.TRACE, useColor: false });
+      const logger = createLogger('TestComponent');
+      logger.error('Error');
+      logger.warn('Warn');
+      logger.info('Info');
+      logger.debug('Debug');
+      logger.trace('Trace');
+      expect(mockConsoleError).toHaveBeenCalled();
+      expect(mockConsoleWarn).toHaveBeenCalled();
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should include timestamps when enabled', () => {
+      configureLogger({ level: LogLevel.INFO, timestamps: true });
+      const logger = createLogger('TestComponent');
+      logger.info('Test with timestamp');
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should hide source when showSource is false', () => {
+      configureLogger({ level: LogLevel.INFO, showSource: false });
+      const logger = createLogger('TestComponent');
+      logger.info('Test without source');
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+
+    it('should not log when level is SILENT', () => {
+      configureLogger({ level: LogLevel.SILENT });
+      const logger = createLogger('TestComponent');
+      logger.error('This should not be logged');
+      logger.warn('This should not be logged');
+      logger.info('This should not be logged');
+      logger.debug('This should not be logged');
+      logger.trace('This should not be logged');
+      expect(mockConsoleError).not.toHaveBeenCalled();
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
+      expect(mockConsoleInfo).not.toHaveBeenCalled();
+    });
+
+    it('should create logger with empty source', () => {
+      configureLogger({ level: LogLevel.INFO, showSource: true });
+      const logger = createLogger('');
+      logger.info('Test with empty source');
+      expect(mockConsoleInfo).toHaveBeenCalled();
+    });
+  });
+
   afterAll(() => {
     // Restore console methods
     mockConsoleLog.mockRestore();
