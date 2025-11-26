@@ -29,6 +29,7 @@ module.exports = {
     'node_modules/(?!(chalk|ansi-styles|supports-color|is-fullwidth-code-point|fast-cidr-tools|strip-ansi|emoji-regex|string-width|eastasianwidth)/)'
   ],
   moduleNameMapper: {
+    '^@subnetter/cidr-utils$': '<rootDir>/packages/cidr-utils/src/index.ts',
     '^@subnetter/core$': '<rootDir>/packages/core/src/index.ts',
     '^@subnetter/cli$': '<rootDir>/packages/cli/src/index.ts',
     // Map .js imports to .ts source files
