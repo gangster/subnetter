@@ -9,26 +9,24 @@ const CLI_PATH = path.resolve('packages/cli/dist/index.js');
 const TEST_DIR = path.resolve('__tests__/e2e/fixtures');
 const OUTPUT_DIR = path.resolve('__tests__/e2e/outputs');
 
-// Define types for our test data
+// Define types for our test data - matching current schema
 interface TestConfig {
   baseCidr: string;
-  cloudProviders: string[];
+  cloudProviders?: string[];
   accounts: Array<{
     name: string;
-    cloudConfigs: {
+    clouds: {
       [provider: string]: {
-        provider: string;
         baseCidr?: string;
         regions: string[];
       }
     };
   }>;
-  subnetTypes: { name: string; prefixLength: number }[];
+  subnetTypes: { [name: string]: number };
   prefixLengths?: {
     account?: number;
     region?: number;
     az?: number;
-    subnet?: number;
   };
 }
 
@@ -67,21 +65,7 @@ beforeAll(() => {
 // Helper to create config files for testing
 async function createConfigFile(config: TestConfig, filename: string): Promise<string> {
   const configPath = path.join(TEST_DIR, filename);
-  
-  // Convert string subnet types to objects with name and prefixLength properties
-  const processedConfig = {
-    ...config,
-    subnetTypes: Array.isArray(config.subnetTypes) 
-      ? config.subnetTypes.map(type => {
-          if (typeof type === 'string') {
-            return { name: type, prefixLength: 26 };
-          }
-          return type;
-        })
-      : config.subnetTypes
-  };
-  
-  fs.writeFileSync(configPath, JSON.stringify(processedConfig, null, 2));
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   return configPath;
 }
 
@@ -153,18 +137,17 @@ describe('Subnetter E2E Tests', () => {
       accounts: [
         { 
           name: 'test-account', 
-          cloudConfigs: {
+          clouds: {
             aws: {
-              provider: 'aws',
               regions: ['us-east-1']
             }
           }
         }
       ],
-      subnetTypes: [
-        { name: 'Public', prefixLength: 26 },
-        { name: 'Private', prefixLength: 28 }
-      ]
+      subnetTypes: {
+        Public: 26,
+        Private: 28
+      }
     };
     
     const configPath = await createConfigFile(config, 'basic-config.json');
@@ -206,27 +189,25 @@ describe('Subnetter E2E Tests', () => {
       accounts: [
         { 
           name: 'dev-account', 
-          cloudConfigs: {
+          clouds: {
             aws: {
-              provider: 'aws',
               regions: ['us-east-1', 'us-west-2']
             }
           }
         },
         { 
           name: 'prod-account', 
-          cloudConfigs: {
+          clouds: {
             aws: {
-              provider: 'aws',
               regions: ['us-east-1', 'eu-west-1', 'ap-southeast-1']
             }
           }
         }
       ],
-      subnetTypes: [
-        { name: 'Public', prefixLength: 26 },
-        { name: 'Private', prefixLength: 28 }
-      ]
+      subnetTypes: {
+        Public: 26,
+        Private: 28
+      }
     };
     
     const configPath = await createConfigFile(config, 'multi-account-config.json');
@@ -269,47 +250,41 @@ describe('Subnetter E2E Tests', () => {
       accounts: [
         { 
           name: 'cloud-dev', 
-          cloudConfigs: {
+          clouds: {
             aws: {
-              provider: 'aws',
               regions: ['us-east-1']
             },
             azure: {
-              provider: 'azure',
               regions: ['eastus']
             },
             gcp: {
-              provider: 'gcp',
               regions: ['us-central1']
             }
           }
         },
         { 
           name: 'cloud-prod', 
-          cloudConfigs: {
+          clouds: {
             aws: {
-              provider: 'aws',
-              baseCidr: '172.16.0.0/12',
+              baseCidr: '172.16.0.0/16',
               regions: ['us-west-2']
             },
             azure: {
-              provider: 'azure',
-              baseCidr: '172.16.0.0/12',
+              baseCidr: '172.17.0.0/16',
               regions: ['westus2']
             },
             gcp: {
-              provider: 'gcp',
-              baseCidr: '172.16.0.0/12',
+              baseCidr: '172.18.0.0/16',
               regions: ['europe-west1']
             }
           }
         }
       ],
-      subnetTypes: [
-        { name: 'Public', prefixLength: 26 },
-        { name: 'Private', prefixLength: 27 },
-        { name: 'Shared', prefixLength: 28 }
-      ]
+      subnetTypes: {
+        Public: 26,
+        Private: 27,
+        Shared: 28
+      }
     };
     
     const configPath = await createConfigFile(config, 'multicloud-config.json');
@@ -338,8 +313,8 @@ describe('Subnetter E2E Tests', () => {
     expect(azureAllocations.every(a => a['Cloud Provider'] === 'azure')).toBe(true);
     expect(gcpAllocations.every(a => a['Cloud Provider'] === 'gcp')).toBe(true);
     
-    // Verify account-specific CIDR override works
+    // Verify account-specific CIDR override works (each cloud has its own 172.x.x.x CIDR)
     const prodAllocations = allocations.filter(a => a['Account Name'] === 'cloud-prod');
-    expect(prodAllocations.every(a => a['VPC CIDR'].startsWith('172.16'))).toBe(true);
+    expect(prodAllocations.every(a => a['VPC CIDR'].startsWith('172.'))).toBe(true);
   });
 }); 

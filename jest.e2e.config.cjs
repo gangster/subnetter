@@ -1,8 +1,9 @@
 /** @type {import('jest').Config} */
 const baseConfig = require('./jest.config.cjs');
 
-// Create a new configuration without the testMatch property
-const { testMatch, ...configWithoutTestMatch } = baseConfig;
+// Create a new configuration without the testMatch and setupFilesAfterEnv properties
+// E2E tests should use real filesystem and dependencies, not mocks
+const { testMatch, setupFilesAfterEnv, ...configWithoutTestMatch } = baseConfig;
 
 module.exports = {
   ...configWithoutTestMatch,
@@ -16,6 +17,8 @@ module.exports = {
     '!packages/*/src/**/__mocks__/**',
     '!packages/*/src/**/index.ts'
   ],
+  // E2E tests use a separate setup file that doesn't mock fs
+  setupFilesAfterEnv: ['<rootDir>/jest.e2e.setup.cjs'],
   // Add longer timeout for E2E tests
   testTimeout: 30000
 }; 

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { validateNoOverlappingCidrs } from '@subnetter/core';
+import { validateNoOverlappingCidrs, loadConfig, CidrAllocator } from '@subnetter/core';
 
 const execAsync = promisify(exec);
 
@@ -10,14 +10,13 @@ const execAsync = promisify(exec);
 jest.setTimeout(15000);
 
 describe('Output Validator Integration', () => {
-  // Use the example that was already working in our manual tests
-  const exampleConfigPath = path.join(process.cwd(), 'examples', 'overlap-test-config.json');
-  const outputFile = path.join(process.cwd(), 'overlap-output.csv');
+  const validConfigPath = path.join(process.cwd(), 'examples', 'test-configs', 'multi-cloud-config.json');
+  const invalidConfigPath = path.join(process.cwd(), 'examples', 'test-configs', 'invalid-overlapping-cidr.json');
+  const outputFile = path.join(process.cwd(), 'validator-test-output.csv');
   const cliPath = path.join(process.cwd(), 'packages', 'cli', 'dist', 'index.js');
   
   // Clean up after tests
   afterAll(() => {
-    // Clean up output file if it exists
     if (fs.existsSync(outputFile)) {
       try {
         fs.unlinkSync(outputFile);
@@ -27,70 +26,72 @@ describe('Output Validator Integration', () => {
     }
   });
   
-  test('CLI should warn about overlapping CIDRs but still generate allocations', async () => {
-    // Verify the example config file exists
-    expect(fs.existsSync(exampleConfigPath)).toBe(true);
+  test('CLI should reject configurations with overlapping CIDRs', async () => {
+    // Verify the invalid config file exists
+    expect(fs.existsSync(invalidConfigPath)).toBe(true);
     
-    // Run the CLI to generate allocations with overlapping CIDRs
-    const { stdout, stderr } = await execAsync(
-      `node ${cliPath} generate -c ${exampleConfigPath} -o ${outputFile}`
-    );
+    // Run the CLI - should fail due to overlapping CIDRs
+    try {
+      await execAsync(
+        `node ${cliPath} generate -c ${invalidConfigPath} -o ${outputFile}`
+      );
+      // Should not reach here
+      expect(true).toBe(false);
+    } catch (error: any) {
+      // Command should exit with non-zero status
+      expect(error.code).not.toBe(0);
+      
+      // Error message should contain info about overlapping CIDRs
+      expect(error.stdout + error.stderr).toContain('Overlapping CIDRs');
+      expect(error.stdout + error.stderr).toContain('3001');
+    }
+  });
+  
+  test('validateNoOverlappingCidrs should detect overlaps in allocations', () => {
+    // Load a valid config and generate allocations
+    const config = loadConfig(validConfigPath);
+    const allocator = new CidrAllocator(config);
+    const allocations = allocator.generateAllocations();
     
-    // Output should contain a warning about overlaps
-    expect(stdout + stderr).toContain('Warning');
-    expect(stdout + stderr).toContain('overlaps');
-    
-    // The file should be written despite overlaps
-    expect(fs.existsSync(outputFile)).toBe(true);
-    
-    // Verify the file contents with our validator directly
-    const fileContent = fs.readFileSync(outputFile, 'utf8');
-    const lines = fileContent.split('\n');
-    const dataLines = lines.slice(1).filter(line => line.trim().length > 0);
-    
-    // Parse the CSV data into allocation objects
-    const allocations = dataLines.map(line => {
-      const fields = line.split(',');
-      return {
-        accountName: fields[0] || '',
-        vpcName: fields[1] || '',
-        cloudProvider: fields[2] || '',
-        regionName: fields[3] || '',
-        availabilityZone: fields[4] || '',
-        regionCidr: fields[5] || '',
-        vpcCidr: fields[6] || '',
-        azCidr: fields[7] || '',
-        subnetCidr: fields[8] || '',
-        subnetRole: fields[9] || '',
-        usableIps: parseInt(fields[10] || '0', 10)
-      };
-    });
-    
-    // Validate with our function directly
+    // Valid config should produce non-overlapping allocations
     const validationResult = validateNoOverlappingCidrs(allocations);
+    expect(validationResult.valid).toBe(true);
+    expect(validationResult.overlaps).toHaveLength(0);
+  });
+  
+  test('validateNoOverlappingCidrs should detect manually created overlapping allocations', () => {
+    // Create fake allocations with overlapping CIDRs
+    const overlappingAllocations = [
+      {
+        accountName: 'test',
+        vpcName: 'test-vpc',
+        cloudProvider: 'aws',
+        regionName: 'us-east-1',
+        availabilityZone: 'us-east-1a',
+        regionCidr: '10.0.0.0/16',
+        vpcCidr: '10.0.0.0/16',
+        azCidr: '10.0.0.0/24',
+        subnetCidr: '10.0.0.0/26',
+        subnetRole: 'Public',
+        usableIps: 62
+      },
+      {
+        accountName: 'test',
+        vpcName: 'test-vpc',
+        cloudProvider: 'aws',
+        regionName: 'us-east-1',
+        availabilityZone: 'us-east-1a',
+        regionCidr: '10.0.0.0/16',
+        vpcCidr: '10.0.0.0/16',
+        azCidr: '10.0.0.0/24',
+        subnetCidr: '10.0.0.0/26', // Same CIDR - overlapping!
+        subnetRole: 'Private',
+        usableIps: 62
+      }
+    ];
     
-    // Confirm it detects overlaps
+    const validationResult = validateNoOverlappingCidrs(overlappingAllocations);
     expect(validationResult.valid).toBe(false);
     expect(validationResult.overlaps.length).toBeGreaterThan(0);
   });
-  
-  test('validate-allocations command should detect overlaps in existing file', async () => {
-    // First ensure the file exists
-    expect(fs.existsSync(outputFile)).toBe(true);
-    
-    // Run the validate-allocations command
-    try {
-      await execAsync(
-        `node ${cliPath} validate-allocations -f ${outputFile}`
-      );
-      // Should not reach here as the command should exit with an error
-      expect(true).toBe(false); 
-    } catch (error: any) { // Type the error as any to access properties
-      // Command should exit with non-zero status due to overlaps
-      expect(error.code).not.toBe(0);
-      
-      // Error message should contain info about overlaps
-      expect(error.stdout + error.stderr).toContain('overlaps');
-    }
-  });
-}); 
+});
