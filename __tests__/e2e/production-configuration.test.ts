@@ -118,34 +118,6 @@ function parseCSV(csvPath: string): Allocation[] {
   });
 }
 
-// Helper to group regions by geographical area
-const _geographicalRegions = {
-  northAmerica: {
-    aws: ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'ca-central-1'],
-    azure: ['eastus', 'eastus2', 'westus', 'westus2', 'canadacentral'],
-    gcp: ['us-central1', 'us-east1', 'us-west1', 'us-west2', 'northamerica-northeast1']
-  },
-  europe: {
-    aws: ['eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1', 'eu-north-1'],
-    azure: ['northeurope', 'westeurope', 'francecentral', 'germanywestcentral', 'norwayeast'],
-    gcp: ['europe-west1', 'europe-west2', 'europe-west3', 'europe-west4', 'europe-north1']
-  },
-  asiaPacific: {
-    aws: ['ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2', 'ap-south-1'],
-    azure: ['japaneast', 'southeastasia', 'australiaeast', 'centralindia'],
-    gcp: ['asia-northeast1', 'asia-southeast1', 'australia-southeast1', 'asia-south1']
-  },
-  southAmerica: {
-    aws: ['sa-east-1'],
-    azure: ['brazilsouth'],
-    gcp: ['southamerica-east1']
-  },
-  africa: {
-    aws: ['af-south-1'],
-    azure: ['southafricanorth'],
-    gcp: ['asia-east1'] // As a substitute since GCP doesn't have an African region
-  }
-};
 
 describe('Production Configuration E2E Tests', () => {
   // Create a fixture with a simplified production configuration

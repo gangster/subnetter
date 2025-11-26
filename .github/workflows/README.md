@@ -4,47 +4,87 @@ This directory contains GitHub Actions workflows for the Subnetter project.
 
 ## CI/CD Pipeline (`ci-cd.yml`)
 
-This is the main workflow that handles continuous integration and continuous deployment. It is split into several jobs:
+The main workflow that handles continuous integration and continuous deployment. It uses a modular, optimized structure with dependency caching and build artifact sharing.
 
-### For Pull Requests:
+### Architecture
 
-1. **Validate PR**: 
-   - Validates that the PR doesn't contain package-lock.json files
-   - Lints commit messages
-   - Checks for dependency redundancy
+```
+┌─────────────┐
+│ validate-pr │ (PR only - commit lint, package-lock check)
+└──────┬──────┘
+       │
+       ▼
+┌──────────────────────────────────────────┐
+│              build (matrix)              │
+│     Node 18 │ Node 20 │ Node 22         │
+└──────────────────┬───────────────────────┘
+                   │ (saves build artifacts)
+       ┌───────────┴───────────┐
+       ▼                       ▼
+┌──────────┐           ┌──────────────────────┐
+│   lint   │           │    test (matrix)     │
+└────┬─────┘           │  Node 18/20/22       │
+     │                 └──────────┬───────────┘
+     │                            │
+     └────────────┬───────────────┘
+                  ▼
+          ┌───────────────┐
+          │ check-release │ (main branch only)
+          └───────┬───────┘
+                  │
+       ┌──────────┴──────────┐
+       ▼                     ▼
+┌─────────────┐      ┌──────────┐
+│   release   │      │   docs   │ (only if docs changed)
+└─────────────┘      └──────────┘
+```
 
-2. **Test PR**: 
-   - Runs on multiple platforms (Ubuntu and macOS)
-   - Lints code
-   - Builds the project
-   - Runs tests with coverage
-   - Uploads coverage to Codecov
+### Key Optimizations
 
-### For Pushes to Main:
+1. **Dependency Caching**: Yarn dependencies are cached based on `yarn.lock` hash
+2. **Build Artifact Sharing**: Build output from the build job is reused by test, release, and docs jobs
+3. **Matrix Testing**: Tests run on Node.js 18, 20, and 22
+4. **Conditional Docs Deploy**: Documentation only deploys when docs files change
+5. **Parallel Execution**: Lint and test jobs run in parallel
+6. **Reusable Setup Action**: Common setup steps extracted to `.github/actions/setup/`
 
-1. **Test Main Branch**:
-   - Runs on multiple platforms
-   - Lints code
-   - Builds the project
-   - Runs tests with coverage
-   - Uploads coverage to Codecov
+### Jobs
 
-2. **Release**:
-   - Runs after successful tests
-   - Uses semantic-release to create a new release
-   - Publishes to GitHub Packages
+| Job | Trigger | Purpose |
+|-----|---------|---------|
+| `validate-pr` | PR only | Validate commit messages, check for package-lock.json |
+| `build` | All | Build all packages (matrix: Node 18/20/22) |
+| `lint` | All | Run ESLint |
+| `test` | All | Run unit and E2E tests (matrix: Node 18/20/22) |
+| `check-release` | Push to main | Determine if semantic-release should run |
+| `release` | Push to main | Create GitHub release and publish |
+| `docs` | Push to main | Build and deploy documentation to GitHub Pages |
 
-3. **Docs**:
-   - Only runs when documentation files change
-   - Builds the documentation site
-   - Publishes to GitHub Pages
+### Reusable Components
 
-## Dependabot Workflows
+#### Setup Action (`.github/actions/setup/`)
 
-Two workflows help manage Dependabot PRs:
+A composite action that handles:
+- Node.js setup (configurable version)
+- Yarn Berry setup via corepack
+- Dependency caching
+- Package installation
 
-1. **Fix Dependabot PRs** (`dependabot-fix.yml`):
-   - Automatically fixes Dependabot PRs by removing package-lock.json files
+Usage in workflows:
+```yaml
+- name: Setup Environment
+  uses: ./.github/actions/setup
+  with:
+    node-version: '20'
+```
 
-2. **Manually Fix Dependabot PR** (`fix-dependabot-manually.yml`):
-   - Allows manual fixing of Dependabot PRs that weren't caught by the automatic workflow 
+### Forcing Docs Deployment
+
+To force a docs deployment even when no docs files changed, use this commit message:
+```
+chore: force docs deploy
+```
+
+## Dependabot
+
+The repository uses Dependabot for dependency updates. PRs are automatically created for outdated dependencies.
