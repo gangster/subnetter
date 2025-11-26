@@ -90,4 +90,5 @@ chore: force docs deploy
 The repository uses Dependabot for dependency updates. PRs are automatically created for outdated dependencies.
 
 ---
-*Last updated: 2025-11-26*
+
+*Last verified: 2025-11-26*
