@@ -13,7 +13,6 @@
       "name": "test-account",
       "clouds": {
         "aws": {
-          
           "regions": [
             "us-east-1"
           ]
