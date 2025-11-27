@@ -1,0 +1,29 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 12,
+    "region": 16,
+    "az": 19
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "complex-networking",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Kubernetes": 22,
+    "Private": 23,
+    "Public": 24,
+    "Database": 25,
+    "Cache": 26,
+    "Management": 27,
+    "Transit": 28,
+    "Endpoints": 28
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws", "azure"],
+  "accounts": [
+    {
+      "name": "isolated-aws",
+      "clouds": {
+        "aws": {
+          "baseCidr": "172.16.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "isolated-azure",
+      "clouds": {
+        "azure": {
+          "baseCidr": "192.168.0.0/16",
+          "regions": ["eastus", "westus2"]
+        }
+      }
+    },
+    {
+      "name": "shared-network",
+      "clouds": {
+        "aws": {
+          "regions": ["eu-west-1"]
+        },
+        "azure": {
+          "regions": ["westeurope"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26
+  }
+}
+
