@@ -45,11 +45,44 @@ AWS uses `us-east-1a`. Azure uses `eastus-1`. GCP uses `us-central1-a`. Three cl
 
 ### The Hidden Costs
 
-- **Debugging connectivity issues** caused by overlapping CIDRs: hours to days
-- **Re-IP projects** when you outgrow your allocation: weeks to months  
-- **Onboarding new engineers** to understand the network: "ask Sarah, she knows"
-- **Audit failures** because no one can explain why this subnet exists
-- **Merger/acquisition integration** with conflicting IP schemes: organizational trauma
+<CardGrid>
+  <Card title="🔥 Incident Response" icon="error">
+**Hours to days per incident**
+
+A developer deploys to staging, but traffic routes to production. Why? Overlapping CIDRs between VPCs. The on-call engineer spends 3am tracing packet flows, comparing subnet tables, and explaining to leadership why customer data might have been exposed.
+  </Card>
+  <Card title="🏗️ Re-IP Projects" icon="warning">
+**Weeks to months of engineering time**
+
+You allocated a /24 for the data tier. Now the ML team needs 500 GPU instances. Options: re-architect the entire VPC, migrate every workload with downtime, or run a parallel network and maintain both. None are good. All are expensive.
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="🧠 Tribal Knowledge" icon="information">
+**Institutional risk**
+
+"Why is this subnet 10.47.128.0/22?" The answer lives in Sarah's head. Sarah left 6 months ago. The wiki says "see network diagram" but the diagram is from 2019. New engineers take weeks to become productive because the network is a mystery.
+  </Card>
+  <Card title="📋 Compliance & Audits" icon="document">
+**Failed audits, delayed certifications**
+
+The auditor asks: "Show me your IP address management policy." You show them a spreadsheet. They ask: "How do you prevent overlaps?" You say: "We're careful." They write: "Finding: No automated controls for IP allocation. Risk: High."
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="🤝 M&A Integration" icon="puzzle">
+**Months of delay, millions in cost**
+
+Your company acquires a competitor. Their production network is 10.0.0.0/8. So is yours. Every integration project—shared services, data migration, unified auth—is blocked until someone re-IPs an entire organization. The deal synergies are delayed by a year.
+  </Card>
+  <Card title="📈 Scaling Paralysis" icon="rocket">
+**Opportunity cost**
+
+The business wants to launch in 3 new regions by Q2. The network team says: "We need to plan the IP allocation first." Planning takes 6 weeks. Implementation takes 4 more. The competitor launches first. The window closes.
+  </Card>
+</CardGrid>
 
 ### There's a Better Way
 
