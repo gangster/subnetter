@@ -69,3 +69,5 @@ temp/
 Thumbs.db 
 
 packages/docs/public/*
+# NetBox development environment
+netbox/
