@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/gangster/subnetter/compare/v2.0.0...v2.0.1) (2025-11-27)
+
+
+### Bug Fixes
+
+* resolve linting errors in comprehensive validation tests ([ff8a5f3](https://github.com/gangster/subnetter/commit/ff8a5f32e7a4fe1ff257b0080369cefc502ad3b9))
+
 # [2.0.0](https://github.com/gangster/subnetter/compare/v1.0.0...v2.0.0) (2025-11-27)
 
 
