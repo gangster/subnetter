@@ -1,9 +1,9 @@
 ---
-title: Subnetter Documentation
-description: A comprehensive tool for automated CIDR subnet allocation across cloud infrastructure
+title: Subnetter
+description: Automated CIDR allocation for cloud infrastructure
 template: splash
 hero:
-  tagline: Eliminate IP conflicts with automated, hierarchical CIDR allocation
+  tagline: Plan your entire cloud network in minutes, not days. Generate thousands of conflict-free subnet allocations from a single config file.
   actions:
     - text: Get Started
       link: /subnetter/user-guide/
@@ -14,245 +14,341 @@ hero:
       icon: external
 ---
 
-import { Card, CardGrid, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, Tabs, TabItem, Aside, Steps, Badge } from '@astrojs/starlight/components';
 import MermaidDiagram from '../../components/MermaidDiagram.astro';
 
-## What is Subnetter?
+## The Problem
 
-Subnetter is a specialized tool that automates the allocation of IPv4 CIDR blocks across cloud infrastructure environments. It eliminates the complexity and error-prone process of manual IP address management by providing deterministic, hierarchical, and conflict-free subnet allocation.
+Every cloud network starts with a simple question: *"What IP addresses should we use?"*
 
-<CardGrid>
-	<Card title="Multi-Cloud Support" icon="cloud-download">
-		Designed to work across AWS, Azure, GCP, and other cloud providers with consistent subnet allocation patterns.
-	</Card>
-
-	<Card title="Deterministic Results" icon="setting">
-		Generate the same IP allocations every time, allowing consistent environment rebuilds and disaster recovery.
-	</Card>
-
-	<Card title="Hierarchical Allocation" icon="list-format">
-		Allocates IP space logically through accounts → regions → availability zones → subnet types.
-	</Card>
-
-	<Card title="No IP Conflicts" icon="approve-check-circle">
-		Automatically prevents overlapping IP ranges across your entire infrastructure.
-	</Card>
-</CardGrid>
-
-## Why Subnetter?
+What seems straightforward quickly becomes a nightmare at scale. A typical enterprise cloud deployment requires:
 
 <CardGrid>
-  <Card title="Manual allocation is error-prone" icon="warning">
-    Hand-crafting CIDR blocks for hundreds of subnets leads to mistakes and overlaps.
+  <Card title="Exponential Complexity" icon="warning">
+**12 accounts** × **4 regions** × **3 AZs** × **6 subnet types** = **864 unique subnets**
+
+Each one needs a carefully calculated CIDR block. One overlap, and traffic routes to the wrong place—or nowhere at all.
   </Card>
-  <Card title="Complex multi-cloud environments" icon="puzzle">
-    Each cloud provider requires its own network architecture but needs to integrate with others.
-  </Card>
-  <Card title="Growing organizations need planning" icon="rocket">
-    Without proper IP allocation strategy, organizations need painful re-IP projects as they scale.
-  </Card>
-  <Card title="Documentation becomes outdated" icon="document">
-    Network diagrams and spreadsheets quickly become outdated as infrastructure evolves.
+  <Card title="The Spreadsheet Trap" icon="document">
+Teams resort to massive spreadsheets. Formulas break. Rows get deleted. Version control is "final_v3_REAL.xlsx". The person who built it left the company.
   </Card>
 </CardGrid>
 
-## How It Works
+<CardGrid>
+  <Card title="Growth Breaks Everything" icon="error">
+You allocated a /24 for production. Now you need 500 hosts. Re-IP the entire VPC? Migrate workloads? Explain to leadership why this "simple change" takes 3 months?
+  </Card>
+  <Card title="Multi-Cloud Multiplies Pain" icon="puzzle">
+AWS uses `us-east-1a`. Azure uses `eastus-1`. GCP uses `us-central1-a`. Three clouds means three naming conventions, three spreadsheets, and three times the chance for human error.
+  </Card>
+</CardGrid>
 
-Subnetter takes a hierarchical approach to IP allocation, dividing your IP space systematically across multiple cloud providers:
+### The Hidden Costs
 
-<MermaidDiagram chart={`
-flowchart TD
-    BaseCIDR["Base CIDR\n10.0.0.0/8"] --> AWS["AWS\n10.0.0.0/12"]
-    BaseCIDR --> Azure["Azure\n10.16.0.0/12"]
-    BaseCIDR --> GCP["GCP\n10.32.0.0/12"]
-    
-    %% AWS branch
-    AWS --> AWSProd["Account: Production\n10.0.0.0/16"]
-    AWS --> AWSDev["Account: Development\n10.1.0.0/16"]
-    AWS --> AWSStage["Account: Staging\n10.2.0.0/16"]
-    
-    %% AWS Production Account
-    AWSProd --> AWSUsEast["Region: us-east-1\n10.0.0.0/20"]
-    AWSProd --> AWSUsWest["Region: us-west-2\n10.0.16.0/20"]
-    
-    AWSUsEast --> AWSUsEast1a["AZ: us-east-1a\n10.0.0.0/22"]
-    AWSUsEast --> AWSUsEast1b["AZ: us-east-1b\n10.0.4.0/22"]
-    
-    AWSUsWest --> AWSUsWest2a["AZ: us-west-2a\n10.0.16.0/22"]
-    AWSUsWest --> AWSUsWest2b["AZ: us-west-2b\n10.0.20.0/22"]
-    
-    AWSUsEast1a --> AWSPublic1["Subnet: Public\n10.0.0.0/24"]
-    AWSUsEast1a --> AWSPrivate1["Subnet: Private\n10.0.1.0/24"]
-    
-    %% Azure branch
-    Azure --> AzureProd["Account: Production\n10.16.0.0/16"]
-    Azure --> AzureDev["Account: Development\n10.17.0.0/16"]
-    Azure --> AzureStage["Account: Staging\n10.18.0.0/16"]
-    
-    %% Azure Production Account
-    AzureProd --> AzureEastUS["Region: eastus\n10.16.0.0/20"]
-    AzureProd --> AzureWestUS["Region: westus\n10.16.16.0/20"]
-    
-    AzureEastUS --> AzureEastUS1["AZ: eastus-1\n10.16.0.0/22"]
-    AzureEastUS --> AzureEastUS2["AZ: eastus-2\n10.16.4.0/22"]
-    
-    AzureWestUS --> AzureWestUS1["AZ: westus-1\n10.16.16.0/22"]
-    AzureWestUS --> AzureWestUS2["AZ: westus-2\n10.16.20.0/22"]
-    
-    AzureEastUS1 --> AzurePublic1["Subnet: Public\n10.16.0.0/24"]
-    AzureEastUS1 --> AzurePrivate1["Subnet: Private\n10.16.1.0/24"]
-    
-    %% GCP branch
-    GCP --> GCPProd["Account: Production\n10.32.0.0/16"]
-    GCP --> GCPDev["Account: Development\n10.33.0.0/16"]
-    GCP --> GCPStage["Account: Staging\n10.34.0.0/16"]
-    
-    %% GCP Production Account
-    GCPProd --> GCPUsEast["Region: us-east1\n10.32.0.0/20"]
-    GCPProd --> GCPUsWest["Region: us-west1\n10.32.16.0/20"]
-    
-    GCPUsEast --> GCPUsEast1b["AZ: us-east1-b\n10.32.0.0/22"]
-    GCPUsEast --> GCPUsEast1c["AZ: us-east1-c\n10.32.4.0/22"]
-    
-    GCPUsWest --> GCPUsWest1a["AZ: us-west1-a\n10.32.16.0/22"]
-    GCPUsWest --> GCPUsWest1b["AZ: us-west1-b\n10.32.20.0/22"]
-    
-    GCPUsEast1b --> GCPPublic1["Subnet: Public\n10.32.0.0/24"]
-    GCPUsEast1b --> GCPPrivate1["Subnet: Private\n10.32.1.0/24"]
-    
-    %% Styling
-    classDef baseCidr fill:#f5f5f5,stroke:#333,stroke-width:2px
-    classDef awsProvider fill:#FFEBEE,stroke:#D32F2F,stroke-width:2px
-    classDef azureProvider fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
-    classDef gcpProvider fill:#E8F5E9,stroke:#388E3C,stroke-width:2px
-    classDef account fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
-    classDef region fill:#FFF3E0,stroke:#E65100,stroke-width:2px
-    classDef az fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px
-    classDef subnet fill:#FFFDE7,stroke:#FBC02D,stroke-width:2px
-    
-    class BaseCIDR baseCidr
-    class AWS,AWSProd,AWSDev,AWSStage,AWSUsEast,AWSUsWest,AWSUsEast1a,AWSUsEast1b,AWSUsWest2a,AWSUsWest2b,AWSPublic1,AWSPrivate1 awsProvider
-    class Azure,AzureProd,AzureDev,AzureStage,AzureEastUS,AzureWestUS,AzureEastUS1,AzureEastUS2,AzureWestUS1,AzureWestUS2,AzurePublic1,AzurePrivate1 azureProvider
-    class GCP,GCPProd,GCPDev,GCPStage,GCPUsEast,GCPUsWest,GCPUsEast1b,GCPUsEast1c,GCPUsWest1a,GCPUsWest1b,GCPPublic1,GCPPrivate1 gcpProvider
-`} />
+<CardGrid>
+  <Card title="🔥 Incident Response" icon="error">
+**Hours to days per incident**
 
-### Multi-Cloud Hierarchical Allocation
+A developer deploys to staging, but traffic routes to production. Why? Overlapping CIDRs between VPCs. The on-call engineer spends 3am tracing packet flows, comparing subnet tables, and explaining to leadership why customer data might have been exposed.
+  </Card>
+  <Card title="🏗️ Re-IP Projects" icon="warning">
+**Weeks to months of engineering time**
 
-Subnetter allows you to manage your IP space across different cloud providers with a hierarchical approach:
+You allocated a /24 for the data tier. Now the ML team needs 500 GPU instances. Options: re-architect the entire VPC, migrate every workload with downtime, or run a parallel network and maintain both. None are good. All are expensive.
+  </Card>
+</CardGrid>
 
-1. **Base CIDR**: Start with a single large CIDR block (e.g., 10.0.0.0/8)
+<CardGrid>
+  <Card title="🧠 Tribal Knowledge" icon="information">
+**Institutional risk**
 
-2. **Cloud Providers**: Divide the base CIDR into non-overlapping blocks for each cloud provider
-   - AWS: 10.0.0.0/12
-   - Azure: 10.16.0.0/12
-   - GCP: 10.32.0.0/12
+"Why is this subnet 10.47.128.0/22?" The answer lives in Sarah's head. Sarah left 6 months ago. The wiki says "see network diagram" but the diagram is from 2019. New engineers take weeks to become productive because the network is a mystery.
+  </Card>
+  <Card title="📋 Compliance & Audits" icon="document">
+**Failed audits, delayed certifications**
 
-3. **Accounts**: Allocate provider-specific CIDRs to different accounts
-   - Production: 10.0.0.0/16 (AWS), 10.16.0.0/16 (Azure), 10.32.0.0/16 (GCP)
-   - Development: 10.1.0.0/16 (AWS), 10.17.0.0/16 (Azure), 10.33.0.0/16 (GCP)
-   - Staging: 10.2.0.0/16 (AWS), 10.18.0.0/16 (Azure), 10.34.0.0/16 (GCP)
+The auditor asks: "Show me your IP address management policy." You show them a spreadsheet. They ask: "How do you prevent overlaps?" You say: "We're careful." They write: "Finding: No automated controls for IP allocation. Risk: High."
+  </Card>
+</CardGrid>
 
-4. **Regions**: For each account and provider, allocate CIDRs to regions
-   - us-east-1: 10.0.0.0/20 (AWS)
-   - eastus: 10.16.0.0/20 (Azure)
-   - us-east1: 10.32.0.0/20 (GCP)
+<CardGrid>
+  <Card title="🤝 M&A Integration" icon="puzzle">
+**Months of delay, millions in cost**
 
-5. **Availability Zones**: Divide region CIDRs among AZs
-   - us-east-1a: 10.0.0.0/22 (AWS)
-   - eastus-1: 10.16.0.0/22 (Azure)
+Your company acquires a competitor. Their production network is 10.0.0.0/8. So is yours. Every integration project—shared services, data migration, unified auth—is blocked until someone re-IPs an entire organization. The deal synergies are delayed by a year.
+  </Card>
+  <Card title="📈 Scaling Paralysis" icon="rocket">
+**Opportunity cost**
 
-6. **Subnets**: Finally, create subnet CIDRs in each AZ based on type
-   - Public: 10.0.0.0/24 (AWS), 10.16.0.0/24 (Azure)
-   - Private: 10.0.1.0/24 (AWS), 10.16.1.0/24 (Azure)
-   - Data: 10.0.2.0/24 (AWS)
+The business wants to launch in 3 new regions by Q2. The network team says: "We need to plan the IP allocation first." Planning takes 6 weeks. Implementation takes 4 more. The competitor launches first. The window closes.
+  </Card>
+</CardGrid>
 
-Each step of this process is automated by Subnetter, ensuring consistent, non-overlapping CIDR allocation across your entire multi-cloud environment.
+### There's a Better Way
 
-## Quick Start
+What if you could describe your entire network structure in a simple config file—and generate every subnet allocation automatically, with mathematical guarantees of zero conflicts?
+
+**That's Subnetter.**
+
+Define your accounts, regions, and subnet types once. Subnetter handles the CIDR math, respects cloud provider conventions, and produces a complete allocation table in seconds. Add a new region? One line in the config. Need to audit your IP space? It's all in version control.
+
+---
+
+## Try It Now
+
+Get your first allocation in under a minute:
 
 <Tabs>
   <TabItem label="npm">
-    ```bash
-    # Install globally
-    npm install -g subnetter
-    
-    # Generate allocations
-    subnetter generate --config config.json --output allocations.csv
-    ```
+```bash
+# Install and run
+npm install -g subnetter
+subnetter generate --config config.json --output allocations.csv
+```
   </TabItem>
-  <TabItem label="npx">
-    ```bash
-    # Run without installing
-    npx subnetter generate --config config.json --output allocations.csv
-    ```
-  </TabItem>
-  <TabItem label="yarn">
-    ```bash
-    # Install globally
-    yarn global add subnetter
-    
-    # Generate allocations
-    subnetter generate --config config.json --output allocations.csv
-    ```
+  <TabItem label="npx (no install)">
+```bash
+# Run directly without installing
+npx subnetter generate --config config.json --output allocations.csv
+```
   </TabItem>
 </Tabs>
 
-<Aside type="tip">
-  For a minimal working example, check out the [example configuration files](https://github.com/gangster/subnetter/tree/main/examples) in the GitHub repository.
+<Aside type="tip" title="Quick Example">
+  Download a [sample config](https://github.com/gangster/subnetter/tree/main/examples) and try it yourself!
 </Aside>
 
-## Documentation Overview
+---
+
+## See It In Action
 
 <CardGrid>
-  <Card title="User Guide" icon="open-book">
-    Comprehensive guide covering installation, configuration, usage examples, and best practices.
-    
-    [Read the User Guide](/subnetter/user-guide/)
+  <Card title="📄 Your Config (15 lines)" icon="document">
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    { "name": "production", "clouds": { "aws": { "regions": ["us-east-1", "us-west-2", "eu-west-1"] } } },
+    { "name": "staging", "clouds": { "aws": { "regions": ["us-east-1"] } } },
+    { "name": "development", "clouds": { "azure": { "regions": ["eastus", "westeurope"] } } }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 24,
+    "Data": 26,
+    "Management": 28
+  }
+}
+```
   </Card>
-  
-  <Card title="Configuration Reference" icon="setting">
-    Detailed schema reference for Subnetter configuration file format.
-    
-    [View Configuration Reference](/subnetter/configuration/)
-  </Card>
-  
-  <Card title="API Documentation" icon="document">
-    Reference for developers using Subnetter programmatically in their Node.js applications.
-    
-    [Browse API Docs](/subnetter/api/core/)
-  </Card>
-  
-  <Card title="Troubleshooting" icon="warning">
-    Solutions for common issues encountered when using Subnetter.
-    
-    [Troubleshooting Guide](/subnetter/troubleshooting/)
+  <Card title="📊 Your Output (144 rows)" icon="list-format">
+| Account | Cloud | Region | AZ | Subnet | CIDR |
+|---------|-------|--------|-----|--------|------|
+| production | aws | us-east-1 | us-east-1a | Public | 10.0.0.0/24 |
+| production | aws | us-east-1 | us-east-1a | Private | 10.0.1.0/24 |
+| production | aws | us-east-1 | us-east-1a | Data | 10.0.2.0/26 |
+| production | aws | us-east-1 | us-east-1a | Management | 10.0.2.64/28 |
+| production | aws | us-east-1 | us-east-1b | Public | 10.0.4.0/24 |
+| ... | ... | ... | ... | ... | ... |
+| development | azure | westeurope | westeurope-3 | Management | 10.2.28.64/28 |
+
+**3 accounts × 6 regions × 3 AZs × 4 subnets = 144 allocations**
   </Card>
 </CardGrid>
 
-## Key Resources
+<Aside type="note" title="Zero Conflicts Guaranteed">
+Every CIDR is mathematically guaranteed to be non-overlapping. The hierarchical allocation algorithm ensures each account, region, AZ, and subnet gets its own dedicated slice of IP space.
+</Aside>
+
+---
+
+## Real-World Scenarios
+
+<Tabs>
+  <TabItem label="🏢 Enterprise">
+**Scenario:** Global financial services company migrating to cloud
+
+- 50+ AWS accounts (prod, staging, dev, sandbox per business unit)
+- 8 regions for data residency compliance
+- 6 subnet types per VPC (public, private, data, management, endpoints, transit)
+- Strict audit requirements for IP allocation
+
+**Without Subnetter:** 6-month planning project. Dedicated network team. Custom tooling.
+
+**With Subnetter:** Single config file. Version-controlled. Auditable. Done in a day.
+  </TabItem>
+  <TabItem label="🚀 Startup">
+**Scenario:** Fast-growing SaaS company expanding internationally
+
+- Started with 1 region, now need 5
+- Adding new microservices weekly
+- Can't afford downtime for re-IP projects
+- Small team wearing many hats
+
+**Without Subnetter:** Outgrow your IP scheme. Painful re-architecture. Production incidents.
+
+**With Subnetter:** Plan for 10x growth upfront. Add regions in minutes. Sleep at night.
+  </TabItem>
+  <TabItem label="☁️ Multi-Cloud">
+**Scenario:** Healthcare company with multi-cloud strategy
+
+- AWS for compute, Azure for AI/ML, GCP for analytics
+- Need consistent IP strategy across all three
+- Each cloud has different AZ naming conventions
+- Compliance requires documented network architecture
+
+**Without Subnetter:** Three different spreadsheets. Manual translation. Inevitable conflicts.
+
+**With Subnetter:** One config. All clouds. Provider-aware AZ naming. Single source of truth.
+  </TabItem>
+</Tabs>
+
+---
+
+## How It Works
+
+Subnetter divides your IP space hierarchically—no overlaps, guaranteed:
+
+<MermaidDiagram chart={`
+flowchart LR
+    A["🌐 Base CIDR<br/>10.0.0.0/8<br/><i>16M addresses</i>"] --> B["☁️ Accounts<br/>/16 each<br/><i>65K per account</i>"]
+    B --> C["🗺️ Regions<br/>/20 each<br/><i>4K per region</i>"]
+    C --> D["📍 AZs<br/>/22 each<br/><i>1K per AZ</i>"]
+    D --> E["🔲 Subnets<br/>/24-/28<br/><i>16-254 per subnet</i>"]
+    
+    style A fill:#1a1a2e,color:#fff,stroke:#4a4a6a,stroke-width:2px
+    style B fill:#16213e,color:#fff,stroke:#4a4a6a,stroke-width:2px
+    style C fill:#0f3460,color:#fff,stroke:#4a4a6a,stroke-width:2px
+    style D fill:#1a5276,color:#fff,stroke:#4a4a6a,stroke-width:2px
+    style E fill:#1e8449,color:#fff,stroke:#4a4a6a,stroke-width:2px
+`} />
 
 <CardGrid>
-  <Card title="CIDR Primer" icon="information">
-    Learn about CIDR notation and IP subnetting concepts.
+  <Card title="Deterministic" icon="approve-check-circle">
+    Same config always produces the same output. Perfect for GitOps, disaster recovery, and reproducible infrastructure.
+  </Card>
+  <Card title="Extensible" icon="add-document">
+    Add new accounts or regions anytime. Subnetter finds the next available space without touching existing allocations.
+  </Card>
+  <Card title="Provider-Aware" icon="puzzle">
+    Knows that AWS uses `us-east-1a`, Azure uses `eastus-1`, and GCP uses `us-central1-a`. You don't have to.
+  </Card>
+  <Card title="Validation Built-In" icon="approve-check">
+    Catches errors before they reach production: overlapping CIDRs, invalid prefixes, exhausted address space.
+  </Card>
+</CardGrid>
+
+---
+
+## Why Teams Choose Subnetter
+
+<CardGrid>
+  <Card title="🕐 Save Days of Planning" icon="rocket">
+    What takes a team days in spreadsheets takes Subnetter seconds. Focus your engineers on building, not IP math.
+  </Card>
+  <Card title="🛡️ Eliminate Human Error" icon="approve-check-circle">
+    No more typos in CIDR notation. No more "oops, that overlaps with prod." Mathematically guaranteed correctness.
+  </Card>
+  <Card title="📈 Scale Confidently" icon="up-caret">
+    Plan for 10x growth from day one. Add accounts, regions, and subnets without re-architecting your network.
+  </Card>
+  <Card title="📋 Audit-Ready Documentation" icon="document">
+    Your network allocation is a version-controlled config file. Every change is tracked. Every allocation is explainable.
+  </Card>
+</CardGrid>
+
+---
+
+## The Manual Approach vs. Subnetter
+
+| Aspect | Manual (Spreadsheets) | Subnetter |
+|--------|----------------------|-----------|
+| **Time to plan 100 subnets** | Hours to days | Seconds |
+| **Risk of overlap** | High (human error) | Zero (algorithmic) |
+| **Adding a new region** | Recalculate everything | Add one line to config |
+| **Multi-cloud consistency** | Three separate docs | One unified config |
+| **Onboarding new team members** | "Ask Sarah, she knows" | Self-documenting config |
+| **Disaster recovery** | Hope the spreadsheet is current | Regenerate from Git |
+| **Audit trail** | "Check the wiki" | Git history |
+
+---
+
+## Choose Your Path
+
+<CardGrid>
+  <Card title="🚀 New to Subnetter?" icon="rocket">
+    Start with the **User Guide** for installation, configuration basics, and your first allocation.
     
-    [Read CIDR Primer](/subnetter/cidr-primer/)
+    [Get Started →](/subnetter/user-guide/)
   </Card>
   
+  <Card title="📋 Ready to Configure?" icon="setting">
+    Jump to the **Configuration Reference** for the complete schema and all available options.
+    
+    [View Config Reference →](/subnetter/configuration/)
+  </Card>
+  
+  <Card title="🔧 Using Programmatically?" icon="seti:typescript">
+    Check the **API Documentation** to integrate Subnetter into your Node.js applications.
+    
+    [Browse API Docs →](/subnetter/api/overview/)
+  </Card>
+  
+  <Card title="🎓 Learn CIDR Basics?" icon="open-book">
+    New to IP subnetting? The **CIDR Primer** covers everything you need to know.
+    
+    [Read CIDR Primer →](/subnetter/cidr-primer/)
+  </Card>
+</CardGrid>
+
+---
+
+## Key Capabilities
+
+<CardGrid>
+  <Card title="Multi-Cloud Native" icon="cloud-download">
+    First-class support for **AWS**, **Azure**, and **GCP** with provider-specific region and AZ naming conventions built in.
+  </Card>
+  
+  <Card title="Flexible Subnet Sizing" icon="list-format">
+    Define different prefix lengths for different workloads. Large /24s for compute, small /28s for management.
+  </Card>
+  
+  <Card title="Account-Level Overrides" icon="pencil">
+    Need a specific CIDR for one account? Override defaults without breaking the hierarchy.
+  </Card>
+  
+  <Card title="CSV & Programmatic Output" icon="seti:json">
+    Export to CSV for spreadsheet users, or use the TypeScript API for automation pipelines.
+  </Card>
+</CardGrid>
+
+---
+
+## More Resources
+
+<CardGrid>
   <Card title="Architecture" icon="puzzle">
-    Understand Subnetter's technical design and components.
+    Understand Subnetter's technical design and allocation algorithms.
     
-    [View Architecture](/subnetter/architecture/)
+    [View Architecture →](/subnetter/architecture/)
   </Card>
   
-  <Card title="Developer Guide" icon="pencil">
-    Guidelines for contributing to the Subnetter codebase.
+  <Card title="Troubleshooting" icon="warning">
+    Solutions for common issues and error messages.
     
-    [Developer Guide](/subnetter/developer-guide/)
+    [Troubleshooting Guide →](/subnetter/troubleshooting/)
   </Card>
   
-  <Card title="Error Handling" icon="error">
-    Detailed information about error types, codes, and handling.
+  <Card title="Kubernetes Guide" icon="seti:docker">
+    Specialized network design for multi-AZ Kubernetes deployments.
     
-    [Error Handling](/subnetter/error-handling/)
+    [K8s Network Design →](/subnetter/guides/kubernetes-network-design/)
+  </Card>
+  
+  <Card title="Developer Guide" icon="github">
+    Contributing to Subnetter? Start here.
+    
+    [Developer Guide →](/subnetter/developer-guide/)
   </Card>
 </CardGrid>

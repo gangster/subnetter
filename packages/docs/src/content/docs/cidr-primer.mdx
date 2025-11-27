@@ -43,6 +43,8 @@ Before CIDR, subnet masks were expressed in dotted-decimal notation:
 | B     | 255.255.0.0    | 16,384   | 65,534            |
 | C     | 255.255.255.0  | 2,097,152| 254               |
 
+> **Note**: Some Class A addresses are reserved (0.x.x.x for "this network" and 127.x.x.x for loopback), so only 126 Class A networks were actually assignable. Additionally, private address ranges (RFC 1918) further reduced the publicly routable space.
+
 This class-based system was inflexible and led to inefficient use of IP address space.
 
 ## CIDR Notation
@@ -510,17 +512,19 @@ When allocating CIDRs across multiple cloud providers, you have two main strateg
    - Advantages: Independence, flexibility, isolation
    - Challenges: May require more NAT/translation at connection points
 
-Example of segmented address space:
+Example of segmented address space using RFC 1918 private ranges:
 
 ```
 Enterprise
-├── AWS (10.0.0.0/8)
+├── AWS (10.0.0.0/8)        # 16.7M addresses
 │   └── ...
-├── Azure (172.16.0.0/12)
+├── Azure (172.16.0.0/12)   # 1M addresses
 │   └── ...
-└── GCP (192.168.0.0/16)
+└── GCP (192.168.0.0/16)    # 65K addresses
     └── ...
 ```
+
+> **Note**: This example uses all three RFC 1918 private address ranges. In practice, most organizations use 10.0.0.0/8 exclusively since it provides the largest address space (16.7 million addresses) and simplifies routing.
 
 ### Address Utilization Calculations
 
@@ -590,9 +594,9 @@ Enterprise (10.0.0.0/8)
 │   ├── Staging (10.32.0.0/12)
 │   └── Development (10.48.0.0/12)
 └── Shared Services (10.64.0.0/11)
-    ├── Management (10.64.0.0/12)
-    ├── Security (10.80.0.0/12)
-    └── Transit (10.96.0.0/12)
+    ├── Management (10.64.0.0/13)
+    ├── Security (10.72.0.0/13)
+    └── Transit (10.80.0.0/13)
 ```
 
 This hierarchical approach ensures that there's room for growth at each level, while keeping related resources grouped together.
