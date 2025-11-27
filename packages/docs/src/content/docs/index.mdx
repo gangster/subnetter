@@ -19,15 +19,45 @@ import MermaidDiagram from '../../components/MermaidDiagram.astro';
 
 ## The Problem
 
-You're planning network infrastructure for a multi-account, multi-region cloud deployment. You need:
-- **12 accounts** × **4 regions** × **3 AZs** × **6 subnet types** = **864 subnets**
-- Zero overlapping CIDRs
-- Room to grow without re-IP projects
-- Consistent naming across AWS, Azure, and GCP
+Every cloud network starts with a simple question: *"What IP addresses should we use?"*
 
-**The old way:** Spend days in spreadsheets. Triple-check every CIDR. Pray you didn't make a typo. Discover conflicts in production.
+What seems straightforward quickly becomes a nightmare at scale. A typical enterprise cloud deployment requires:
 
-**The Subnetter way:** Define your structure once. Generate all 864 subnets in seconds. Guaranteed conflict-free.
+<CardGrid>
+  <Card title="Exponential Complexity" icon="warning">
+**12 accounts** × **4 regions** × **3 AZs** × **6 subnet types** = **864 unique subnets**
+
+Each one needs a carefully calculated CIDR block. One overlap, and traffic routes to the wrong place—or nowhere at all.
+  </Card>
+  <Card title="The Spreadsheet Trap" icon="document">
+Teams resort to massive spreadsheets. Formulas break. Rows get deleted. Version control is "final_v3_REAL.xlsx". The person who built it left the company.
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="Growth Breaks Everything" icon="error">
+You allocated a /24 for production. Now you need 500 hosts. Re-IP the entire VPC? Migrate workloads? Explain to leadership why this "simple change" takes 3 months?
+  </Card>
+  <Card title="Multi-Cloud Multiplies Pain" icon="puzzle">
+AWS uses `us-east-1a`. Azure uses `eastus-1`. GCP uses `us-central1-a`. Three clouds means three naming conventions, three spreadsheets, and three times the chance for human error.
+  </Card>
+</CardGrid>
+
+### The Hidden Costs
+
+- **Debugging connectivity issues** caused by overlapping CIDRs: hours to days
+- **Re-IP projects** when you outgrow your allocation: weeks to months  
+- **Onboarding new engineers** to understand the network: "ask Sarah, she knows"
+- **Audit failures** because no one can explain why this subnet exists
+- **Merger/acquisition integration** with conflicting IP schemes: organizational trauma
+
+### There's a Better Way
+
+What if you could describe your entire network structure in a simple config file—and generate every subnet allocation automatically, with mathematical guarantees of zero conflicts?
+
+**That's Subnetter.**
+
+Define your accounts, regions, and subnet types once. Subnetter handles the CIDR math, respects cloud provider conventions, and produces a complete allocation table in seconds. Add a new region? One line in the config. Need to audit your IP space? It's all in version control.
 
 ---
 
