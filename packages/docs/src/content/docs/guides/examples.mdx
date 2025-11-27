@@ -1,0 +1,490 @@
+---
+title: Real-World Examples
+description: Complete configuration examples for common deployment scenarios
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+This page provides complete, production-ready configuration examples for common deployment scenarios.
+
+## E-Commerce Platform
+
+A global e-commerce company with multiple environments and strong isolation requirements.
+
+### Requirements
+- 5 accounts (dev, staging, production, analytics, backup)
+- Multi-region production (4 regions)
+- AWS primary, Azure for backup
+- 6 subnet types per AZ
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "accounts": [
+    {
+      "name": "ecommerce-development",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "ecommerce-staging",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "ecommerce-production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "ecommerce-analytics",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "ecommerce-backup",
+      "clouds": {
+        "azure": {
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "PublicALB": 26,
+    "WebTier": 24,
+    "ServiceTier": 24,
+    "DataTier": 25,
+    "Cache": 27,
+    "Management": 28
+  }
+}
+```
+
+### Resulting Allocation
+
+| Account | Regions | AZs | Subnets | Total IPs |
+|---------|---------|-----|---------|-----------|
+| ecommerce-development | 2 | 6 | 36 | ~4,000 |
+| ecommerce-staging | 2 | 6 | 36 | ~4,000 |
+| ecommerce-production | 4 | 12 | 72 | ~8,000 |
+| ecommerce-analytics | 2 | 6 | 36 | ~4,000 |
+| ecommerce-backup | 2 | 6 | 36 | ~4,000 |
+
+---
+
+## Financial Services
+
+A financial institution with stringent compliance requirements and multi-cloud strategy.
+
+### Requirements
+- Complete isolation between business units
+- Multi-layer security zones
+- Audit-ready subnet naming
+- AWS, Azure, and GCP
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 19,
+    "az": 22
+  },
+  "accounts": [
+    {
+      "name": "finance-shared-services",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "finance-retail-banking",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.1.0.0/16",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "finance-investment",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.2.0.0/16",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "finance-insurance",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.16.0.0/16",
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "finance-analytics",
+      "clouds": {
+        "gcp": {
+          "baseCidr": "10.32.0.0/16",
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "DMZ": 24,
+    "Presentation": 24,
+    "Application": 23,
+    "Data": 25,
+    "HighSecurity": 26,
+    "Management": 28,
+    "Audit": 27
+  }
+}
+```
+
+### Security Architecture
+
+```
+DMZ (Public)
+    ↓
+Presentation Tier (WAF, Load Balancers)
+    ↓
+Application Tier (Business Logic)
+    ↓
+Data Tier (Databases, Caches)
+    ↓
+High Security (HSM, Key Management)
+```
+
+<Aside type="tip" title="Compliance">
+The explicit CIDR overrides per account create clear audit boundaries. Each business unit's IP range is documented and traceable.
+</Aside>
+
+---
+
+## SaaS Multi-Tenant
+
+A SaaS provider with tiered tenant isolation.
+
+### Requirements
+- Shared infrastructure account
+- Tenant tiers with different isolation levels
+- Development environment
+- Single cloud (AWS) with global presence
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "accounts": [
+    {
+      "name": "saas-infrastructure",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/12",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "saas-tenant-enterprise",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    },
+    {
+      "name": "saas-tenant-business",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    },
+    {
+      "name": "saas-tenant-starter",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    },
+    {
+      "name": "saas-development",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "EdgeServices": 24,
+    "APITier": 24,
+    "AppTier": 23,
+    "DataTier": 24,
+    "SharedServices": 25,
+    "Management": 27
+  }
+}
+```
+
+### Tenant Isolation Model
+
+| Tier | Regions | Isolation | Use Case |
+|------|---------|-----------|----------|
+| Enterprise | 3 | Dedicated VPCs | Large customers, compliance needs |
+| Business | 2 | Shared VPC, separate subnets | Mid-market customers |
+| Starter | 1 | Shared subnets | Small customers, cost-sensitive |
+
+---
+
+## Startup Scaling
+
+A fast-growing startup expanding from single to multi-region.
+
+### Requirements
+- Start with minimal infrastructure
+- Plan for 10x growth
+- Single cloud initially
+- Easy to add regions later
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/16",
+  "prefixLengths": {
+    "account": 16,
+    "region": 19,
+    "az": 21
+  },
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-west-2", "us-east-1", "eu-west-1", "ap-southeast-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Application": 22,
+    "Database": 25,
+    "Cache": 26,
+    "Management": 27
+  }
+}
+```
+
+### Growth Path
+
+```
+Phase 1: us-west-2 only (current)
+    ↓
+Phase 2: Add us-east-1 (US expansion)
+    ↓
+Phase 3: Add eu-west-1 (GDPR compliance)
+    ↓
+Phase 4: Add ap-southeast-1 (APAC expansion)
+```
+
+<Aside type="tip" title="Deterministic Allocation">
+Adding new regions doesn't change existing allocations. `us-west-2` subnets remain the same whether you have 1 region or 4.
+</Aside>
+
+---
+
+## Hybrid Cloud
+
+An organization with on-premises infrastructure connecting to cloud.
+
+### Requirements
+- Reserve space for on-premises (10.32.0.0/11)
+- AWS primary cloud
+- Azure secondary cloud
+- No overlaps with existing on-prem ranges
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "cloud-primary",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/12",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "cloud-dr",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.16.0.0/12",
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 23,
+    "Data": 25,
+    "Transit": 28,
+    "Management": 27
+  }
+}
+```
+
+### Address Space Allocation
+
+| Range | Assignment |
+|-------|------------|
+| `10.0.0.0/12` | AWS (cloud-primary) |
+| `10.16.0.0/12` | Azure (cloud-dr) |
+| `10.32.0.0/11` | On-premises (reserved) |
+| `10.64.0.0/10` | Future expansion |
+
+---
+
+## Mergers & Acquisitions
+
+A parent company integrating acquired companies.
+
+### Requirements
+- Parent company has established infrastructure
+- Each acquisition gets dedicated space
+- Reserved space for future acquisitions
+- Migration subnets for transitions
+
+### Configuration
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  },
+  "accounts": [
+    {
+      "name": "parent-company",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/12",
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+        },
+        "azure": {
+          "baseCidr": "10.16.0.0/12",
+          "regions": ["eastus", "westeurope", "southeastasia"]
+        }
+      }
+    },
+    {
+      "name": "acquisition-alpha",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.32.0.0/16",
+          "regions": ["us-east-1", "eu-west-1"]
+        }
+      }
+    },
+    {
+      "name": "acquisition-beta",
+      "clouds": {
+        "azure": {
+          "baseCidr": "10.33.0.0/16",
+          "regions": ["eastus", "westeurope"]
+        }
+      }
+    },
+    {
+      "name": "future-acquisitions",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.34.0.0/14",
+          "regions": []
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "AppTier": 23,
+    "DataTier": 24,
+    "SharedServices": 25,
+    "Management": 26,
+    "Migration": 24
+  }
+}
+```
+
+### Integration Strategy
+
+1. **Allocate dedicated space** for each acquisition
+2. **Set up transit connectivity** using Migration subnets
+3. **Gradually migrate services** to parent infrastructure
+4. **Reclaim address space** after migration complete
+
+---
+
+## Download Examples
+
+All example configurations are available in the [examples directory](https://github.com/gangster/subnetter/tree/main/examples) on GitHub.
+
+```bash
+# Clone and try an example
+git clone https://github.com/gangster/subnetter.git
+cd subnetter/examples
+subnetter generate -c kubernetes-config.json -o k8s-allocations.csv
+```
+
+## Next Steps
+
+- **[Best Practices](/subnetter/guides/best-practices/)** - Design patterns and strategies
+- **[Configuration Reference](/subnetter/configuration/)** - Complete schema documentation
+- **[Kubernetes Network Design](/subnetter/guides/kubernetes-network-design/)** - Specialized K8s guide
+

@@ -1,0 +1,355 @@
+---
+title: Best Practices
+description: CIDR allocation strategies, naming conventions, and design patterns
+---
+
+import { Card, CardGrid, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+This guide covers proven strategies for designing your cloud network architecture with Subnetter.
+
+## CIDR Allocation Strategy
+
+### Start Large, Subdivide Small
+
+Always start with the largest CIDR block you can reasonably use. It's much easier to leave space unused than to expand later.
+
+| Base CIDR | Total IPs | Recommended For |
+|-----------|-----------|-----------------|
+| `/8` | 16.7M | Large enterprise, multi-cloud |
+| `/12` | 1M | Medium enterprise, single cloud |
+| `/16` | 65K | Small organization, single region |
+
+<Aside type="caution" title="Don't Start Too Small">
+Starting with a `/16` and needing to expand later often means re-IP projects. Plan for 10x your current needs.
+</Aside>
+
+### Reserve Space Between Allocations
+
+Use larger prefix lengths than strictly necessary to leave room for growth:
+
+```
+Recommended Hierarchy:
+├── Base:    /8  (16.7M addresses)
+├── Account: /16 (65K per account, supports 256 accounts)
+├── Region:  /20 (4K per region, supports 16 regions per account)
+├── AZ:      /22 (1K per AZ, supports 4 AZs per region)
+└── Subnet:  /24-/28 (varies by workload)
+```
+
+### Plan for Multi-Cloud from Day One
+
+Even if you're single-cloud today, reserve space for future cloud providers:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "baseCidr": "10.0.0.0/12",
+          "regions": ["us-east-1", "us-west-2"]
+        }
+      }
+    }
+  ]
+}
+```
+
+This reserves `10.0.0.0/12` for AWS, leaving `10.16.0.0/12` through `10.240.0.0/12` available for Azure, GCP, or future expansion.
+
+## Subnet Sizing Guidelines
+
+### Size by Workload
+
+Different workloads have different IP requirements:
+
+| Subnet Type | Prefix | Usable IPs | Use Case |
+|-------------|--------|------------|----------|
+| `/22` | Large | 1,022 | Kubernetes node pools, container clusters |
+| `/23` | Medium-Large | 510 | Application tier, microservices |
+| `/24` | Standard | 254 | General purpose, web tier |
+| `/25` | Medium | 126 | Smaller app deployments |
+| `/26` | Small | 62 | Databases, caches |
+| `/27` | Smaller | 30 | Management, monitoring |
+| `/28` | Minimal | 14 | Load balancers, NAT gateways |
+
+### Account for Cloud Provider Reservations
+
+Cloud providers reserve IPs in each subnet:
+
+| Provider | Reserved IPs | Usable in /24 |
+|----------|--------------|---------------|
+| AWS | 5 | 251 |
+| Azure | 5 | 251 |
+| GCP | 4 | 252 |
+
+### Example Subnet Type Configuration
+
+```json
+{
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 23,
+    "Data": 26,
+    "Management": 28,
+    "Kubernetes": 22
+  }
+}
+```
+
+## CIDR Allocation Patterns
+
+### Pattern 1: Account-Based Isolation
+
+Best for organizations with strict account boundaries (compliance, multi-tenant):
+
+```
+10.0.0.0/8 (Base)
+├── 10.0.0.0/16 - Account A (Development)
+├── 10.1.0.0/16 - Account B (Staging)
+├── 10.2.0.0/16 - Account C (Production)
+└── 10.3.0.0/16 - Account D (Shared Services)
+```
+
+**Benefits:**
+- Complete network isolation between accounts
+- Simplified security group and NACL rules
+- Clear audit boundaries
+- Easy to delegate to different teams
+
+### Pattern 2: Environment-Based Isolation
+
+Best for organizations that want environment-level grouping:
+
+```
+10.0.0.0/8 (Base)
+├── 10.0.0.0/12 - Development Environments
+│   ├── 10.0.0.0/16 - Team A Dev
+│   └── 10.1.0.0/16 - Team B Dev
+├── 10.16.0.0/12 - Staging Environments
+└── 10.32.0.0/12 - Production Environments
+```
+
+**Benefits:**
+- Environment-wide policies
+- Consistent routing across teams
+- Clear promotion path (dev → staging → prod)
+
+### Pattern 3: Cloud Provider Isolation
+
+Best for multi-cloud organizations:
+
+```
+10.0.0.0/8 (Base)
+├── 10.0.0.0/12 - AWS
+├── 10.16.0.0/12 - Azure
+└── 10.32.0.0/12 - GCP
+```
+
+**Benefits:**
+- Provider-specific routing tables
+- Simplified cross-cloud connectivity
+- Clear provider boundaries
+
+## Naming Conventions
+
+### Account Naming
+
+Use consistent, descriptive names:
+
+| Pattern | Examples | Best For |
+|---------|----------|----------|
+| Environment | `prod`, `staging`, `dev` | Simple organizations |
+| Team + Environment | `platform-prod`, `data-dev` | Multi-team organizations |
+| Business Unit | `finance`, `marketing`, `engineering` | Large enterprises |
+| Project | `project-alpha`, `initiative-beta` | Project-based organizations |
+
+### Subnet Type Naming
+
+Choose names that reflect purpose:
+
+<Tabs>
+  <TabItem label="By Role">
+```json
+{
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 24,
+    "Protected": 25,
+    "Isolated": 26
+  }
+}
+```
+  </TabItem>
+  <TabItem label="By Function">
+```json
+{
+  "subnetTypes": {
+    "LoadBalancer": 28,
+    "WebServers": 24,
+    "AppServers": 23,
+    "Databases": 26,
+    "Cache": 27
+  }
+}
+```
+  </TabItem>
+  <TabItem label="By Security Zone">
+```json
+{
+  "subnetTypes": {
+    "DMZ": 24,
+    "Trusted": 23,
+    "Restricted": 25,
+    "HighSecurity": 26
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Version Control Best Practices
+
+### Store Configurations in Git
+
+```bash
+network-configs/
+├── production.json
+├── staging.json
+├── development.json
+└── allocations/
+    ├── production.csv
+    ├── staging.csv
+    └── development.csv
+```
+
+### Use Branching for Changes
+
+```bash
+# Create a branch for network changes
+git checkout -b add-new-region
+
+# Edit configuration
+vim production.json
+
+# Generate and verify
+subnetter generate -c production.json -o allocations/production.csv
+
+# Commit with descriptive message
+git add .
+git commit -m "feat(network): add ap-southeast-1 region to production"
+
+# Create PR for review
+git push origin add-new-region
+```
+
+### Tag Deployed Configurations
+
+```bash
+git tag -a v1.2.0 -m "Production network v1.2.0 with AP Southeast region"
+git push origin v1.2.0
+```
+
+## Avoiding Common Mistakes
+
+<CardGrid>
+  <Card title="❌ Starting Too Small" icon="warning">
+Using `/16` as base CIDR when `/8` would allow future growth without re-IP.
+  </Card>
+  <Card title="❌ Inconsistent Patterns" icon="warning">
+Different allocation patterns across accounts makes automation and troubleshooting harder.
+  </Card>
+  <Card title="❌ No Reserved Space" icon="warning">
+Allocating every available block leaves no room for new regions or accounts.
+  </Card>
+  <Card title="❌ Overlapping Overrides" icon="warning">
+Using custom `baseCidr` values that overlap with auto-allocated ranges.
+  </Card>
+</CardGrid>
+
+### How to Fix: Space Exhaustion
+
+If you're running out of space:
+
+1. **Use larger prefix lengths** for subnets (`/26` instead of `/24`)
+2. **Override specific accounts** with dedicated CIDR ranges
+3. **Split by provider** using different RFC 1918 ranges
+4. **Consolidate regions** if some are underutilized
+
+### How to Fix: Overlapping CIDRs
+
+If you have overlapping ranges:
+
+1. **Run validation** to identify conflicts:
+   ```bash
+   subnetter validate -c config.json -v
+   ```
+2. **Check custom overrides** for conflicts with auto-allocation
+3. **Use non-overlapping ranges** for different cloud providers
+
+## Integration with IaC
+
+### Terraform Integration
+
+```hcl
+locals {
+  allocations = csvdecode(file("${path.module}/allocations.csv"))
+  
+  subnets = {
+    for row in local.allocations :
+    "${row["Account Name"]}-${row["Availability Zone"]}-${row["Subnet Role"]}" => {
+      cidr = row["Subnet CIDR"]
+      az   = row["Availability Zone"]
+      role = row["Subnet Role"]
+    }
+  }
+}
+
+resource "aws_subnet" "this" {
+  for_each = local.subnets
+  
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr
+  availability_zone = each.value.az
+  
+  tags = {
+    Name = each.key
+    Role = each.value.role
+  }
+}
+```
+
+### CI/CD Pipeline Integration
+
+```yaml
+# .github/workflows/network.yml
+name: Network Validation
+
+on:
+  pull_request:
+    paths:
+      - 'network-configs/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g subnetter
+      - run: |
+          for config in network-configs/*.json; do
+            subnetter validate -c "$config"
+          done
+```
+
+## Next Steps
+
+- **[Real-World Examples](/subnetter/guides/examples/)** - See complete configurations for different scenarios
+- **[Configuration Reference](/subnetter/configuration/)** - Detailed schema documentation
+- **[Troubleshooting](/subnetter/troubleshooting/)** - Common issues and solutions
+

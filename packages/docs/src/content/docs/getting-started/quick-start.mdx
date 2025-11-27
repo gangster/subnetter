@@ -1,0 +1,126 @@
+---
+title: Quick Start
+description: Get up and running with Subnetter in under 5 minutes
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+Get your first CIDR allocation in under 5 minutes.
+
+## Installation
+
+<Tabs>
+  <TabItem label="npm">
+```bash
+npm install -g subnetter
+```
+  </TabItem>
+  <TabItem label="yarn">
+```bash
+yarn global add subnetter
+```
+  </TabItem>
+  <TabItem label="npx (no install)">
+```bash
+# Run directly without installing
+npx subnetter --version
+```
+  </TabItem>
+</Tabs>
+
+Verify the installation:
+
+```bash
+subnetter --version
+```
+
+### Prerequisites
+
+- Node.js: ^18.18.0 || ^20.9.0 || >=21.1.0
+- npm or yarn
+
+## Your First Allocation
+
+<Steps>
+
+1. **Create a configuration file**
+
+   Create a file named `config.json`:
+
+   ```json
+   {
+     "baseCidr": "10.0.0.0/16",
+     "accounts": [
+       {
+         "name": "production",
+         "clouds": {
+           "aws": {
+             "regions": ["us-east-1", "us-west-2"]
+           }
+         }
+       }
+     ],
+     "subnetTypes": {
+       "Public": 24,
+       "Private": 24,
+       "Data": 26
+     }
+   }
+   ```
+
+2. **Generate allocations**
+
+   ```bash
+   subnetter generate --config config.json --output allocations.csv
+   ```
+
+3. **View your allocations**
+
+   Open `allocations.csv` to see your subnet allocations:
+
+   | Account | Cloud | Region | AZ | Subnet | CIDR | Usable IPs |
+   |---------|-------|--------|-----|--------|------|------------|
+   | production | aws | us-east-1 | us-east-1a | Public | 10.0.0.0/24 | 254 |
+   | production | aws | us-east-1 | us-east-1a | Private | 10.0.1.0/24 | 254 |
+   | production | aws | us-east-1 | us-east-1a | Data | 10.0.2.0/26 | 62 |
+   | ... | ... | ... | ... | ... | ... | ... |
+
+</Steps>
+
+<Aside type="tip" title="Zero Conflicts">
+Every CIDR is mathematically guaranteed to be non-overlapping. The same config always produces the same output.
+</Aside>
+
+## Validate Before Generating
+
+Check your configuration for errors without generating allocations:
+
+```bash
+subnetter validate --config config.json
+```
+
+## Analyze Your Configuration
+
+Get statistics about your configuration:
+
+```bash
+subnetter analyze --config config.json
+```
+
+## Common Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--config` | `-c` | Path to configuration file (required) |
+| `--output` | `-o` | Output CSV file path (default: `allocations.csv`) |
+| `--provider` | `-p` | Filter by cloud provider (`aws`, `azure`, `gcp`) |
+| `--verbose` | `-v` | Enable detailed logging |
+| `--base-cidr` | `-b` | Override the base CIDR from config |
+
+## Next Steps
+
+- **[Configuration Reference](/subnetter/configuration/)** - Learn all configuration options
+- **[CLI Reference](/subnetter/getting-started/cli/)** - Complete command documentation
+- **[Best Practices](/subnetter/guides/best-practices/)** - CIDR allocation strategies
+- **[CIDR Primer](/subnetter/cidr-primer/)** - Learn CIDR notation basics
+
