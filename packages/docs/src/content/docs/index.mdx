@@ -3,7 +3,7 @@ title: Subnetter
 description: Automated CIDR allocation for cloud infrastructure
 template: splash
 hero:
-  tagline: Plan your entire cloud network in minutes, not days. Subnetter automates IP address allocation so you can focus on building, not spreadsheet wrangling.
+  tagline: Plan your entire cloud network in minutes, not days. Generate thousands of conflict-free subnet allocations from a single config file.
   actions:
     - text: Get Started
       link: /subnetter/user-guide/
@@ -14,8 +14,22 @@ hero:
       icon: external
 ---
 
-import { Card, CardGrid, Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+import { Card, CardGrid, Tabs, TabItem, Aside, Steps, Badge } from '@astrojs/starlight/components';
 import MermaidDiagram from '../../components/MermaidDiagram.astro';
+
+## The Problem
+
+You're planning network infrastructure for a multi-account, multi-region cloud deployment. You need:
+- **12 accounts** × **4 regions** × **3 AZs** × **6 subnet types** = **864 subnets**
+- Zero overlapping CIDRs
+- Room to grow without re-IP projects
+- Consistent naming across AWS, Azure, and GCP
+
+**The old way:** Spend days in spreadsheets. Triple-check every CIDR. Pray you didn't make a typo. Discover conflicts in production.
+
+**The Subnetter way:** Define your structure once. Generate all 864 subnets in seconds. Guaranteed conflict-free.
+
+---
 
 ## Try It Now
 
@@ -45,51 +59,86 @@ npx subnetter generate --config config.json --output allocations.csv
 
 ## See It In Action
 
-**Input:** A simple configuration file describing your cloud structure
-
+<CardGrid>
+  <Card title="📄 Your Config (15 lines)" icon="document">
 ```json
 {
-  "baseCidr": "10.0.0.0/16",
-  "accounts": [{
-    "name": "production",
-    "clouds": {
-      "aws": { "regions": ["us-east-1", "us-west-2"] }
-    }
-  }],
-  "subnetTypes": { "Public": 24, "Private": 24, "Data": 26 }
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    { "name": "production", "clouds": { "aws": { "regions": ["us-east-1", "us-west-2", "eu-west-1"] } } },
+    { "name": "staging", "clouds": { "aws": { "regions": ["us-east-1"] } } },
+    { "name": "development", "clouds": { "azure": { "regions": ["eastus", "westeurope"] } } }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 24,
+    "Data": 26,
+    "Management": 28
+  }
 }
 ```
-
-**Output:** Complete, conflict-free subnet allocations
-
-| Account | Region | AZ | Subnet | CIDR | Usable IPs |
-|---------|--------|-----|--------|------|------------|
-| production | us-east-1 | us-east-1a | Public | 10.0.0.0/24 | 254 |
-| production | us-east-1 | us-east-1a | Private | 10.0.1.0/24 | 254 |
-| production | us-east-1 | us-east-1a | Data | 10.0.2.0/26 | 62 |
-| production | us-east-1 | us-east-1b | Public | 10.0.4.0/24 | 254 |
+  </Card>
+  <Card title="📊 Your Output (144 rows)" icon="list-format">
+| Account | Cloud | Region | AZ | Subnet | CIDR |
+|---------|-------|--------|-----|--------|------|
+| production | aws | us-east-1 | us-east-1a | Public | 10.0.0.0/24 |
+| production | aws | us-east-1 | us-east-1a | Private | 10.0.1.0/24 |
+| production | aws | us-east-1 | us-east-1a | Data | 10.0.2.0/26 |
+| production | aws | us-east-1 | us-east-1a | Management | 10.0.2.64/28 |
+| production | aws | us-east-1 | us-east-1b | Public | 10.0.4.0/24 |
 | ... | ... | ... | ... | ... | ... |
+| development | azure | westeurope | westeurope-3 | Management | 10.2.28.64/28 |
 
-No overlaps. No conflicts. Every time.
+**3 accounts × 6 regions × 3 AZs × 4 subnets = 144 allocations**
+  </Card>
+</CardGrid>
+
+<Aside type="note" title="Zero Conflicts Guaranteed">
+Every CIDR is mathematically guaranteed to be non-overlapping. The hierarchical allocation algorithm ensures each account, region, AZ, and subnet gets its own dedicated slice of IP space.
+</Aside>
 
 ---
 
-## Why Subnetter?
+## Real-World Scenarios
 
-<CardGrid>
-  <Card title="Stop Wrestling with Spreadsheets" icon="document">
-    Manual IP planning across accounts, regions, and AZs is tedious and error-prone. One wrong entry means hours of debugging connectivity issues.
-  </Card>
-  <Card title="Scale Without Re-IP Projects" icon="rocket">
-    Poor upfront planning leads to painful re-addressing as you grow. Subnetter's hierarchical approach reserves space for future expansion.
-  </Card>
-  <Card title="Multi-Cloud, One Strategy" icon="puzzle">
-    AWS, Azure, GCP—each has different conventions. Subnetter handles provider-specific naming while maintaining a unified allocation strategy.
-  </Card>
-  <Card title="Infrastructure as Code Ready" icon="setting">
-    Export to CSV and integrate with Terraform, CloudFormation, or any IaC tool. Your network config becomes version-controlled and reproducible.
-  </Card>
-</CardGrid>
+<Tabs>
+  <TabItem label="🏢 Enterprise">
+**Scenario:** Global financial services company migrating to cloud
+
+- 50+ AWS accounts (prod, staging, dev, sandbox per business unit)
+- 8 regions for data residency compliance
+- 6 subnet types per VPC (public, private, data, management, endpoints, transit)
+- Strict audit requirements for IP allocation
+
+**Without Subnetter:** 6-month planning project. Dedicated network team. Custom tooling.
+
+**With Subnetter:** Single config file. Version-controlled. Auditable. Done in a day.
+  </TabItem>
+  <TabItem label="🚀 Startup">
+**Scenario:** Fast-growing SaaS company expanding internationally
+
+- Started with 1 region, now need 5
+- Adding new microservices weekly
+- Can't afford downtime for re-IP projects
+- Small team wearing many hats
+
+**Without Subnetter:** Outgrow your IP scheme. Painful re-architecture. Production incidents.
+
+**With Subnetter:** Plan for 10x growth upfront. Add regions in minutes. Sleep at night.
+  </TabItem>
+  <TabItem label="☁️ Multi-Cloud">
+**Scenario:** Healthcare company with multi-cloud strategy
+
+- AWS for compute, Azure for AI/ML, GCP for analytics
+- Need consistent IP strategy across all three
+- Each cloud has different AZ naming conventions
+- Compliance requires documented network architecture
+
+**Without Subnetter:** Three different spreadsheets. Manual translation. Inevitable conflicts.
+
+**With Subnetter:** One config. All clouds. Provider-aware AZ naming. Single source of truth.
+  </TabItem>
+</Tabs>
 
 ---
 
@@ -99,10 +148,10 @@ Subnetter divides your IP space hierarchically—no overlaps, guaranteed:
 
 <MermaidDiagram chart={`
 flowchart LR
-    A["🌐 Base CIDR<br/>10.0.0.0/8"] --> B["☁️ Accounts<br/>/16 each"]
-    B --> C["🗺️ Regions<br/>/20 each"]
-    C --> D["📍 AZs<br/>/22 each"]
-    D --> E["🔲 Subnets<br/>/24-/28"]
+    A["🌐 Base CIDR<br/>10.0.0.0/8<br/><i>16M addresses</i>"] --> B["☁️ Accounts<br/>/16 each<br/><i>65K per account</i>"]
+    B --> C["🗺️ Regions<br/>/20 each<br/><i>4K per region</i>"]
+    C --> D["📍 AZs<br/>/22 each<br/><i>1K per AZ</i>"]
+    D --> E["🔲 Subnets<br/>/24-/28<br/><i>16-254 per subnet</i>"]
     
     style A fill:#1a1a2e,color:#fff,stroke:#4a4a6a,stroke-width:2px
     style B fill:#16213e,color:#fff,stroke:#4a4a6a,stroke-width:2px
@@ -111,7 +160,53 @@ flowchart LR
     style E fill:#1e8449,color:#fff,stroke:#4a4a6a,stroke-width:2px
 `} />
 
-Each level gets a dedicated, non-overlapping slice of your IP space. Add new accounts or regions anytime—Subnetter ensures they never conflict with existing allocations.
+<CardGrid>
+  <Card title="Deterministic" icon="approve-check-circle">
+    Same config always produces the same output. Perfect for GitOps, disaster recovery, and reproducible infrastructure.
+  </Card>
+  <Card title="Extensible" icon="add-document">
+    Add new accounts or regions anytime. Subnetter finds the next available space without touching existing allocations.
+  </Card>
+  <Card title="Provider-Aware" icon="puzzle">
+    Knows that AWS uses `us-east-1a`, Azure uses `eastus-1`, and GCP uses `us-central1-a`. You don't have to.
+  </Card>
+  <Card title="Validation Built-In" icon="approve-check">
+    Catches errors before they reach production: overlapping CIDRs, invalid prefixes, exhausted address space.
+  </Card>
+</CardGrid>
+
+---
+
+## Why Teams Choose Subnetter
+
+<CardGrid>
+  <Card title="🕐 Save Days of Planning" icon="rocket">
+    What takes a team days in spreadsheets takes Subnetter seconds. Focus your engineers on building, not IP math.
+  </Card>
+  <Card title="🛡️ Eliminate Human Error" icon="approve-check-circle">
+    No more typos in CIDR notation. No more "oops, that overlaps with prod." Mathematically guaranteed correctness.
+  </Card>
+  <Card title="📈 Scale Confidently" icon="up-caret">
+    Plan for 10x growth from day one. Add accounts, regions, and subnets without re-architecting your network.
+  </Card>
+  <Card title="📋 Audit-Ready Documentation" icon="document">
+    Your network allocation is a version-controlled config file. Every change is tracked. Every allocation is explainable.
+  </Card>
+</CardGrid>
+
+---
+
+## The Manual Approach vs. Subnetter
+
+| Aspect | Manual (Spreadsheets) | Subnetter |
+|--------|----------------------|-----------|
+| **Time to plan 100 subnets** | Hours to days | Seconds |
+| **Risk of overlap** | High (human error) | Zero (algorithmic) |
+| **Adding a new region** | Recalculate everything | Add one line to config |
+| **Multi-cloud consistency** | Three separate docs | One unified config |
+| **Onboarding new team members** | "Ask Sarah, she knows" | Self-documenting config |
+| **Disaster recovery** | Hope the spreadsheet is current | Regenerate from Git |
+| **Audit trail** | "Check the wiki" | Git history |
 
 ---
 
@@ -145,23 +240,23 @@ Each level gets a dedicated, non-overlapping slice of your IP space. Add new acc
 
 ---
 
-## Key Features
+## Key Capabilities
 
 <CardGrid>
-  <Card title="Deterministic Output" icon="approve-check-circle">
-    Same config = same allocations. Every time. Perfect for reproducible infrastructure and disaster recovery.
-  </Card>
-  
   <Card title="Multi-Cloud Native" icon="cloud-download">
-    Built-in support for AWS, Azure, and GCP with provider-specific region and AZ naming conventions.
+    First-class support for **AWS**, **Azure**, and **GCP** with provider-specific region and AZ naming conventions built in.
   </Card>
   
   <Card title="Flexible Subnet Sizing" icon="list-format">
-    Define different sizes for different workloads—larger subnets for compute, smaller for management.
+    Define different prefix lengths for different workloads. Large /24s for compute, small /28s for management.
   </Card>
   
   <Card title="Account-Level Overrides" icon="pencil">
-    Need a specific CIDR for one account? Override the defaults without breaking the hierarchy.
+    Need a specific CIDR for one account? Override defaults without breaking the hierarchy.
+  </Card>
+  
+  <Card title="CSV & Programmatic Output" icon="seti:json">
+    Export to CSV for spreadsheet users, or use the TypeScript API for automation pipelines.
   </Card>
 </CardGrid>
 
