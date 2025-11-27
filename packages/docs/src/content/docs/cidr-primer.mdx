@@ -1,17 +1,79 @@
 ---
 title: CIDR Primer
-description: "This document explains key concepts about CIDR notation and IP subnetting as relevant to the Subnetter tool."
+description: "Learn CIDR notation and IP subnetting fundamentals for cloud network design."
 ---
 
-This document explains key concepts about CIDR notation and IP subnetting as relevant to the Subnetter tool.
+import { Card, CardGrid, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Learn the fundamentals of CIDR notation and IP subnetting for designing cloud network architectures.
+
+## Quick Reference
+
+<CardGrid>
+  <Card title="Common Prefix Lengths" icon="list-format">
+| Prefix | Addresses | Usable* | Use Case |
+|--------|-----------|---------|----------|
+| `/16` | 65,536 | 65,531 | VPC/Account |
+| `/20` | 4,096 | 4,091 | Region |
+| `/22` | 1,024 | 1,019 | AZ |
+| `/24` | 256 | 251 | Subnet |
+| `/26` | 64 | 59 | Small subnet |
+| `/28` | 16 | 11 | Minimal |
+
+*AWS usable (5 reserved)
+  </Card>
+  <Card title="Key Formulas" icon="approve-check-circle">
+**Total addresses:**
+```
+2^(32 - prefix)
+```
+
+**Usable addresses:**
+```
+2^(32 - prefix) - 2
+```
+(minus cloud provider reservations)
+
+**Subnets from parent:**
+```
+2^(child_prefix - parent_prefix)
+```
+
+Example: /20 → /24 = 2^4 = 16 subnets
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="RFC 1918 Private Ranges" icon="information">
+| Range | CIDR | Addresses |
+|-------|------|-----------|
+| 10.0.0.0 – 10.255.255.255 | 10.0.0.0/8 | 16.7M |
+| 172.16.0.0 – 172.31.255.255 | 172.16.0.0/12 | 1M |
+| 192.168.0.0 – 192.168.255.255 | 192.168.0.0/16 | 65K |
+  </Card>
+  <Card title="Cloud Provider Reserved IPs" icon="warning">
+| Provider | Reserved | In /24 |
+|----------|----------|--------|
+| **AWS** | 5 | 251 usable |
+| **Azure** | 5 | 251 usable |
+| **GCP** | 4 | 252 usable |
+
+Always account for these when sizing subnets!
+  </Card>
+</CardGrid>
+
+---
 
 ## Table of Contents
-- [IP Addressing Basics](#ip-addressing-basics)
-- [CIDR Notation](#cidr-notation)
-- [Subnet Sizing and Planning](#subnet-sizing-and-planning)
-- [Hierarchical Allocation](#hierarchical-allocation)
-- [Cloud Provider Specifics](#cloud-provider-specifics)
-- [CIDR Calculation Examples](#cidr-calculation-examples)
+
+- [IP Addressing Basics](#ip-addressing-basics) - IPv4 structure, network/host portions
+- [CIDR Notation](#cidr-notation) - Format, prefix lengths, usable addresses
+- [Subnet Sizing and Planning](#subnet-sizing-and-planning) - Calculations, boundaries, visualization
+- [Hierarchical Allocation](#hierarchical-allocation) - Cloud architecture patterns
+- [Cloud Provider Specifics](#cloud-provider-specifics) - AWS, Azure, GCP details
+- [CIDR Calculation Examples](#cidr-calculation-examples) - Binary math, overlap detection
+
+---
 
 ## IP Addressing Basics
 
@@ -82,6 +144,10 @@ The prefix length (1-32) indicates how many bits of the IP address are fixed (th
 
 **Formula**: Available addresses = 2^(32 - prefix length)
 
+<Aside type="tip" title="Quick Mental Math">
+Each prefix bit doubles/halves the size: `/24` (256) → `/25` (128) → `/26` (64) → `/27` (32) → `/28` (16)
+</Aside>
+
 ### Usable IP Addresses
 
 In most networks, the first and last IP addresses in a subnet are reserved:
@@ -95,6 +161,8 @@ Therefore, the number of usable IP addresses is typically 2 fewer than the total
 For example, a /24 subnet has 256 total addresses but 254 usable IPs.
 
 **Exception**: In /31 networks (RFC 3021), both addresses can be used for point-to-point links.
+
+---
 
 ## Subnet Sizing and Planning
 
@@ -157,6 +225,12 @@ Here's a visual representation of how a /24 subnet divides into smaller subnets:
 ```
 
 This visual helps understand how subnets are hierarchically subdivided, with each level doubling the number of subnets while halving their size.
+
+<Aside type="note" title="Key Insight">
+Each additional prefix bit doubles the number of subnets but halves their size. A `/24` can become two `/25`s, four `/26`s, or eight `/27`s.
+</Aside>
+
+---
 
 ## Hierarchical Allocation
 
@@ -236,6 +310,12 @@ When implementing hierarchical CIDR allocation, avoid these common mistakes:
 3. **Inconsistent allocation patterns**: Using different patterns across accounts
 4. **Ignoring cloud provider limits**: Not considering the subnet size limitations of each cloud
 5. **Overlapping ranges**: Manually assigning ranges that overlap with existing allocations
+
+<Aside type="tip" title="Let Subnetter Handle This">
+Subnetter automatically prevents these pitfalls by calculating allocations hierarchically and validating for overlaps.
+</Aside>
+
+---
 
 ## Cloud Provider Specifics
 
@@ -348,7 +428,13 @@ Enterprise: 10.0.0.0/8
 
 This approach ensures clear separation between cloud providers while maintaining a consistent addressing scheme.
 
+---
+
 ## CIDR Calculation Examples
+
+<Aside type="note" title="For the Curious">
+This section covers the math behind CIDR calculations. You don't need to understand this to use Subnetter—it handles all calculations automatically—but it's helpful for debugging and validation.
+</Aside>
 
 ### Subdividing a CIDR Block
 
@@ -603,4 +689,29 @@ This hierarchical approach ensures that there's room for growth at each level, w
 
 ---
 
-With this comprehensive guide to CIDR notation and IP subnetting, you should be well-equipped to plan and implement your cloud network architecture using the Subnetter tool. 
+## Next Steps
+
+Now that you understand CIDR fundamentals, you're ready to:
+
+<CardGrid>
+  <Card title="Try Subnetter" icon="rocket">
+    Generate your first allocation in under 5 minutes.
+    
+    [Quick Start →](/subnetter/getting-started/quick-start/)
+  </Card>
+  <Card title="Learn Best Practices" icon="approve-check-circle">
+    CIDR allocation strategies and design patterns.
+    
+    [Best Practices →](/subnetter/guides/best-practices/)
+  </Card>
+  <Card title="See Examples" icon="document">
+    Real-world configurations for common scenarios.
+    
+    [Examples →](/subnetter/guides/examples/)
+  </Card>
+  <Card title="Configuration Reference" icon="setting">
+    Complete schema documentation.
+    
+    [Reference →](/subnetter/configuration/)
+  </Card>
+</CardGrid> 
