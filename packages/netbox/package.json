@@ -1,0 +1,46 @@
+{
+  "name": "@subnetter/netbox",
+  "version": "0.1.0",
+  "description": "NetBox IPAM integration for Subnetter",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "subnetter",
+    "netbox",
+    "ipam",
+    "cidr",
+    "network"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@subnetter/core": "workspace:*",
+    "axios": "^1.7.9",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "jest": "^29.7.0",
+    "nock": "^14.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@subnetter/core": "workspace:*"
+  }
+}
