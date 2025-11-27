@@ -70,10 +70,10 @@ A global e-commerce company with multiple environments and strong isolation requ
     }
   ],
   "subnetTypes": {
-    "PublicALB": 26,
     "WebTier": 24,
     "ServiceTier": 24,
     "DataTier": 25,
+    "PublicALB": 26,
     "Cache": 27,
     "Management": 28
   }
@@ -160,13 +160,13 @@ A financial institution with stringent compliance requirements and multi-cloud s
     }
   ],
   "subnetTypes": {
+    "Application": 23,
     "DMZ": 24,
     "Presentation": 24,
-    "Application": 23,
     "Data": 25,
     "HighSecurity": 26,
-    "Management": 28,
-    "Audit": 27
+    "Audit": 27,
+    "Management": 28
   }
 }
 ```
@@ -255,9 +255,9 @@ A SaaS provider with tiered tenant isolation.
     }
   ],
   "subnetTypes": {
+    "AppTier": 23,
     "EdgeServices": 24,
     "APITier": 24,
-    "AppTier": 23,
     "DataTier": 24,
     "SharedServices": 25,
     "Management": 27
@@ -306,14 +306,18 @@ A fast-growing startup expanding from single to multi-region.
     }
   ],
   "subnetTypes": {
-    "Public": 24,
     "Application": 22,
+    "Public": 24,
     "Database": 25,
     "Cache": 26,
     "Management": 27
   }
 }
 ```
+
+<Aside type="tip" title="Subnet Type Order">
+Notice that `Application` (the largest at `/22`) comes first. Always order subnet types from largest to smallest to prevent CIDR overlaps.
+</Aside>
 
 ### Growth Path
 
@@ -369,11 +373,11 @@ An organization with on-premises infrastructure connecting to cloud.
     }
   ],
   "subnetTypes": {
-    "Public": 24,
     "Private": 23,
+    "Public": 24,
     "Data": 25,
-    "Transit": 28,
-    "Management": 27
+    "Management": 27,
+    "Transit": 28
   }
 }
 ```
@@ -452,12 +456,12 @@ A parent company integrating acquired companies.
     }
   ],
   "subnetTypes": {
-    "Public": 24,
     "AppTier": 23,
+    "Public": 24,
     "DataTier": 24,
+    "Migration": 24,
     "SharedServices": 25,
-    "Management": 26,
-    "Migration": 24
+    "Management": 26
   }
 }
 ```
