@@ -108,6 +108,20 @@ Cloud providers reserve IPs in each subnet:
 | Azure | 5 | 251 |
 | GCP | 4 | 252 |
 
+### Respect Cloud Provider CIDR Limits
+
+Each cloud provider has specific constraints on VPC/VNet and subnet sizes:
+
+| Provider | VPC/VNet Range | Subnet Range | Min Subnet Size |
+|----------|----------------|--------------|-----------------|
+| AWS | `/16` to `/28` | `/16` to `/28` | `/28` (11 usable) |
+| Azure | `/8` to `/29` | `/8` to `/29` | `/29` (3 usable) |
+| GCP | `/8` to `/29` | `/8` to `/29` | `/29` (4 usable) |
+
+<Aside type="caution" title="AWS is Most Restrictive">
+AWS doesn't allow VPCs larger than `/16`. If you need more than 65,536 addresses in a single VPC, you must use secondary CIDR blocks or multiple VPCs.
+</Aside>
+
 ### Example Subnet Type Configuration
 
 ```json
