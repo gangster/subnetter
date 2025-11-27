@@ -173,8 +173,8 @@ export class NetBoxExporter {
     // Phase 8: Ensure availability zone locations exist (under region sites)
     if (createMissing) {
       const azs = extractAvailabilityZones(allocations);
-      for (const { az, region } of azs) {
-        await this.ensureLocation(az, region, changes, dryRun);
+      for (const { az, region, provider } of azs) {
+        await this.ensureLocation(az, region, provider, changes, dryRun);
       }
     }
 
@@ -637,6 +637,7 @@ export class NetBoxExporter {
   private async ensureLocation(
     azName: string,
     regionName: string,
+    cloudProvider: string,
     changes: PlannedChange[],
     dryRun: boolean,
   ): Promise<void> {
@@ -650,7 +651,7 @@ export class NetBoxExporter {
       return;
     }
 
-    const locationData = mapAzToLocation(azName, parentSite.id);
+    const locationData = mapAzToLocation(azName, regionName, cloudProvider, parentSite.id);
 
     changes.push({
       operation: 'create',
@@ -674,6 +675,9 @@ export class NetBoxExporter {
           throw err;
         }
       }
+    } else {
+      // Placeholder for dry-run
+      this.locationCache.set(slug, { id: -1, slug, name: azName } as Location);
     }
   }
 

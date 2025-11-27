@@ -113,9 +113,20 @@ export function mapAccountToTenant(accountName: string): TenantWritable {
   return {
     name: accountName,
     slug: slugify(accountName),
-    description: `Subnetter managed account: ${accountName}`,
-    // Note: Tags are added separately after creation to avoid dependency issues
+    description: `Cloud account managed by Subnetter`,
   };
+}
+
+/**
+ * Get the full name for a cloud provider
+ */
+function getCloudProviderFullName(cloudProvider: string): string {
+  const providerNames: Record<string, string> = {
+    aws: 'Amazon Web Services',
+    azure: 'Microsoft Azure',
+    gcp: 'Google Cloud Platform',
+  };
+  return providerNames[cloudProvider.toLowerCase()] || cloudProvider.toUpperCase();
 }
 
 /**
@@ -125,16 +136,12 @@ export function mapAccountToTenant(accountName: string): TenantWritable {
  * appropriate for cloud providers (AWS, Azure, GCP).
  */
 export function mapCloudProviderToSiteGroup(cloudProvider: string): SiteGroupWritable {
-  const providerNames: Record<string, string> = {
-    aws: 'Amazon Web Services',
-    azure: 'Microsoft Azure',
-    gcp: 'Google Cloud Platform',
-  };
+  const fullName = getCloudProviderFullName(cloudProvider);
 
   return {
-    name: providerNames[cloudProvider.toLowerCase()] || cloudProvider.toUpperCase(),
+    name: fullName,
     slug: slugify(cloudProvider),
-    description: `Cloud provider: ${cloudProvider.toUpperCase()}`,
+    description: `Cloud infrastructure provider - ${fullName}`,
   };
 }
 
@@ -151,7 +158,7 @@ export function mapBaseCidrToAggregate(baseCidr: string, rirId: number): Aggrega
   return {
     prefix: baseCidr,
     rir: rirId,
-    description: `Subnetter managed IP space: ${baseCidr}`,
+    description: `Root IP allocation for cloud infrastructure`,
   };
 }
 
@@ -167,13 +174,14 @@ export function mapRegionToSite(
   cloudProvider: string,
   siteGroupId?: number,
 ): SiteWritable {
+  const providerName = getCloudProviderFullName(cloudProvider);
+
   return {
     name: regionName,
     slug: slugify(regionName),
     status: 'active',
-    group: siteGroupId ?? undefined,  // Sites belong to Site Groups, not Regions
-    description: `${cloudProvider.toUpperCase()} region: ${regionName}`,
-    // Note: Tags are added separately after creation to avoid dependency issues
+    group: siteGroupId ?? undefined,
+    description: `${providerName} region in ${regionName}`,
   };
 }
 
@@ -181,18 +189,24 @@ export function mapRegionToSite(
  * Map an availability zone to a NetBox Location
  *
  * @param azName - Availability zone name (e.g., 'us-east-1a')
+ * @param regionName - Cloud region name (e.g., 'us-east-1')
+ * @param cloudProvider - Cloud provider (e.g., 'aws')
  * @param siteId - ID of the parent NetBox Site (cloud region)
  */
 export function mapAzToLocation(
   azName: string,
+  regionName: string,
+  cloudProvider: string,
   siteId: number,
 ): LocationWritable {
+  const providerName = getCloudProviderFullName(cloudProvider);
+
   return {
     name: azName,
     slug: slugify(azName),
     site: siteId,
     status: 'active',
-    description: `Availability Zone: ${azName}`,
+    description: `${providerName} availability zone ${azName} in ${regionName}`,
   };
 }
 
@@ -203,7 +217,7 @@ export function mapSubnetTypeToRole(subnetType: string): RoleWritable {
   return {
     name: subnetType,
     slug: slugify(subnetType),
-    description: `Subnet role: ${subnetType}`,
+    description: `Subnet role for ${subnetType.toLowerCase()} workloads`,
   };
 }
 
@@ -233,13 +247,9 @@ export function mapAllocationToPrefix(
 ): PrefixWritable {
   const { status = 'reserved', tenantId, siteId, roleId } = options;
 
-  // Build description
-  const description = [
-    allocation.accountName,
-    allocation.regionName,
-    allocation.availabilityZone,
-    allocation.subnetRole,
-  ].join(' / ');
+  // Build a descriptive description
+  const providerName = getCloudProviderFullName(allocation.cloudProvider);
+  const description = `${allocation.subnetRole} subnet in ${allocation.availabilityZone} (${providerName} ${allocation.regionName})`;
 
   return {
     prefix: allocation.subnetCidr,
@@ -250,8 +260,6 @@ export function mapAllocationToPrefix(
     scope_id: siteId ?? undefined,
     role: roleId ?? undefined,
     description,
-    // Note: Tags and custom_fields are omitted to avoid dependency issues
-    // Custom fields must be defined in NetBox before they can be used
   };
 }
 
