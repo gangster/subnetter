@@ -100,26 +100,30 @@ Different workloads have different IP requirements:
 
 ### Account for Cloud Provider Reservations
 
-Cloud providers reserve IPs in each subnet:
+Cloud providers reserve IPs in each subnet beyond the standard network and broadcast addresses:
 
-| Provider | Reserved IPs | Usable in /24 |
-|----------|--------------|---------------|
-| AWS | 5 | 251 |
-| Azure | 5 | 251 |
-| GCP | 4 | 252 |
+| Provider | Reserved IPs | What's Reserved | Usable in /24 |
+|----------|--------------|-----------------|---------------|
+| AWS | 5 | Network, VPC router, DNS, future use, broadcast | 251 |
+| Azure | 5 | Network, default gateway, 2× Azure DNS, broadcast | 251 |
+| GCP | 4 | Network, gateway, second-to-last, broadcast | 252 |
+
+<Aside type="note" title="Subnetter's Usable IP Calculation">
+Subnetter calculates usable IPs using the standard formula (total - 2 for network/broadcast). The actual usable IPs in your cloud environment will be slightly lower due to provider-specific reservations shown above. For example, Subnetter reports 254 usable IPs for a `/24`, but AWS/Azure provide 251 and GCP provides 252.
+</Aside>
 
 ### Respect Cloud Provider CIDR Limits
 
 Each cloud provider has specific constraints on VPC/VNet and subnet sizes:
 
-| Provider | VPC/VNet Range | Subnet Range | Min Subnet Size |
-|----------|----------------|--------------|-----------------|
-| AWS | `/16` to `/28` | `/16` to `/28` | `/28` (11 usable) |
-| Azure | `/8` to `/29` | `/8` to `/29` | `/29` (3 usable) |
-| GCP | `/8` to `/29` | `/8` to `/29` | `/29` (4 usable) |
+| Provider | VPC/VNet Range | Subnet Range | Min Subnet | Notes |
+|----------|----------------|--------------|------------|-------|
+| AWS | `/16` to `/28` | `/16` to `/28` | `/28` (11 usable) | Most restrictive; use secondary CIDRs for larger VPCs |
+| Azure | `/2` to `/29` | `/2` to `/29` | `/29` (3 usable) | Very permissive; `/8` recommended as practical max |
+| GCP | `/8` to `/29` | `/8` to `/29` | `/29` (4 usable) | Global VPC spans all regions |
 
-<Aside type="caution" title="AWS is Most Restrictive">
-AWS doesn't allow VPCs larger than `/16`. If you need more than 65,536 addresses in a single VPC, you must use secondary CIDR blocks or multiple VPCs.
+<Aside type="caution" title="AWS VPC Size Limit">
+AWS doesn't allow VPCs larger than `/16` (65,536 addresses). If you need more space, you must add secondary CIDR blocks (up to 5 by default, 50 max) or use multiple VPCs. Plan accordingly when designing multi-region architectures.
 </Aside>
 
 ### Example Subnet Type Configuration

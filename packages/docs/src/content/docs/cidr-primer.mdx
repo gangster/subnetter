@@ -37,14 +37,14 @@ Learn the fundamentals of CIDR notation and IP subnetting for designing cloud ne
 
 ### Cloud Provider Reserved IPs
 
-| Provider | Reserved per Subnet | Usable in /24 |
-|----------|---------------------|---------------|
-| AWS | 5 | 251 |
-| Azure | 5 | 251 |
-| GCP | 4 | 252 |
+| Provider | Reserved | What's Reserved | Usable in /24 |
+|----------|----------|-----------------|---------------|
+| AWS | 5 | Network + router + DNS + future + broadcast | 251 |
+| Azure | 5 | Network + gateway + 2×DNS + broadcast | 251 |
+| GCP | 4 | Network + gateway + penultimate + broadcast | 252 |
 
 <Aside type="caution">
-Always account for cloud provider reservations when sizing subnets!
+Always account for cloud provider reservations when sizing subnets! Subnetter calculates standard usable IPs (total - 2), so subtract an additional 2-3 IPs for cloud provider reservations.
 </Aside>
 
 ---
@@ -321,12 +321,12 @@ Subnetter automatically prevents these pitfalls by calculating allocations hiera
 
 ### Azure
 
-- VNets can use CIDR blocks from /8 to /29
-- Subnets must be between /8 and /29
+- VNets can use CIDR blocks from /2 to /29 (practically, /8 to /29 recommended)
+- Subnets must be between /2 and /29
 - First 4 IPs and last IP in each subnet are reserved:
   - Network address (first IP)
-  - Gateway (second IP)
-  - Reserved (third and fourth IPs)
+  - Default gateway (second IP)
+  - Azure DNS mapped IPs (third and fourth IPs)
   - Broadcast address (last IP)
 - Minimum subnet size is /29 (8 addresses, 3 usable)
 
