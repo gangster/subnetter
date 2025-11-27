@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['18', '20', '22']
+        node-version: ['18', '20', '22', '24']
       fail-fast: false
     steps:
       - name: Checkout Code
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['18', '20', '22']
+        node-version: ['18', '20', '22', '24']
       fail-fast: false
     steps:
       - name: Checkout Code
@@ -134,7 +134,7 @@ jobs:
     if: ${{ always() && needs.build.result == 'success' }}
     strategy:
       matrix:
-        node-version: ['18', '20', '22']
+        node-version: ['18', '20', '22', '24']
       fail-fast: false
     steps:
       - name: Checkout Code
