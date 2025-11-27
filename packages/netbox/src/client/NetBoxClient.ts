@@ -261,6 +261,13 @@ export class NetBoxClient {
       const response = await this.roles.list({ slug });
       return response.results.length > 0 ? response.results[0] : null;
     },
+
+    /**
+     * Delete a role
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/ipam/roles/${id}/`);
+    },
   };
 
   // ==========================================================================
@@ -340,6 +347,13 @@ export class NetBoxClient {
       const response = await this.sites.list({ slug });
       return response.results.length > 0 ? response.results[0] : null;
     },
+
+    /**
+     * Delete a site
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/dcim/sites/${id}/`);
+    },
   };
 
   // ==========================================================================
@@ -394,6 +408,13 @@ export class NetBoxClient {
       const response = await this.tenants.list({ slug });
       return response.results.length > 0 ? response.results[0] : null;
     },
+
+    /**
+     * Delete a tenant
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/tenancy/tenants/${id}/`);
+    },
   };
 
   // ==========================================================================
@@ -445,6 +466,13 @@ export class NetBoxClient {
     findBySlug: async (slug: string): Promise<Tag | null> => {
       const response = await this.tags.list({ slug });
       return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Delete a tag
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/extras/tags/${id}/`);
     },
   };
 

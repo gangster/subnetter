@@ -17,6 +17,30 @@ const NETBOX_TOKEN = process.env.NETBOX_TOKEN;
 
 const describeIfNetBox = NETBOX_TOKEN ? describe : describe.skip;
 
+// Test data identifiers - all prefixed with 'inttest-' to easily identify test data
+const TEST_PREFIX = 'inttest';
+const TEST_TENANT_SLUG = `${TEST_PREFIX}-tenant`;
+const TEST_SITE_SLUG = `${TEST_PREFIX}-site`;
+const TEST_ROLE_SLUG = `${TEST_PREFIX}-role`;
+const TEST_TAG_SLUG = `${TEST_PREFIX}-tag`;
+
+// Test CIDR ranges - use unique ranges unlikely to conflict
+const TEST_CIDR_PREFIX = '192.168.200';
+const TEST_CIDR_1 = `${TEST_CIDR_PREFIX}.0/24`;
+const TEST_CIDR_2 = `${TEST_CIDR_PREFIX}.0/25`;
+const TEST_CIDR_3 = `${TEST_CIDR_PREFIX}.128/25`;
+
+/**
+ * Helper to safely delete a resource, ignoring errors
+ */
+async function safeDelete(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch {
+    // Ignore deletion errors (resource may not exist or have dependencies)
+  }
+}
+
 describeIfNetBox('NetBox Integration Tests', () => {
   let client: NetBoxClient;
 
@@ -25,6 +49,44 @@ describeIfNetBox('NetBox Integration Tests', () => {
       url: NETBOX_URL,
       token: NETBOX_TOKEN!,
     });
+  });
+
+  // Global cleanup after all tests
+  afterAll(async () => {
+    // Clean up any test data that might have been left behind
+    // Order matters: prefixes first (they may reference sites/tenants/roles)
+    
+    // Delete test prefixes
+    for (const cidr of [TEST_CIDR_1, TEST_CIDR_2, TEST_CIDR_3]) {
+      const prefix = await client.prefixes.findByPrefix(cidr);
+      if (prefix) {
+        await safeDelete(() => client.prefixes.delete(prefix.id));
+      }
+    }
+
+    // Delete test roles
+    const role = await client.roles.findBySlug(TEST_ROLE_SLUG);
+    if (role) {
+      await safeDelete(() => client.roles.delete(role.id));
+    }
+
+    // Delete test sites
+    const site = await client.sites.findBySlug(TEST_SITE_SLUG);
+    if (site) {
+      await safeDelete(() => client.sites.delete(site.id));
+    }
+
+    // Delete test tenants
+    const tenant = await client.tenants.findBySlug(TEST_TENANT_SLUG);
+    if (tenant) {
+      await safeDelete(() => client.tenants.delete(tenant.id));
+    }
+
+    // Delete test tags
+    const tag = await client.tags.findBySlug(TEST_TAG_SLUG);
+    if (tag) {
+      await safeDelete(() => client.tags.delete(tag.id));
+    }
   });
 
   describe('NetBoxClient', () => {
@@ -40,14 +102,18 @@ describeIfNetBox('NetBox Integration Tests', () => {
     });
 
     describe('Tenants', () => {
-      const testTenantSlug = 'integration-test-tenant';
+      beforeAll(async () => {
+        // Clean up any leftover test data
+        const tenant = await client.tenants.findBySlug(TEST_TENANT_SLUG);
+        if (tenant) {
+          await safeDelete(() => client.tenants.delete(tenant.id));
+        }
+      });
 
       afterAll(async () => {
-        // Cleanup: delete test tenant if it exists
-        const existing = await client.tenants.findBySlug(testTenantSlug);
-        if (existing) {
-          // Note: NetBox doesn't allow deleting tenants with prefixes
-          // We'll leave cleanup for manual intervention if needed
+        const tenant = await client.tenants.findBySlug(TEST_TENANT_SLUG);
+        if (tenant) {
+          await safeDelete(() => client.tenants.delete(tenant.id));
         }
       });
 
@@ -57,37 +123,45 @@ describeIfNetBox('NetBox Integration Tests', () => {
         expect(Array.isArray(result.results)).toBe(true);
       });
 
-      it('should create a tenant', async () => {
-        // Check if tenant already exists
-        const existing = await client.tenants.findBySlug(testTenantSlug);
-        if (existing) {
-          expect(existing.name).toBe('Integration Test Tenant');
-          return;
-        }
-
+      it('should create and delete a tenant', async () => {
+        // Create
         const tenant = await client.tenants.create({
           name: 'Integration Test Tenant',
-          slug: testTenantSlug,
+          slug: TEST_TENANT_SLUG,
           description: 'Created by integration test',
         });
 
         expect(tenant.id).toBeGreaterThan(0);
         expect(tenant.name).toBe('Integration Test Tenant');
-        expect(tenant.slug).toBe(testTenantSlug);
-      });
+        expect(tenant.slug).toBe(TEST_TENANT_SLUG);
 
-      it('should find tenant by slug', async () => {
-        const tenant = await client.tenants.findBySlug(testTenantSlug);
-        expect(tenant).not.toBeNull();
-        expect(tenant?.slug).toBe(testTenantSlug);
+        // Find
+        const found = await client.tenants.findBySlug(TEST_TENANT_SLUG);
+        expect(found).not.toBeNull();
+        expect(found?.id).toBe(tenant.id);
+
+        // Delete
+        await client.tenants.delete(tenant.id);
+
+        // Verify deleted
+        const deleted = await client.tenants.findBySlug(TEST_TENANT_SLUG);
+        expect(deleted).toBeNull();
       });
     });
 
     describe('Sites', () => {
-      const testSiteSlug = 'integration-test-site';
+      beforeAll(async () => {
+        const site = await client.sites.findBySlug(TEST_SITE_SLUG);
+        if (site) {
+          await safeDelete(() => client.sites.delete(site.id));
+        }
+      });
 
       afterAll(async () => {
-        // Cleanup handled manually if needed
+        const site = await client.sites.findBySlug(TEST_SITE_SLUG);
+        if (site) {
+          await safeDelete(() => client.sites.delete(site.id));
+        }
       });
 
       it('should list sites', async () => {
@@ -96,27 +170,45 @@ describeIfNetBox('NetBox Integration Tests', () => {
         expect(Array.isArray(result.results)).toBe(true);
       });
 
-      it('should create a site', async () => {
-        const existing = await client.sites.findBySlug(testSiteSlug);
-        if (existing) {
-          expect(existing.name).toBe('us-east-1');
-          return;
-        }
-
+      it('should create and delete a site', async () => {
+        // Create
         const site = await client.sites.create({
-          name: 'us-east-1',
-          slug: testSiteSlug,
+          name: 'inttest-region-1',
+          slug: TEST_SITE_SLUG,
           status: 'active',
           description: 'Created by integration test',
         });
 
         expect(site.id).toBeGreaterThan(0);
-        expect(site.name).toBe('us-east-1');
+        expect(site.slug).toBe(TEST_SITE_SLUG);
+
+        // Find
+        const found = await client.sites.findBySlug(TEST_SITE_SLUG);
+        expect(found).not.toBeNull();
+
+        // Delete
+        await client.sites.delete(site.id);
+
+        // Verify deleted
+        const deleted = await client.sites.findBySlug(TEST_SITE_SLUG);
+        expect(deleted).toBeNull();
       });
     });
 
     describe('Roles', () => {
-      const testRoleSlug = 'integration-test-role';
+      beforeAll(async () => {
+        const role = await client.roles.findBySlug(TEST_ROLE_SLUG);
+        if (role) {
+          await safeDelete(() => client.roles.delete(role.id));
+        }
+      });
+
+      afterAll(async () => {
+        const role = await client.roles.findBySlug(TEST_ROLE_SLUG);
+        if (role) {
+          await safeDelete(() => client.roles.delete(role.id));
+        }
+      });
 
       it('should list roles', async () => {
         const result = await client.roles.list();
@@ -124,25 +216,45 @@ describeIfNetBox('NetBox Integration Tests', () => {
         expect(Array.isArray(result.results)).toBe(true);
       });
 
-      it('should create a role', async () => {
-        const existing = await client.roles.findBySlug(testRoleSlug);
-        if (existing) {
-          expect(existing.name).toBe('Integration Test Role');
-          return;
-        }
-
+      it('should create and delete a role', async () => {
+        // Create
         const role = await client.roles.create({
           name: 'Integration Test Role',
-          slug: testRoleSlug,
+          slug: TEST_ROLE_SLUG,
           description: 'Created by integration test',
         });
 
         expect(role.id).toBeGreaterThan(0);
-        expect(role.name).toBe('Integration Test Role');
+        expect(role.slug).toBe(TEST_ROLE_SLUG);
+
+        // Find
+        const found = await client.roles.findBySlug(TEST_ROLE_SLUG);
+        expect(found).not.toBeNull();
+
+        // Delete
+        await client.roles.delete(role.id);
+
+        // Verify deleted
+        const deleted = await client.roles.findBySlug(TEST_ROLE_SLUG);
+        expect(deleted).toBeNull();
       });
     });
 
     describe('Prefixes', () => {
+      beforeAll(async () => {
+        const prefix = await client.prefixes.findByPrefix(TEST_CIDR_1);
+        if (prefix) {
+          await safeDelete(() => client.prefixes.delete(prefix.id));
+        }
+      });
+
+      afterAll(async () => {
+        const prefix = await client.prefixes.findByPrefix(TEST_CIDR_1);
+        if (prefix) {
+          await safeDelete(() => client.prefixes.delete(prefix.id));
+        }
+      });
+
       it('should list prefixes', async () => {
         const result = await client.prefixes.list();
         expect(result).toBeDefined();
@@ -150,35 +262,43 @@ describeIfNetBox('NetBox Integration Tests', () => {
       });
 
       it('should create and delete a prefix', async () => {
-        const testPrefix = '192.168.99.0/24';
-
-        // Check if prefix exists and delete it first
-        const existing = await client.prefixes.findByPrefix(testPrefix);
-        if (existing) {
-          await client.prefixes.delete(existing.id);
-        }
-
-        // Create prefix
+        // Create
         const prefix = await client.prefixes.create({
-          prefix: testPrefix,
+          prefix: TEST_CIDR_1,
           status: 'reserved',
           description: 'Integration test prefix',
         });
 
         expect(prefix.id).toBeGreaterThan(0);
-        expect(prefix.prefix).toBe(testPrefix);
+        expect(prefix.prefix).toBe(TEST_CIDR_1);
 
-        // Delete prefix
+        // Find
+        const found = await client.prefixes.findByPrefix(TEST_CIDR_1);
+        expect(found).not.toBeNull();
+
+        // Delete
         await client.prefixes.delete(prefix.id);
 
-        // Verify deletion
-        const deleted = await client.prefixes.findByPrefix(testPrefix);
+        // Verify deleted
+        const deleted = await client.prefixes.findByPrefix(TEST_CIDR_1);
         expect(deleted).toBeNull();
       });
     });
 
     describe('Tags', () => {
-      const testTagSlug = 'integration-test-tag';
+      beforeAll(async () => {
+        const tag = await client.tags.findBySlug(TEST_TAG_SLUG);
+        if (tag) {
+          await safeDelete(() => client.tags.delete(tag.id));
+        }
+      });
+
+      afterAll(async () => {
+        const tag = await client.tags.findBySlug(TEST_TAG_SLUG);
+        if (tag) {
+          await safeDelete(() => client.tags.delete(tag.id));
+        }
+      });
 
       it('should list tags', async () => {
         const result = await client.tags.list();
@@ -186,22 +306,28 @@ describeIfNetBox('NetBox Integration Tests', () => {
         expect(Array.isArray(result.results)).toBe(true);
       });
 
-      it('should create a tag', async () => {
-        const existing = await client.tags.findBySlug(testTagSlug);
-        if (existing) {
-          expect(existing.name).toBe('integration-test-tag');
-          return;
-        }
-
+      it('should create and delete a tag', async () => {
+        // Create
         const tag = await client.tags.create({
-          name: 'integration-test-tag',
-          slug: testTagSlug,
+          name: 'inttest-tag',
+          slug: TEST_TAG_SLUG,
           color: 'ff5722',
           description: 'Created by integration test',
         });
 
         expect(tag.id).toBeGreaterThan(0);
-        expect(tag.slug).toBe(testTagSlug);
+        expect(tag.slug).toBe(TEST_TAG_SLUG);
+
+        // Find
+        const found = await client.tags.findBySlug(TEST_TAG_SLUG);
+        expect(found).not.toBeNull();
+
+        // Delete
+        await client.tags.delete(tag.id);
+
+        // Verify deleted
+        const deleted = await client.tags.findBySlug(TEST_TAG_SLUG);
+        expect(deleted).toBeNull();
       });
     });
   });
@@ -209,74 +335,91 @@ describeIfNetBox('NetBox Integration Tests', () => {
   describe('NetBoxExporter', () => {
     let exporter: NetBoxExporter;
 
+    // Exporter test identifiers
+    const EXPORT_TENANT_SLUG = `${TEST_PREFIX}-export-tenant`;
+    const EXPORT_SITE_SLUG = `${TEST_PREFIX}-export-site`;
+    const EXPORT_ROLE_SLUG = `${TEST_PREFIX}-export-role`;
+    const EXPORT_CIDR_1 = '192.168.201.0/24';
+    const EXPORT_CIDR_2 = '192.168.201.128/25';
+
     beforeAll(() => {
       exporter = new NetBoxExporter(client);
+    });
+
+    afterAll(async () => {
+      // Clean up exporter test data
+      // Delete prefixes first
+      for (const cidr of [EXPORT_CIDR_1, EXPORT_CIDR_2]) {
+        const prefix = await client.prefixes.findByPrefix(cidr);
+        if (prefix) {
+          await safeDelete(() => client.prefixes.delete(prefix.id));
+        }
+      }
+
+      // Delete roles created by exporter
+      for (const slug of [EXPORT_ROLE_SLUG, 'public', 'private', 'application', 'database', 'compute']) {
+        const role = await client.roles.findBySlug(slug);
+        if (role) {
+          await safeDelete(() => client.roles.delete(role.id));
+        }
+      }
+
+      // Delete sites created by exporter
+      for (const slug of [EXPORT_SITE_SLUG, `${TEST_PREFIX}-region`]) {
+        const site = await client.sites.findBySlug(slug);
+        if (site) {
+          await safeDelete(() => client.sites.delete(site.id));
+        }
+      }
+
+      // Delete tenants created by exporter
+      for (const slug of [EXPORT_TENANT_SLUG, `${TEST_PREFIX}-account`, 'export-test-account', 'idempotent-test']) {
+        const tenant = await client.tenants.findBySlug(slug);
+        if (tenant) {
+          await safeDelete(() => client.tenants.delete(tenant.id));
+        }
+      }
     });
 
     it('should perform dry-run export', async () => {
       const allocations: Allocation[] = [
         {
-          accountName: 'test-account',
-          vpcName: 'test-vpc',
+          accountName: `${TEST_PREFIX}-account`,
+          vpcName: `${TEST_PREFIX}-vpc`,
           cloudProvider: 'aws',
-          regionName: 'us-east-1',
-          availabilityZone: 'us-east-1a',
-          regionCidr: '10.100.0.0/16',
-          vpcCidr: '10.100.0.0/16',
-          azCidr: '10.100.0.0/20',
-          subnetCidr: '10.100.0.0/24',
+          regionName: `${TEST_PREFIX}-region`,
+          availabilityZone: `${TEST_PREFIX}-region-a`,
+          regionCidr: '192.168.202.0/24',
+          vpcCidr: '192.168.202.0/24',
+          azCidr: '192.168.202.0/25',
+          subnetCidr: '192.168.202.0/26',
           subnetRole: 'Public',
-          usableIps: 251,
-        },
-        {
-          accountName: 'test-account',
-          vpcName: 'test-vpc',
-          cloudProvider: 'aws',
-          regionName: 'us-east-1',
-          availabilityZone: 'us-east-1a',
-          regionCidr: '10.100.0.0/16',
-          vpcCidr: '10.100.0.0/16',
-          azCidr: '10.100.0.0/20',
-          subnetCidr: '10.100.1.0/24',
-          subnetRole: 'Private',
-          usableIps: 251,
+          usableIps: 62,
         },
       ];
 
-      try {
-        const result = await exporter.export(allocations, {
-          dryRun: true,
-          createMissing: true,
-        });
+      const result = await exporter.export(allocations, {
+        dryRun: true,
+        createMissing: true,
+      });
 
-        expect(result).toBeDefined();
-        expect(result.changes).toBeDefined();
-        expect(Array.isArray(result.changes)).toBe(true);
-        expect(result.summary).toBeDefined();
+      expect(result).toBeDefined();
+      expect(result.changes).toBeDefined();
+      expect(Array.isArray(result.changes)).toBe(true);
+      expect(result.summary).toBeDefined();
 
-        // In dry-run mode, we should see planned creates
-        const creates = result.changes.filter((c) => c.operation === 'create');
-        expect(creates.length).toBeGreaterThan(0);
+      // In dry-run mode, we should see planned creates
+      const creates = result.changes.filter((c) => c.operation === 'create');
+      expect(creates.length).toBeGreaterThan(0);
 
-        // Verify no errors
-        expect(result.errors).toHaveLength(0);
-      } catch (error) {
-        // Log the error details for debugging
-        console.error('Export error:', error);
-        if (error && typeof error === 'object' && 'response' in error) {
-          console.error('Response:', (error as { response: unknown }).response);
-        }
-        throw error;
-      }
+      // Verify no errors
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should export allocations to NetBox', async () => {
-      const testPrefix1 = '10.200.0.0/24';
-      const testPrefix2 = '10.200.1.0/24';
-
+    it('should export allocations to NetBox and clean up', async () => {
       // Cleanup any existing test prefixes
-      for (const prefix of [testPrefix1, testPrefix2]) {
-        const existing = await client.prefixes.findByPrefix(prefix);
+      for (const cidr of [EXPORT_CIDR_1, EXPORT_CIDR_2]) {
+        const existing = await client.prefixes.findByPrefix(cidr);
         if (existing) {
           await client.prefixes.delete(existing.id);
         }
@@ -287,12 +430,12 @@ describeIfNetBox('NetBox Integration Tests', () => {
           accountName: 'export-test-account',
           vpcName: 'export-test-vpc',
           cloudProvider: 'aws',
-          regionName: 'us-west-2',
-          availabilityZone: 'us-west-2a',
-          regionCidr: '10.200.0.0/16',
-          vpcCidr: '10.200.0.0/16',
-          azCidr: '10.200.0.0/20',
-          subnetCidr: testPrefix1,
+          regionName: `${TEST_PREFIX}-region`,
+          availabilityZone: `${TEST_PREFIX}-region-a`,
+          regionCidr: '192.168.201.0/24',
+          vpcCidr: '192.168.201.0/24',
+          azCidr: '192.168.201.0/25',
+          subnetCidr: EXPORT_CIDR_1,
           subnetRole: 'Application',
           usableIps: 251,
         },
@@ -300,14 +443,14 @@ describeIfNetBox('NetBox Integration Tests', () => {
           accountName: 'export-test-account',
           vpcName: 'export-test-vpc',
           cloudProvider: 'aws',
-          regionName: 'us-west-2',
-          availabilityZone: 'us-west-2a',
-          regionCidr: '10.200.0.0/16',
-          vpcCidr: '10.200.0.0/16',
-          azCidr: '10.200.0.0/20',
-          subnetCidr: testPrefix2,
+          regionName: `${TEST_PREFIX}-region`,
+          availabilityZone: `${TEST_PREFIX}-region-a`,
+          regionCidr: '192.168.201.0/24',
+          vpcCidr: '192.168.201.0/24',
+          azCidr: '192.168.201.0/25',
+          subnetCidr: EXPORT_CIDR_2,
           subnetRole: 'Database',
-          usableIps: 251,
+          usableIps: 126,
         },
       ];
 
@@ -318,33 +461,29 @@ describeIfNetBox('NetBox Integration Tests', () => {
         status: 'reserved',
       });
 
-      // Debug output
       if (!result.success) {
         console.error('Export failed. Errors:', result.errors);
-        console.error('Changes:', result.changes.filter(c => c.operation !== 'skip'));
       }
 
       expect(result.success).toBe(true);
       expect(result.errors).toHaveLength(0);
 
       // Verify prefixes were created
-      const prefix1 = await client.prefixes.findByPrefix(testPrefix1);
+      const prefix1 = await client.prefixes.findByPrefix(EXPORT_CIDR_1);
       expect(prefix1).not.toBeNull();
       expect(prefix1?.status.value).toBe('reserved');
 
-      const prefix2 = await client.prefixes.findByPrefix(testPrefix2);
+      const prefix2 = await client.prefixes.findByPrefix(EXPORT_CIDR_2);
       expect(prefix2).not.toBeNull();
 
-      // Cleanup
-      if (prefix1) await client.prefixes.delete(prefix1.id);
-      if (prefix2) await client.prefixes.delete(prefix2.id);
+      // Cleanup is handled by afterAll
     });
 
     it('should be idempotent (running twice produces same result)', async () => {
-      const testPrefix = '10.201.0.0/24';
+      const testCidr = '192.168.203.0/24';
 
       // Cleanup
-      const existing = await client.prefixes.findByPrefix(testPrefix);
+      const existing = await client.prefixes.findByPrefix(testCidr);
       if (existing) {
         await client.prefixes.delete(existing.id);
       }
@@ -354,12 +493,12 @@ describeIfNetBox('NetBox Integration Tests', () => {
           accountName: 'idempotent-test',
           vpcName: 'idempotent-vpc',
           cloudProvider: 'gcp',
-          regionName: 'us-central1',
-          availabilityZone: 'us-central1-a',
-          regionCidr: '10.201.0.0/16',
-          vpcCidr: '10.201.0.0/16',
-          azCidr: '10.201.0.0/20',
-          subnetCidr: testPrefix,
+          regionName: `${TEST_PREFIX}-region`,
+          availabilityZone: `${TEST_PREFIX}-region-a`,
+          regionCidr: '192.168.203.0/24',
+          vpcCidr: '192.168.203.0/24',
+          azCidr: '192.168.203.0/25',
+          subnetCidr: testCidr,
           subnetRole: 'Compute',
           usableIps: 251,
         },
@@ -374,13 +513,12 @@ describeIfNetBox('NetBox Integration Tests', () => {
       expect(result1.success).toBe(true);
       expect(result1.summary.created).toBeGreaterThan(0);
 
-      // Second export (should skip existing)
+      // Second export (should skip or update existing)
       const result2 = await exporter.export(allocations, {
         dryRun: false,
         createMissing: true,
       });
 
-      // Debug output
       if (!result2.success) {
         console.error('Second export failed. Errors:', result2.errors);
       }
@@ -391,9 +529,10 @@ describeIfNetBox('NetBox Integration Tests', () => {
       expect(result2.summary.skipped + result2.summary.updated).toBeGreaterThan(0);
 
       // Cleanup
-      const prefix = await client.prefixes.findByPrefix(testPrefix);
-      if (prefix) await client.prefixes.delete(prefix.id);
+      const prefix = await client.prefixes.findByPrefix(testCidr);
+      if (prefix) {
+        await client.prefixes.delete(prefix.id);
+      }
     });
   });
 });
-
