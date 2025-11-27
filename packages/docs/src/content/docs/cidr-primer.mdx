@@ -3,16 +3,16 @@ title: CIDR Primer
 description: "Learn CIDR notation and IP subnetting fundamentals for cloud network design."
 ---
 
-import { Card, CardGrid, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Learn the fundamentals of CIDR notation and IP subnetting for designing cloud network architectures.
 
 ## Quick Reference
 
-<CardGrid>
-  <Card title="Common Prefix Lengths" icon="list-format">
-| Prefix | Addresses | Usable* | Use Case |
-|--------|-----------|---------|----------|
+### Common Prefix Lengths
+
+| Prefix | Addresses | AWS Usable | Use Case |
+|--------|-----------|------------|----------|
 | `/16` | 65,536 | 65,531 | VPC/Account |
 | `/20` | 4,096 | 4,091 | Region |
 | `/22` | 1,024 | 1,019 | AZ |
@@ -20,58 +20,32 @@ Learn the fundamentals of CIDR notation and IP subnetting for designing cloud ne
 | `/26` | 64 | 59 | Small subnet |
 | `/28` | 16 | 11 | Minimal |
 
-*AWS usable (5 reserved)
-  </Card>
-  <Card title="Key Formulas" icon="approve-check-circle">
-**Total addresses:**
-```
-2^(32 - prefix)
-```
+### Key Formulas
 
-**Usable addresses:**
-```
-2^(32 - prefix) - 2
-```
-(minus cloud provider reservations)
+- **Total addresses:** `2^(32 - prefix)`
+- **Usable addresses:** `2^(32 - prefix) - 2` (minus cloud reservations)
+- **Subnets from parent:** `2^(child_prefix - parent_prefix)`
+  - Example: /20 → /24 = 2^4 = 16 subnets
 
-**Subnets from parent:**
-```
-2^(child_prefix - parent_prefix)
-```
+### RFC 1918 Private Ranges
 
-Example: /20 → /24 = 2^4 = 16 subnets
-  </Card>
-</CardGrid>
-
-<CardGrid>
-  <Card title="RFC 1918 Private Ranges" icon="information">
 | Range | CIDR | Addresses |
 |-------|------|-----------|
-| 10.0.0.0 – 10.255.255.255 | 10.0.0.0/8 | 16.7M |
-| 172.16.0.0 – 172.31.255.255 | 172.16.0.0/12 | 1M |
-| 192.168.0.0 – 192.168.255.255 | 192.168.0.0/16 | 65K |
-  </Card>
-  <Card title="Cloud Provider Reserved IPs" icon="warning">
-| Provider | Reserved | In /24 |
-|----------|----------|--------|
-| **AWS** | 5 | 251 usable |
-| **Azure** | 5 | 251 usable |
-| **GCP** | 4 | 252 usable |
+| 10.0.0.0 – 10.255.255.255 | `10.0.0.0/8` | 16.7M |
+| 172.16.0.0 – 172.31.255.255 | `172.16.0.0/12` | 1M |
+| 192.168.0.0 – 192.168.255.255 | `192.168.0.0/16` | 65K |
 
-Always account for these when sizing subnets!
-  </Card>
-</CardGrid>
+### Cloud Provider Reserved IPs
 
----
+| Provider | Reserved per Subnet | Usable in /24 |
+|----------|---------------------|---------------|
+| AWS | 5 | 251 |
+| Azure | 5 | 251 |
+| GCP | 4 | 252 |
 
-## Table of Contents
-
-- [IP Addressing Basics](#ip-addressing-basics) - IPv4 structure, network/host portions
-- [CIDR Notation](#cidr-notation) - Format, prefix lengths, usable addresses
-- [Subnet Sizing and Planning](#subnet-sizing-and-planning) - Calculations, boundaries, visualization
-- [Hierarchical Allocation](#hierarchical-allocation) - Cloud architecture patterns
-- [Cloud Provider Specifics](#cloud-provider-specifics) - AWS, Azure, GCP details
-- [CIDR Calculation Examples](#cidr-calculation-examples) - Binary math, overlap detection
+<Aside type="caution">
+Always account for cloud provider reservations when sizing subnets!
+</Aside>
 
 ---
 
@@ -266,7 +240,7 @@ Base CIDR
 └── Account 2
 ```
 
-For Kubernetes deployments specifically, we recommend checking our detailed [Kubernetes Network Design](./guides/kubernetes-network-design/) guide, which provides a comprehensive approach to designing multi-AZ Kubernetes networks with optimized subnet sizing for high availability and efficient IP utilization.
+For Kubernetes deployments specifically, we recommend checking our detailed [Kubernetes Network Design](/subnetter/guides/kubernetes-network-design/) guide, which provides a comprehensive approach to designing multi-AZ Kubernetes networks with optimized subnet sizing for high availability and efficient IP utilization.
 
 ### Real-World Example
 
@@ -693,25 +667,7 @@ This hierarchical approach ensures that there's room for growth at each level, w
 
 Now that you understand CIDR fundamentals, you're ready to:
 
-<CardGrid>
-  <Card title="Try Subnetter" icon="rocket">
-    Generate your first allocation in under 5 minutes.
-    
-    [Quick Start →](/subnetter/getting-started/quick-start/)
-  </Card>
-  <Card title="Learn Best Practices" icon="approve-check-circle">
-    CIDR allocation strategies and design patterns.
-    
-    [Best Practices →](/subnetter/guides/best-practices/)
-  </Card>
-  <Card title="See Examples" icon="document">
-    Real-world configurations for common scenarios.
-    
-    [Examples →](/subnetter/guides/examples/)
-  </Card>
-  <Card title="Configuration Reference" icon="setting">
-    Complete schema documentation.
-    
-    [Reference →](/subnetter/configuration/)
-  </Card>
-</CardGrid> 
+- **[Quick Start](/subnetter/getting-started/quick-start/)** — Generate your first allocation in under 5 minutes
+- **[Best Practices](/subnetter/guides/best-practices/)** — CIDR allocation strategies and design patterns
+- **[Examples](/subnetter/guides/examples/)** — Real-world configurations for common scenarios
+- **[Configuration Reference](/subnetter/configuration/)** — Complete schema documentation 
