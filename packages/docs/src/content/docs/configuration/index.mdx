@@ -27,10 +27,10 @@ interface Config {
   };
 
   /**
-   * List of cloud providers to support
+   * List of cloud providers to support (optional, can be inferred from accounts)
    * @example ["aws", "azure", "gcp"]
    */
-  cloudProviders: string[];
+  cloudProviders?: string[];
 
   /**
    * Account configurations
@@ -109,7 +109,6 @@ interface CloudConfig {
 The following fields are required in all configurations:
 
 - **baseCidr**: The top-level IPv4 CIDR block from which all subnets will be allocated
-- **cloudProviders**: Array of cloud provider names (e.g., "aws", "azure", "gcp")
 - **accounts**: Array of account configurations
 - **subnetTypes**: Object mapping subnet type names to their prefix lengths
 
@@ -117,8 +116,9 @@ The following fields are required in all configurations:
 
 These fields can be omitted, and defaults will be used:
 
-- **prefixLengths**: Customize the hierarchy levels for CIDR allocation
-  - Default is based on the base CIDR and number of accounts/regions
+- **cloudProviders**: Array of cloud provider names (e.g., "aws", "azure", "gcp"). If omitted, providers are inferred from account configurations
+- **prefixLengths**: Customize the hierarchy levels for CIDR allocation (default is based on the base CIDR and number of accounts/regions)
+
 
 ## Configuration Example
 

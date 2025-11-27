@@ -2,7 +2,7 @@
 title: Manual Testing
 ---
 
-[r# Subnetter Manual Testing Guide
+# Subnetter Manual Testing Guide
 
 This guide provides detailed instructions for manually testing the Subnetter application. It is designed to validate that the application functions correctly across various scenarios, edge cases, and environments.
 
@@ -148,7 +148,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate minimal-config.json -o minimal-output.csv
+   subnetter generate -c minimal-config.json -o minimal-output.csv
    ```
 
 **Expected Results**:
@@ -280,7 +280,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run validation:
    ```bash
-   subnetter validate invalid-cidr-format.json
+   subnetter validate -c invalid-cidr-format.json
    ```
 
 **Expected Results**:
@@ -314,7 +314,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run validation:
    ```bash
-   subnetter validate invalid-empty-account-name.json
+   subnetter validate -c invalid-empty-account-name.json
    ```
 
 **Expected Results**:
@@ -366,7 +366,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate multi-account-config.json -o multi-account-output.csv
+   subnetter generate -c multi-account-config.json -o multi-account-output.csv
    ```
 
 **Expected Results**:
@@ -415,7 +415,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate multi-cloud-config.json -o multi-cloud-output.csv
+   subnetter generate -c multi-cloud-config.json -o multi-cloud-output.csv
    ```
 
 **Expected Results**:
@@ -463,7 +463,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate account-cidr-override-config.json -o account-cidr-override-output.csv
+   subnetter generate -c account-cidr-override-config.json -o account-cidr-override-output.csv
    ```
 
 **Expected Results**:
@@ -503,7 +503,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate subnet-sizes-config.json -o subnet-sizes-output.csv
+   subnetter generate -c subnet-sizes-config.json -o subnet-sizes-output.csv
    ```
 
 **Expected Results**:
@@ -544,7 +544,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate min-prefix-config.json -o min-prefix-output.csv
+   subnetter generate -c min-prefix-config.json -o min-prefix-output.csv
    ```
 
 **Expected Results**:
@@ -581,7 +581,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate max-prefix-config.json -o max-prefix-output.csv
+   subnetter generate -c max-prefix-config.json -o max-prefix-output.csv
    ```
 
 **Expected Results**:
@@ -621,7 +621,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command with time tracking:
    ```bash
-   time subnetter generate large-config.json -o large-output.csv
+   time subnetter generate -c large-config.json -o large-output.csv
    ```
 
 **Expected Results**:
@@ -657,7 +657,7 @@ Test the installation process as an end-user would experience it:
 
 2. Run the generate command:
    ```bash
-   subnetter generate not-enough-space-config.json -o error-output.csv
+   subnetter generate -c not-enough-space-config.json -o error-output.csv
    ```
 
 **Expected Results**:
@@ -675,7 +675,7 @@ Test the installation process as an end-user would experience it:
 1. Use one of the previous test configurations.
 2. Run the generate command:
    ```bash
-   subnetter generate subnet-sizes-config.json -o csv-format-output.csv
+   subnetter generate -c subnet-sizes-config.json -o csv-format-output.csv
    ```
 3. Open the CSV file and validate its contents.
 
@@ -705,7 +705,7 @@ Test the installation process as an end-user would experience it:
 1. Use a complex configuration with multiple accounts, regions, and subnet types.
 2. Run the generate command:
    ```bash
-   subnetter generate multi-account-config.json -o overlap-test-output.csv
+   subnetter generate -c multi-account-config.json -o overlap-test-output.csv
    ```
 3. Analyze the output to check for overlapping CIDRs.
 
@@ -727,9 +727,9 @@ Test the installation process as an end-user would experience it:
    - Large: 10 accounts, 5 regions each, 10 subnet types
 2. Run the generate command with time measurement:
    ```bash
-   time subnetter generate small-config.json -o small-output.csv
-   time subnetter generate medium-config.json -o medium-output.csv
-   time subnetter generate large-config.json -o large-output.csv
+   time subnetter generate -c small-config.json -o small-output.csv
+   time subnetter generate -c medium-config.json -o medium-output.csv
+   time subnetter generate -c large-config.json -o large-output.csv
    ```
 
 **Expected Results**:
@@ -745,7 +745,7 @@ Test the installation process as an end-user would experience it:
 1. Use a large configuration.
 2. Run the generate command with memory monitoring:
    ```bash
-   /usr/bin/time -v subnetter generate large-config.json -o memory-test-output.csv
+   /usr/bin/time -v subnetter generate -c large-config.json -o memory-test-output.csv
    ```
 
 **Expected Results**:

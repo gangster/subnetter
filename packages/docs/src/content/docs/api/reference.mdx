@@ -82,7 +82,7 @@ interface Config {
     az?: number;
     subnet?: number;
   };
-  cloudProviders: string[];
+  cloudProviders?: string[]; // Optional - can be inferred from accounts
   accounts: Account[];
   subnetTypes: SubnetType[] | Record<string, number>;
 }
