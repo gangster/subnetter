@@ -104,8 +104,8 @@ subnetTypes:
   };
 });
 
-// Add global mocks for timing-sensitive functions
-global.setTimeout = jest.fn((cb) => cb());
+// Note: We no longer mock global.setTimeout as it breaks axios/nock in netbox tests
+// If specific tests need setTimeout mocking, they should do it locally
 
 // No longer automatically mocking these libraries
 // jest.mock('cidr-tools');

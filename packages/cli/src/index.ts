@@ -667,7 +667,7 @@ program
         // Only log the stack trace at debug level and above
         if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
           if (error.stack) {
-            cliLogger.debug(`❌ Stack trace: \n${subneterErr.stack}`);
+            cliLogger.debug(`❌ Stack trace: \n${error.stack}`);
           }
         }
       } else {
