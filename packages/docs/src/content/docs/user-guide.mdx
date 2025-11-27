@@ -184,7 +184,6 @@ Here's a minimal configuration file:
 ```json
 {
   "baseCidr": "10.0.0.0/8",
-  "cloudProviders": ["aws"],
   "accounts": [
     {
       "name": "example-account",
@@ -201,6 +200,8 @@ Here's a minimal configuration file:
   }
 }
 ```
+
+> **Note**: The `cloudProviders` field is optional. Subnetter automatically detects which cloud providers are used based on the `clouds` configuration in each account.
 
 ### Full Configuration Example
 
@@ -1047,25 +1048,26 @@ Then reference these parameters in your CloudFormation template.
 
 ## Advanced Usage Patterns
 
-### Dynamic Region Detection
+### Scaling to New Regions
 
-For cloud providers that regularly add new regions, you can use wildcard patterns in your configuration:
+When expanding to new regions, simply add them to your configuration. Subnetter's deterministic allocation ensures existing allocations remain unchanged:
 
 ```json
 {
-  "cloudProviders": ["aws"],
   "accounts": [
     {
       "name": "global-services",
       "clouds": {
         "aws": {
-          "regions": ["*-1"]
+          "regions": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
         }
       }
     }
   ]
 }
 ```
+
+> **Tip**: Plan your prefix lengths to accommodate future region expansion. Using `/20` for regions within a `/16` account allows for up to 16 regions per account.
 
 ### Reserved CIDR Blocks
 
@@ -1128,24 +1130,17 @@ For SaaS providers with multi-tenant architecture:
 
 ### Hybrid Cloud Architecture
 
-For organizations with on-premises and cloud environments:
+For organizations with on-premises and cloud environments, reserve a portion of your address space for on-premises use and allocate the rest to cloud providers:
 
 ```json
 {
   "baseCidr": "10.0.0.0/8",
   "accounts": [
     {
-      "name": "on-premises",
-      "clouds": {
-        "datacenter": {
-          "regions": ["dc1", "dc2"]
-        }
-      }
-    },
-    {
       "name": "cloud-primary",
       "clouds": {
         "aws": {
+          "baseCidr": "10.0.0.0/12",
           "regions": ["us-east-1", "us-west-2"]
         }
       }
@@ -1154,6 +1149,7 @@ For organizations with on-premises and cloud environments:
       "name": "cloud-secondary",
       "clouds": {
         "azure": {
+          "baseCidr": "10.16.0.0/12",
           "regions": ["eastus", "westeurope"]
         }
       }
@@ -1161,6 +1157,8 @@ For organizations with on-premises and cloud environments:
   ]
 }
 ```
+
+> **Note**: Reserve `10.32.0.0/11` (or another range) for on-premises infrastructure. Document this reservation in your network architecture documentation to prevent future conflicts when establishing VPN or Direct Connect/ExpressRoute connections.
 
 ## Conclusion
 
@@ -1826,7 +1824,7 @@ Example error:
 
 If you encounter space limitations, you have several options:
 
-1. **Use a larger base CIDR**: Change from `10.0.0.0/8` to `0.0.0.0/0` to use the entire IPv4 space
+1. **Use a larger base CIDR**: Change from `10.0.0.0/16` to `10.0.0.0/8` to use more of the RFC 1918 private address space
 2. **Reduce the number of regions**: Consolidate regions to reduce address space needs
 3. **Use larger subnet prefixes**: Use `/27` instead of `/24` to create smaller subnets
 4. **Override specific accounts**: Use custom CIDRs for accounts that need more space
