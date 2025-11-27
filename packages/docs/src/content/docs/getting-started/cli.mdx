@@ -15,6 +15,7 @@ Subnetter provides a comprehensive CLI for generating, validating, and analyzing
 | `validate` | Validate a configuration file without generating |
 | `analyze` | Display statistics about a configuration |
 | `validate-allocations` | Check an existing CSV for CIDR overlaps |
+| `netbox-export` | Export allocations to NetBox IPAM |
 
 ## generate
 
@@ -158,6 +159,52 @@ subnetter validate-allocations -f allocations.csv -v
 
 <Aside type="tip" title="Use in CI/CD">
 Run `validate-allocations` in your CI pipeline to catch any manual edits that introduced overlaps.
+</Aside>
+
+## netbox-export
+
+Export allocations to NetBox IPAM for centralized IP address management.
+
+```bash
+subnetter netbox-export --config config.json --netbox-url https://netbox.example.com
+```
+
+### Options
+
+| Option | Short | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--config` | `-c` | Yes | - | Path to configuration file (JSON or YAML) |
+| `--netbox-url` | - | Yes* | `$NETBOX_URL` | NetBox API URL |
+| `--netbox-token` | - | Yes* | `$NETBOX_TOKEN` | NetBox API token |
+| `--dry-run` | - | No | `false` | Preview changes without applying |
+| `--prune` | - | No | `false` | Delete prefixes not in allocations |
+| `--status` | - | No | `reserved` | Status for new prefixes |
+| `--verbose` | `-v` | No | `false` | Enable verbose logging |
+| `--log-level` | `-l` | No | `info` | Log level: silent, error, warn, info, debug, trace |
+
+*Can be provided via environment variable instead
+
+### Examples
+
+Preview what would be created:
+```bash
+subnetter netbox-export -c config.json --dry-run
+```
+
+Export with environment variables:
+```bash
+export NETBOX_URL="https://netbox.example.com"
+export NETBOX_TOKEN="your-api-token"
+subnetter netbox-export -c config.json
+```
+
+Export with active status:
+```bash
+subnetter netbox-export -c config.json --status active
+```
+
+<Aside type="tip" title="Learn More">
+See the [NetBox Integration Guide](/subnetter/guides/netbox-integration/) for detailed documentation on the NetBox hierarchy and best practices.
 </Aside>
 
 ## Global Options
