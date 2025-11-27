@@ -1,0 +1,255 @@
+---
+title: CLI Reference
+description: Complete reference for Subnetter command-line interface
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Subnetter provides a comprehensive CLI for generating, validating, and analyzing CIDR allocations.
+
+## Commands Overview
+
+| Command | Description |
+|---------|-------------|
+| `generate` | Generate CIDR allocations from a configuration file |
+| `validate` | Validate a configuration file without generating |
+| `analyze` | Display statistics about a configuration |
+| `validate-allocations` | Check an existing CSV for CIDR overlaps |
+
+## generate
+
+Generate IPv4 allocations for accounts, regions, and subnets.
+
+```bash
+subnetter generate --config config.json --output allocations.csv
+```
+
+### Options
+
+| Option | Short | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--config` | `-c` | Yes | - | Path to configuration file (JSON or YAML) |
+| `--output` | `-o` | No | `allocations.csv` | Path to output CSV file |
+| `--provider` | `-p` | No | - | Filter results by cloud provider |
+| `--base-cidr` | `-b` | No | - | Override base CIDR from config |
+| `--verbose` | `-v` | No | `false` | Enable verbose logging |
+| `--log-level` | `-l` | No | `info` | Log level: silent, error, warn, info, debug, trace |
+| `--no-color` | - | No | `false` | Disable colored output |
+| `--timestamps` | - | No | `false` | Include timestamps in logs |
+
+### Examples
+
+Basic usage:
+```bash
+subnetter generate -c config.json -o allocations.csv
+```
+
+Filter by provider:
+```bash
+subnetter generate -c config.json -o aws-only.csv --provider aws
+```
+
+Override base CIDR:
+```bash
+subnetter generate -c config.json -b 172.16.0.0/12
+```
+
+Verbose output with debug logging:
+```bash
+subnetter generate -c config.json -v -l debug
+```
+
+## validate
+
+Validate a configuration file without generating allocations. Useful for CI/CD pipelines.
+
+```bash
+subnetter validate --config config.json
+```
+
+### Options
+
+| Option | Short | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--config` | `-c` | Yes | - | Path to configuration file (JSON or YAML) |
+| `--verbose` | `-v` | No | `false` | Enable verbose logging |
+| `--log-level` | `-l` | No | `info` | Log level: silent, error, warn, info, debug, trace |
+| `--no-color` | - | No | `false` | Disable colored output |
+| `--timestamps` | - | No | `false` | Include timestamps in logs |
+
+### Examples
+
+```bash
+# Basic validation
+subnetter validate -c config.json
+
+# Verbose validation for debugging
+subnetter validate -c config.json -v
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Configuration is valid |
+| `1` | Configuration has errors |
+
+## analyze
+
+Analyze a configuration file and display statistics.
+
+```bash
+subnetter analyze --config config.json
+```
+
+### Options
+
+| Option | Short | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--config` | `-c` | Yes | - | Path to configuration file (JSON or YAML) |
+| `--verbose` | `-v` | No | `false` | Enable verbose logging |
+| `--log-level` | `-l` | No | `info` | Log level: silent, error, warn, info, debug, trace |
+| `--no-color` | - | No | `false` | Disable colored output |
+| `--timestamps` | - | No | `false` | Include timestamps in logs |
+
+### Example Output
+
+```
+Configuration Analysis
+======================
+Base CIDR: 10.0.0.0/8
+Total Accounts: 3
+Total Regions: 8
+Total Availability Zones: 24
+Subnet Types: 4
+Total Subnets: 96
+Address Space Used: 24,576 IPs
+Address Space Available: 16,777,216 IPs
+Utilization: 0.15%
+```
+
+## validate-allocations
+
+Validate an existing allocations CSV file for CIDR overlaps.
+
+```bash
+subnetter validate-allocations --file allocations.csv
+```
+
+### Options
+
+| Option | Short | Required | Default | Description |
+|--------|-------|----------|---------|-------------|
+| `--file` | `-f` | Yes | - | Path to allocations CSV file |
+| `--verbose` | `-v` | No | `false` | Enable verbose logging |
+| `--log-level` | `-l` | No | `info` | Log level: silent, error, warn, info, debug, trace |
+| `--no-color` | - | No | `false` | Disable colored output |
+| `--timestamps` | - | No | `false` | Include timestamps in logs |
+
+### Examples
+
+```bash
+# Validate a CSV file
+subnetter validate-allocations -f allocations.csv
+
+# Verbose output to see all checks
+subnetter validate-allocations -f allocations.csv -v
+```
+
+<Aside type="tip" title="Use in CI/CD">
+Run `validate-allocations` in your CI pipeline to catch any manual edits that introduced overlaps.
+</Aside>
+
+## Global Options
+
+These options work with all commands:
+
+| Option | Description |
+|--------|-------------|
+| `--version` | Show version number |
+| `--help` | Show help for a command |
+
+```bash
+# Show version
+subnetter --version
+
+# Show help
+subnetter --help
+
+# Show help for a specific command
+subnetter generate --help
+```
+
+## Configuration File Formats
+
+Subnetter supports both JSON and YAML configuration files:
+
+<Tabs>
+  <TabItem label="JSON">
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "accounts": [
+    {
+      "name": "production",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 24,
+    "Private": 24
+  }
+}
+```
+  </TabItem>
+  <TabItem label="YAML">
+```yaml
+baseCidr: "10.0.0.0/8"
+accounts:
+  - name: production
+    clouds:
+      aws:
+        regions:
+          - us-east-1
+subnetTypes:
+  Public: 24
+  Private: 24
+```
+  </TabItem>
+</Tabs>
+
+## Output CSV Format
+
+The generated CSV includes these columns:
+
+| Column | Description |
+|--------|-------------|
+| Account Name | Name of the account |
+| Cloud Provider | aws, azure, or gcp |
+| Region Name | Cloud provider region |
+| Availability Zone | AZ within the region |
+| VPC CIDR | CIDR block for the VPC |
+| AZ CIDR | CIDR block for the AZ |
+| Subnet Role | Subnet type name |
+| Subnet CIDR | CIDR block for the subnet |
+| Usable IPs | Number of usable IP addresses |
+| Total IPs | Total IP addresses in the block |
+| Network Address | First address in the block |
+| Broadcast Address | Last address in the block |
+
+## Error Handling
+
+When errors occur, Subnetter provides clear messages with error codes:
+
+```
+[ERROR] [CLI] ❌ Error: [3002] Not enough space left for allocation with prefix /20
+[INFO] [CLI] 💡 Help: Your CIDR block is too small for the requested allocation. 
+             Use a larger CIDR block or reduce the number of subnets.
+```
+
+See [Error Handling](/subnetter/error-handling/) for a complete list of error codes.
+

@@ -1,0 +1,98 @@
+---
+title: Getting Started
+description: Learn how to use Subnetter for automated CIDR allocation
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Welcome to Subnetter! This section will help you get up and running quickly.
+
+## What is Subnetter?
+
+Subnetter is a tool for **hierarchical IPv4 CIDR allocation** across cloud infrastructure. It automates IP address planning for multi-account, multi-region, multi-cloud deployments.
+
+### Key Benefits
+
+<CardGrid>
+  <Card title="Deterministic" icon="approve-check-circle">
+    Same configuration always produces the same allocations. Perfect for reproducible infrastructure.
+  </Card>
+  <Card title="Zero Conflicts" icon="warning">
+    Mathematically guaranteed non-overlapping CIDRs. No more debugging IP conflicts.
+  </Card>
+  <Card title="Multi-Cloud" icon="cloud-download">
+    Native support for AWS, Azure, and GCP with provider-specific naming conventions.
+  </Card>
+  <Card title="Scalable" icon="rocket">
+    Plan for growth from day one. Add accounts, regions, and subnets without re-IP projects.
+  </Card>
+</CardGrid>
+
+## Quick Links
+
+<CardGrid>
+  <LinkCard
+    title="Quick Start"
+    description="Get your first allocation in under 5 minutes"
+    href="/subnetter/getting-started/quick-start/"
+  />
+  <LinkCard
+    title="CLI Reference"
+    description="Complete command-line documentation"
+    href="/subnetter/getting-started/cli/"
+  />
+  <LinkCard
+    title="Configuration Reference"
+    description="All configuration options explained"
+    href="/subnetter/configuration/"
+  />
+  <LinkCard
+    title="CIDR Primer"
+    description="Learn CIDR notation fundamentals"
+    href="/subnetter/cidr-primer/"
+  />
+</CardGrid>
+
+## How It Works
+
+Subnetter divides your IP space hierarchically:
+
+```
+Base CIDR (10.0.0.0/8)
+├── Account 1 (/16)
+│   ├── Region 1 (/20)
+│   │   ├── AZ 1 (/22)
+│   │   │   ├── Public (/24)
+│   │   │   ├── Private (/24)
+│   │   │   └── Data (/26)
+│   │   └── AZ 2 (/22)
+│   └── Region 2 (/20)
+└── Account 2 (/16)
+```
+
+Each level gets a dedicated, non-overlapping slice of IP space.
+
+## Workflow
+
+1. **Define** your cloud structure in a JSON or YAML config file
+2. **Generate** allocations with `subnetter generate`
+3. **Integrate** the CSV output with Terraform, CloudFormation, or other IaC tools
+4. **Version control** your config for auditable, reproducible infrastructure
+
+## Supported Cloud Providers
+
+| Provider | Region Format | AZ Format |
+|----------|--------------|-----------|
+| AWS | `us-east-1` | `us-east-1a` |
+| Azure | `eastus` | `eastus-1` |
+| GCP | `us-central1` | `us-central1-a` |
+
+## Next Steps
+
+Ready to get started? Head to the **[Quick Start](/subnetter/getting-started/quick-start/)** guide.
+
+Or explore:
+- **[Best Practices](/subnetter/guides/best-practices/)** - CIDR allocation strategies
+- **[Real-World Examples](/subnetter/guides/examples/)** - Complete configurations for common scenarios
+- **[Troubleshooting](/subnetter/troubleshooting/)** - Common issues and solutions
+

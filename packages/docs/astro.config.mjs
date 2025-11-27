@@ -21,14 +21,16 @@ export default defineConfig({
 				{
 					label: 'Getting Started',
 					items: [
-						{ label: 'User Guide', link: '/user-guide' },
+						{ label: 'Overview', link: '/getting-started' },
+						{ label: 'Quick Start', link: '/getting-started/quick-start' },
+						{ label: 'CLI Reference', link: '/getting-started/cli' },
 						{ label: 'CIDR Primer', link: '/cidr-primer' },
 					],
 				},
 				{
 					label: 'Reference',
 					items: [
-						{ label: 'Configuration Reference', link: '/configuration' },
+						{ label: 'Configuration', link: '/configuration' },
 						{ label: 'API Documentation', link: '/api/overview' },
 						{ label: 'Error Handling', link: '/error-handling' },
 					],
@@ -37,7 +39,9 @@ export default defineConfig({
 					label: 'Guides',
 					items: [
 						{ label: 'Overview', link: '/guides' },
-						{ label: 'Hierarchical CIDR Allocation', link: '/guides/hierarchical-cidr-allocation' },
+						{ label: 'Best Practices', link: '/guides/best-practices' },
+						{ label: 'Real-World Examples', link: '/guides/examples' },
+						{ label: 'Hierarchical Allocation', link: '/guides/hierarchical-cidr-allocation' },
 						{ label: 'Kubernetes Network Design', link: '/guides/kubernetes-network-design' },
 					],
 				},
