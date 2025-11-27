@@ -13,6 +13,9 @@ import type {
   Site,
   SiteWritable,
   SiteListParams,
+  SiteGroup,
+  SiteGroupWritable,
+  SiteGroupListParams,
   Region,
   RegionWritable,
   RegionListParams,
@@ -30,7 +33,9 @@ import type {
   TagListParams,
   Aggregate,
   AggregateWritable,
+  AggregateListParams,
   Rir,
+  RirListParams,
 } from './types';
 import { NetBoxConfigSchema } from './types';
 
@@ -187,36 +192,6 @@ export class NetBoxClient {
   // IPAM: Aggregates
   // ==========================================================================
 
-  /**
-   * Aggregate operations
-   */
-  readonly aggregates = {
-    /**
-     * List aggregates
-     */
-    list: async (params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<Aggregate>> => {
-      const response = await this.http.get<PaginatedResponse<Aggregate>>('/ipam/aggregates/', {
-        params,
-      });
-      return response.data;
-    },
-
-    /**
-     * Create a new aggregate
-     */
-    create: async (data: AggregateWritable): Promise<Aggregate> => {
-      const response = await this.http.post<Aggregate>('/ipam/aggregates/', data);
-      return response.data;
-    },
-
-    /**
-     * Delete an aggregate
-     */
-    delete: async (id: number): Promise<void> => {
-      await this.http.delete(`/ipam/aggregates/${id}/`);
-    },
-  };
-
   // ==========================================================================
   // IPAM: Roles
   // ==========================================================================
@@ -277,6 +252,65 @@ export class NetBoxClient {
   };
 
   // ==========================================================================
+  // IPAM: Aggregates
+  // ==========================================================================
+
+  /**
+   * Aggregate operations (top-level IP blocks)
+   */
+  readonly aggregates = {
+    /**
+     * List aggregates
+     */
+    list: async (params?: AggregateListParams): Promise<PaginatedResponse<Aggregate>> => {
+      const response = await this.http.get<PaginatedResponse<Aggregate>>('/ipam/aggregates/', { params });
+      return response.data;
+    },
+
+    /**
+     * Get all aggregates
+     */
+    listAll: async (): Promise<Aggregate[]> => {
+      const results: Aggregate[] = [];
+      let offset = 0;
+      const limit = 100;
+
+      while (true) {
+        const response = await this.aggregates.list({ limit, offset });
+        results.push(...response.results);
+
+        if (!response.next) break;
+        offset += limit;
+      }
+
+      return results;
+    },
+
+    /**
+     * Create a new aggregate
+     */
+    create: async (data: AggregateWritable): Promise<Aggregate> => {
+      const response = await this.http.post<Aggregate>('/ipam/aggregates/', data);
+      return response.data;
+    },
+
+    /**
+     * Find aggregate by prefix
+     */
+    findByPrefix: async (prefix: string): Promise<Aggregate | null> => {
+      const response = await this.aggregates.list({ prefix });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Delete an aggregate
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/ipam/aggregates/${id}/`);
+    },
+  };
+
+  // ==========================================================================
   // IPAM: RIRs
   // ==========================================================================
 
@@ -287,8 +321,8 @@ export class NetBoxClient {
     /**
      * List RIRs
      */
-    list: async (): Promise<PaginatedResponse<Rir>> => {
-      const response = await this.http.get<PaginatedResponse<Rir>>('/ipam/rirs/');
+    list: async (params?: RirListParams): Promise<PaginatedResponse<Rir>> => {
+      const response = await this.http.get<PaginatedResponse<Rir>>('/ipam/rirs/', { params });
       return response.data;
     },
 
@@ -296,10 +330,16 @@ export class NetBoxClient {
      * Find RIR by slug
      */
     findBySlug: async (slug: string): Promise<Rir | null> => {
-      const response = await this.http.get<PaginatedResponse<Rir>>('/ipam/rirs/', {
-        params: { slug },
-      });
-      return response.data.results.length > 0 ? response.data.results[0] : null;
+      const response = await this.rirs.list({ slug });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Create a new RIR
+     */
+    create: async (data: { name: string; slug: string; is_private?: boolean; description?: string }): Promise<Rir> => {
+      const response = await this.http.post<Rir>('/ipam/rirs/', data);
+      return response.data;
     },
   };
 
@@ -363,11 +403,70 @@ export class NetBoxClient {
   };
 
   // ==========================================================================
+  // DCIM: Site Groups
+  // ==========================================================================
+
+  /**
+   * Site Group operations (for functional grouping like cloud providers)
+   */
+  readonly siteGroups = {
+    /**
+     * List site groups
+     */
+    list: async (params?: SiteGroupListParams): Promise<PaginatedResponse<SiteGroup>> => {
+      const response = await this.http.get<PaginatedResponse<SiteGroup>>('/dcim/site-groups/', { params });
+      return response.data;
+    },
+
+    /**
+     * Get all site groups
+     */
+    listAll: async (): Promise<SiteGroup[]> => {
+      const results: SiteGroup[] = [];
+      let offset = 0;
+      const limit = 100;
+
+      while (true) {
+        const response = await this.siteGroups.list({ limit, offset });
+        results.push(...response.results);
+
+        if (!response.next) break;
+        offset += limit;
+      }
+
+      return results;
+    },
+
+    /**
+     * Create a new site group
+     */
+    create: async (data: SiteGroupWritable): Promise<SiteGroup> => {
+      const response = await this.http.post<SiteGroup>('/dcim/site-groups/', data);
+      return response.data;
+    },
+
+    /**
+     * Find site group by slug
+     */
+    findBySlug: async (slug: string): Promise<SiteGroup | null> => {
+      const response = await this.siteGroups.list({ slug });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Delete a site group
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/dcim/site-groups/${id}/`);
+    },
+  };
+
+  // ==========================================================================
   // DCIM: Regions
   // ==========================================================================
 
   /**
-   * Region operations (for cloud provider hierarchy)
+   * Region operations (for geographic hierarchy)
    */
   readonly regions = {
     /**

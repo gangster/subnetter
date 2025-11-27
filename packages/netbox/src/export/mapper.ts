@@ -6,10 +6,11 @@ import type { Allocation } from '@subnetter/core';
 import type {
   PrefixWritable,
   SiteWritable,
+  SiteGroupWritable,
   TenantWritable,
   RoleWritable,
-  RegionWritable,
   LocationWritable,
+  AggregateWritable,
   PrefixStatus,
 } from '../client/types';
 
@@ -42,7 +43,7 @@ export function extractAccounts(allocations: Allocation[]): string[] {
 }
 
 /**
- * Extract unique cloud providers from allocations (for NetBox Regions)
+ * Extract unique cloud providers from allocations (for NetBox Site Groups)
  */
 export function extractCloudProviders(allocations: Allocation[]): string[] {
   const providers = new Set<string>();
@@ -118,9 +119,12 @@ export function mapAccountToTenant(accountName: string): TenantWritable {
 }
 
 /**
- * Map a cloud provider to a NetBox Region (top-level geographic grouping)
+ * Map a cloud provider to a NetBox Site Group (functional grouping)
+ *
+ * Site Groups are used for functional/logical organization, which is
+ * appropriate for cloud providers (AWS, Azure, GCP).
  */
-export function mapCloudProviderToRegion(cloudProvider: string): RegionWritable {
+export function mapCloudProviderToSiteGroup(cloudProvider: string): SiteGroupWritable {
   const providerNames: Record<string, string> = {
     aws: 'Amazon Web Services',
     azure: 'Microsoft Azure',
@@ -135,22 +139,39 @@ export function mapCloudProviderToRegion(cloudProvider: string): RegionWritable 
 }
 
 /**
+ * Map a base CIDR to a NetBox Aggregate
+ *
+ * Aggregates represent the root of your IP addressing hierarchy.
+ * They are typically RFC 1918 private ranges or public allocations.
+ *
+ * @param baseCidr - The base CIDR block (e.g., '10.0.0.0/8')
+ * @param rirId - The ID of the RIR (e.g., RFC 1918)
+ */
+export function mapBaseCidrToAggregate(baseCidr: string, rirId: number): AggregateWritable {
+  return {
+    prefix: baseCidr,
+    rir: rirId,
+    description: `Subnetter managed IP space: ${baseCidr}`,
+  };
+}
+
+/**
  * Map a cloud region to a NetBox Site
  *
  * @param regionName - Cloud region name (e.g., 'us-east-1')
  * @param cloudProvider - Cloud provider (e.g., 'aws')
- * @param netboxRegionId - ID of the parent NetBox Region (cloud provider)
+ * @param siteGroupId - ID of the parent NetBox Site Group (cloud provider)
  */
 export function mapRegionToSite(
   regionName: string,
   cloudProvider: string,
-  netboxRegionId?: number,
+  siteGroupId?: number,
 ): SiteWritable {
   return {
     name: regionName,
     slug: slugify(regionName),
     status: 'active',
-    region: netboxRegionId ?? undefined,
+    group: siteGroupId ?? undefined,  // Sites belong to Site Groups, not Regions
     description: `${cloudProvider.toUpperCase()} region: ${regionName}`,
     // Note: Tags are added separately after creation to avoid dependency issues
   };

@@ -2,16 +2,18 @@
  * NetBox Exporter - exports Subnetter allocations to NetBox
  */
 
-import type { Allocation } from '@subnetter/core';
+import type { Allocation, Config } from '@subnetter/core';
 import { NetBoxClient, NetBoxApiError } from '../client/NetBoxClient';
 import type {
   Prefix,
   Site,
+  SiteGroup,
   Tenant,
   Role,
   Tag,
-  Region,
   Location,
+  Aggregate,
+  Rir,
   PrefixStatus,
 } from '../client/types';
 import {
@@ -23,7 +25,8 @@ import {
   extractAvailabilityZones,
   extractRoles,
   mapAccountToTenant,
-  mapCloudProviderToRegion,
+  mapCloudProviderToSiteGroup,
+  mapBaseCidrToAggregate,
   mapRegionToSite,
   mapAzToLocation,
   mapSubnetTypeToRole,
@@ -40,7 +43,7 @@ export type OperationType = 'create' | 'update' | 'delete' | 'skip';
  */
 export interface PlannedChange<T = unknown> {
   operation: OperationType;
-  objectType: 'prefix' | 'site' | 'tenant' | 'role' | 'tag' | 'region' | 'location';
+  objectType: 'prefix' | 'site' | 'site_group' | 'tenant' | 'role' | 'tag' | 'location' | 'aggregate' | 'rir';
   identifier: string;
   current?: T;
   planned?: T;
@@ -75,6 +78,8 @@ export interface ExportOptions {
   status?: PrefixStatus;
   /** Only show what would be done, don't make changes */
   dryRun?: boolean;
+  /** Base CIDR block for creating Aggregate (e.g., '10.0.0.0/8') */
+  baseCidr?: string;
 }
 
 /**
@@ -82,17 +87,26 @@ export interface ExportOptions {
  *
  * Exports Subnetter allocations to NetBox, creating necessary
  * supporting objects (tenants, sites, roles) as needed.
+ *
+ * Hierarchy created:
+ * - Aggregates: Top-level IP blocks (e.g., 10.0.0.0/8)
+ * - Site Groups: Cloud providers (AWS, Azure, GCP)
+ * - Sites: Cloud regions (us-east-1, eastus, etc.)
+ * - Locations: Availability zones (us-east-1a, etc.)
+ * - Prefixes: Subnet allocations (scoped to Sites)
  */
 export class NetBoxExporter {
   private readonly client: NetBoxClient;
 
   // Cache of existing objects (populated during export)
   private tenantCache: Map<string, Tenant> = new Map();
-  private regionCache: Map<string, Region> = new Map();  // Cloud providers
-  private siteCache: Map<string, Site> = new Map();       // Cloud regions
-  private locationCache: Map<string, Location> = new Map(); // Availability zones
+  private siteGroupCache: Map<string, SiteGroup> = new Map();  // Cloud providers
+  private siteCache: Map<string, Site> = new Map();             // Cloud regions
+  private locationCache: Map<string, Location> = new Map();     // Availability zones
   private roleCache: Map<string, Role> = new Map();
   private tagCache: Map<string, Tag> = new Map();
+  private aggregateCache: Map<string, Aggregate> = new Map();   // Top-level IP blocks
+  private rirCache: Map<string, Rir> = new Map();               // RIRs (e.g., RFC 1918)
 
   constructor(client: NetBoxClient) {
     this.client = client;
@@ -110,6 +124,7 @@ export class NetBoxExporter {
       prune = false,
       status = 'reserved',
       dryRun = false,
+      baseCidr,
     } = options;
 
     const changes: PlannedChange[] = [];
@@ -121,7 +136,17 @@ export class NetBoxExporter {
     // Phase 2: Ensure the subnetter-managed tag exists
     await this.ensureTag(SUBNETTER_MANAGED_TAG, changes, dryRun);
 
-    // Phase 3: Ensure tenants exist
+    // Phase 3: Ensure RFC 1918 RIR exists (for Aggregates)
+    if (createMissing) {
+      await this.ensureRfc1918Rir(changes, dryRun);
+    }
+
+    // Phase 4: Ensure Aggregate exists for base CIDR (top of IP hierarchy)
+    if (createMissing && baseCidr) {
+      await this.ensureAggregate(baseCidr, changes, dryRun);
+    }
+
+    // Phase 5: Ensure tenants exist
     if (createMissing) {
       const accounts = extractAccounts(allocations);
       for (const account of accounts) {
@@ -129,15 +154,15 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 4: Ensure cloud provider regions exist (top-level hierarchy)
+    // Phase 6: Ensure cloud provider site groups exist (functional grouping)
     if (createMissing) {
       const providers = extractCloudProviders(allocations);
       for (const provider of providers) {
-        await this.ensureRegion(provider, changes, dryRun);
+        await this.ensureSiteGroup(provider, changes, dryRun);
       }
     }
 
-    // Phase 5: Ensure cloud region sites exist (under provider regions)
+    // Phase 7: Ensure cloud region sites exist (under provider site groups)
     if (createMissing) {
       const cloudRegions = extractCloudRegions(allocations);
       for (const { region, provider } of cloudRegions) {
@@ -145,7 +170,7 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 6: Ensure availability zone locations exist (under region sites)
+    // Phase 8: Ensure availability zone locations exist (under region sites)
     if (createMissing) {
       const azs = extractAvailabilityZones(allocations);
       for (const { az, region } of azs) {
@@ -153,7 +178,7 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 7: Ensure roles exist
+    // Phase 9: Ensure roles exist
     if (createMissing) {
       const roles = extractRoles(allocations);
       for (const role of roles) {
@@ -161,13 +186,13 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 8: Get existing prefixes
+    // Phase 10: Get existing prefixes
     const existingPrefixes = await this.getSubnetterManagedPrefixes();
     const existingPrefixMap = new Map(
       existingPrefixes.map((p) => [p.prefix, p]),
     );
 
-    // Phase 9: Process allocations
+    // Phase 11: Process allocations
     const processedPrefixes = new Set<string>();
 
     for (const allocation of allocations) {
@@ -242,7 +267,7 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 10: Handle pruning (delete prefixes not in allocations)
+    // Phase 12: Handle pruning (delete prefixes not in allocations)
     if (prune) {
       for (const [prefixCidr, existing] of existingPrefixMap) {
         if (!processedPrefixes.has(prefixCidr)) {
@@ -293,9 +318,9 @@ export class NetBoxExporter {
     const tenants = await this.client.tenants.listAll();
     this.tenantCache = new Map(tenants.map((t) => [t.slug, t]));
 
-    // Load regions (cloud providers)
-    const regions = await this.client.regions.listAll();
-    this.regionCache = new Map(regions.map((r) => [r.slug, r]));
+    // Load site groups (cloud providers)
+    const siteGroups = await this.client.siteGroups.listAll();
+    this.siteGroupCache = new Map(siteGroups.map((sg) => [sg.slug, sg]));
 
     // Load sites (cloud regions)
     const sites = await this.client.sites.listAll();
@@ -312,6 +337,14 @@ export class NetBoxExporter {
     // Load tags
     const tags = await this.client.tags.listAll();
     this.tagCache = new Map(tags.map((t) => [t.slug, t]));
+
+    // Load aggregates
+    const aggregates = await this.client.aggregates.listAll();
+    this.aggregateCache = new Map(aggregates.map((a) => [a.prefix, a]));
+
+    // Load RIRs
+    const rirs = await this.client.rirs.list();
+    this.rirCache = new Map(rirs.results.map((r) => [r.slug, r]));
   }
 
   /**
@@ -320,6 +353,114 @@ export class NetBoxExporter {
    */
   private async getSubnetterManagedPrefixes(): Promise<Prefix[]> {
     return this.client.prefixes.listAll();
+  }
+
+  /**
+   * Ensure RFC 1918 RIR exists
+   */
+  private async ensureRfc1918Rir(
+    changes: PlannedChange[],
+    dryRun: boolean,
+  ): Promise<void> {
+    const slug = 'rfc-1918';
+    if (this.rirCache.has(slug)) return;
+
+    changes.push({
+      operation: 'create',
+      objectType: 'rir',
+      identifier: 'RFC 1918',
+      planned: { name: 'RFC 1918', slug, is_private: true },
+    });
+
+    if (!dryRun) {
+      try {
+        const rir = await this.client.rirs.create({
+          name: 'RFC 1918',
+          slug,
+          is_private: true,
+          description: 'Private IPv4 address space (RFC 1918)',
+        });
+        this.rirCache.set(slug, rir);
+      } catch (err) {
+        if (err instanceof NetBoxApiError && err.statusCode === 400) {
+          const existing = await this.client.rirs.findBySlug(slug);
+          if (existing) {
+            this.rirCache.set(slug, existing);
+          }
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      // Placeholder for dry-run
+      this.rirCache.set(slug, { id: -1, slug, name: 'RFC 1918' } as Rir);
+    }
+  }
+
+  /**
+   * Normalize a CIDR to its proper network address
+   * e.g., 10.100.0.0/8 -> 10.0.0.0/8
+   */
+  private normalizeCidr(cidr: string): string {
+    const [ip, prefixStr] = cidr.split('/');
+    const prefix = parseInt(prefixStr, 10);
+    const octets = ip.split('.').map(Number);
+    
+    // Calculate the network address based on prefix length
+    const ipNum = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+    const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+    const networkNum = (ipNum & mask) >>> 0;
+    
+    const networkOctets = [
+      (networkNum >>> 24) & 0xff,
+      (networkNum >>> 16) & 0xff,
+      (networkNum >>> 8) & 0xff,
+      networkNum & 0xff,
+    ];
+    
+    return `${networkOctets.join('.')}/${prefix}`;
+  }
+
+  /**
+   * Ensure an Aggregate exists for the base CIDR
+   */
+  private async ensureAggregate(
+    baseCidr: string,
+    changes: PlannedChange[],
+    dryRun: boolean,
+  ): Promise<void> {
+    // Normalize the CIDR to a proper network address
+    const normalizedCidr = this.normalizeCidr(baseCidr);
+    
+    if (this.aggregateCache.has(normalizedCidr)) return;
+
+    const rir = this.rirCache.get('rfc-1918');
+    if (!rir) return;
+
+    const aggregateData = mapBaseCidrToAggregate(normalizedCidr, rir.id);
+
+    changes.push({
+      operation: 'create',
+      objectType: 'aggregate',
+      identifier: normalizedCidr,
+      planned: aggregateData,
+    });
+
+    if (!dryRun) {
+      try {
+        const aggregate = await this.client.aggregates.create(aggregateData);
+        this.aggregateCache.set(normalizedCidr, aggregate);
+      } catch (err) {
+        if (err instanceof NetBoxApiError && err.statusCode === 400) {
+          const existing = await this.client.aggregates.findByPrefix(normalizedCidr);
+          if (existing) {
+            this.aggregateCache.set(normalizedCidr, existing);
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
   }
 
   /**
@@ -364,39 +505,42 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a region (cloud provider) exists
+   * Ensure a site group (cloud provider) exists
    */
-  private async ensureRegion(
+  private async ensureSiteGroup(
     cloudProvider: string,
     changes: PlannedChange[],
     dryRun: boolean,
   ): Promise<void> {
     const slug = slugify(cloudProvider);
-    if (this.regionCache.has(slug)) return;
+    if (this.siteGroupCache.has(slug)) return;
 
-    const regionData = mapCloudProviderToRegion(cloudProvider);
+    const siteGroupData = mapCloudProviderToSiteGroup(cloudProvider);
 
     changes.push({
       operation: 'create',
-      objectType: 'region',
+      objectType: 'site_group',
       identifier: cloudProvider,
-      planned: regionData,
+      planned: siteGroupData,
     });
 
     if (!dryRun) {
       try {
-        const region = await this.client.regions.create(regionData);
-        this.regionCache.set(slug, region);
+        const siteGroup = await this.client.siteGroups.create(siteGroupData);
+        this.siteGroupCache.set(slug, siteGroup);
       } catch (err) {
         if (err instanceof NetBoxApiError && err.statusCode === 400) {
-          const existing = await this.client.regions.findBySlug(slug);
+          const existing = await this.client.siteGroups.findBySlug(slug);
           if (existing) {
-            this.regionCache.set(slug, existing);
+            this.siteGroupCache.set(slug, existing);
           }
         } else {
           throw err;
         }
       }
+    } else {
+      // Placeholder for dry-run
+      this.siteGroupCache.set(slug, { id: -1, slug, name: cloudProvider } as SiteGroup);
     }
   }
 
@@ -449,11 +593,13 @@ export class NetBoxExporter {
     const slug = slugify(regionName);
     if (this.siteCache.has(slug)) return;
 
-    // Get the parent region (cloud provider) ID
-    const parentRegion = this.regionCache.get(slugify(cloudProvider));
-    const parentRegionId = parentRegion?.id;
+    // Get the parent site group (cloud provider) ID
+    const parentSiteGroup = this.siteGroupCache.get(slugify(cloudProvider));
+    const siteGroupId = parentSiteGroup?.id;
+    // Filter out placeholder IDs
+    const validSiteGroupId = siteGroupId && siteGroupId > 0 ? siteGroupId : undefined;
 
-    const siteData = mapRegionToSite(regionName, cloudProvider, parentRegionId);
+    const siteData = mapRegionToSite(regionName, cloudProvider, validSiteGroupId);
 
     changes.push({
       operation: 'create',

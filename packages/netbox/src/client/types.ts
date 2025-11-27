@@ -136,6 +136,26 @@ export interface AggregateWritable {
   custom_fields?: Record<string, unknown>;
 }
 
+/** Aggregate query parameters */
+export interface AggregateListParams {
+  limit?: number;
+  offset?: number;
+  prefix?: string;
+  rir_id?: number;
+  rir?: string;
+  tenant_id?: number;
+  tag?: string | string[];
+}
+
+/** RIR query parameters */
+export interface RirListParams {
+  limit?: number;
+  offset?: number;
+  name?: string;
+  slug?: string;
+  is_private?: boolean;
+}
+
 /** NetBox Role object (IPAM) */
 export interface Role {
   id: number;
@@ -262,6 +282,43 @@ export interface LocationListParams {
   slug?: string;
   site_id?: number;
   site?: string;
+  parent_id?: number;
+  tag?: string | string[];
+}
+
+/** NetBox SiteGroup object (for functional/logical grouping like cloud providers) */
+export interface SiteGroup {
+  id: number;
+  url: string;
+  display: string;
+  name: string;
+  slug: string;
+  parent: NestedRef | null;
+  description: string;
+  tags: NestedTag[];
+  custom_fields: Record<string, unknown>;
+  created: string;
+  last_updated: string;
+  site_count: number;
+  _depth: number;
+}
+
+/** Create/Update SiteGroup request */
+export interface SiteGroupWritable {
+  name: string;
+  slug: string;
+  parent?: number | null;
+  description?: string;
+  tags?: TagWritable[];
+  custom_fields?: Record<string, unknown>;
+}
+
+/** SiteGroup query parameters */
+export interface SiteGroupListParams {
+  limit?: number;
+  offset?: number;
+  name?: string;
+  slug?: string;
   parent_id?: number;
   tag?: string | string[];
 }

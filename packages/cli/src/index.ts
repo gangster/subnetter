@@ -590,6 +590,7 @@ program
         prune: options.prune,
         status: options.status,
         createMissing: true,
+        baseCidr: config.baseCidr,  // Pass base CIDR for Aggregate creation
       });
       
       // Display results
