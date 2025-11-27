@@ -21,8 +21,7 @@ import {
   validateNoOverlappingCidrs 
 } from '@subnetter/core';
 import { 
-  isValidIpv4Cidr, 
-  parseCidr,
+  isValidIpv4Cidr,
   getCidrRange
 } from '@subnetter/cidr-utils';
 
@@ -68,11 +67,6 @@ interface ValidationWarning {
   message: string;
   details?: Record<string, unknown>;
 }
-
-// Cloud-specific AZ naming patterns
-const AWS_AZ_PATTERN = /^[a-z]{2}-[a-z]+-\d[a-z]$/;
-const AZURE_AZ_PATTERN = /^[a-z]+-\d$/;
-const GCP_AZ_PATTERN = /^[a-z]+-[a-z]+\d[a-z]$/;
 
 // AWS region to expected AZ suffixes mapping (for special cases)
 const AWS_SPECIAL_AZ_MAPPINGS: Record<string, string[]> = {
@@ -296,7 +290,10 @@ function validateAllocations(allocations: Allocation[], configPath: string): Val
     if (!accountRegionGroups.has(key)) {
       accountRegionGroups.set(key, new Set());
     }
-    accountRegionGroups.get(key)!.add(allocation.regionName);
+    const regionSet = accountRegionGroups.get(key);
+    if (regionSet) {
+      regionSet.add(allocation.regionName);
+    }
   });
 
   // Check that each account-provider combination has consistent VPC CIDRs
@@ -306,7 +303,10 @@ function validateAllocations(allocations: Allocation[], configPath: string): Val
     if (!accountVpcCidrs.has(key)) {
       accountVpcCidrs.set(key, new Set());
     }
-    accountVpcCidrs.get(key)!.add(allocation.vpcCidr);
+    const cidrSet = accountVpcCidrs.get(key);
+    if (cidrSet) {
+      cidrSet.add(allocation.vpcCidr);
+    }
   });
 
   // Multiple VPC CIDRs per account-provider is usually intentional, but worth noting
