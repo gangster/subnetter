@@ -12,8 +12,7 @@ import {
   mapRegionToSite,
   mapSubnetTypeToRole,
   mapAllocationToPrefix,
-  SUBNETTER_MANAGED_TAG,
-} from '../src/export/mapper.js';
+} from '../src/export/mapper';
 
 describe('slugify', () => {
   it('should convert to lowercase', () => {
@@ -97,10 +96,9 @@ describe('mapAccountToTenant', () => {
     expect(tenant.slug).toBe('production-account');
   });
 
-  it('should include subnetter-managed tag', () => {
+  it('should include description', () => {
     const tenant = mapAccountToTenant('prod');
-    expect(tenant.tags).toBeDefined();
-    expect(tenant.tags![0].name).toBe(SUBNETTER_MANAGED_TAG);
+    expect(tenant.description).toContain('prod');
   });
 });
 
@@ -111,15 +109,14 @@ describe('mapRegionToSite', () => {
     expect(site.slug).toBe('us-east-1');
   });
 
-  it('should include cloud provider tag', () => {
+  it('should include cloud provider in description', () => {
     const site = mapRegionToSite('us-east-1', 'aws');
-    expect(site.tags).toBeDefined();
-    expect(site.tags!.some((t) => t.name === 'aws')).toBe(true);
+    expect(site.description).toContain('AWS');
   });
 
-  it('should include subnetter-managed tag', () => {
+  it('should set status to active', () => {
     const site = mapRegionToSite('us-east-1', 'aws');
-    expect(site.tags!.some((t) => t.name === SUBNETTER_MANAGED_TAG)).toBe(true);
+    expect(site.status).toBe('active');
   });
 });
 
@@ -157,25 +154,19 @@ describe('mapAllocationToPrefix', () => {
     expect(prefix.status).toBe('active');
   });
 
-  it('should include cloud provider tag', () => {
-    const prefix = mapAllocationToPrefix(allocation);
-    expect(prefix.tags!.some((t) => t.name === 'aws')).toBe(true);
+  it('should set tenant if provided', () => {
+    const prefix = mapAllocationToPrefix(allocation, { tenantId: 5 });
+    expect(prefix.tenant).toBe(5);
   });
 
-  it('should include AZ tag', () => {
-    const prefix = mapAllocationToPrefix(allocation);
-    expect(prefix.tags!.some((t) => t.name === 'az:us-east-1a')).toBe(true);
+  it('should set site if provided', () => {
+    const prefix = mapAllocationToPrefix(allocation, { siteId: 3 });
+    expect(prefix.site).toBe(3);
   });
 
-  it('should include custom fields', () => {
-    const prefix = mapAllocationToPrefix(allocation);
-    expect(prefix.custom_fields).toEqual({
-      subnetter_account: 'production',
-      subnetter_region: 'us-east-1',
-      subnetter_az: 'us-east-1a',
-      subnetter_role: 'Public',
-      subnetter_usable_ips: 251,
-    });
+  it('should set role if provided', () => {
+    const prefix = mapAllocationToPrefix(allocation, { roleId: 7 });
+    expect(prefix.role).toBe(7);
   });
 
   it('should build description from allocation parts', () => {

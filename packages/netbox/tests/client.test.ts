@@ -3,7 +3,7 @@
  */
 
 import nock from 'nock';
-import { NetBoxClient, NetBoxApiError } from '../src/client/NetBoxClient.js';
+import { NetBoxClient, NetBoxApiError } from '../src/client/NetBoxClient';
 
 describe('NetBoxClient', () => {
   const baseUrl = 'http://netbox.test';

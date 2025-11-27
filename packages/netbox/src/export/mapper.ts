@@ -8,9 +8,8 @@ import type {
   SiteWritable,
   TenantWritable,
   RoleWritable,
-  TagWritable,
   PrefixStatus,
-} from '../client/types.js';
+} from '../client/types';
 
 /** Tag used to identify Subnetter-managed objects */
 export const SUBNETTER_MANAGED_TAG = 'subnetter-managed';
@@ -76,7 +75,7 @@ export function mapAccountToTenant(accountName: string): TenantWritable {
     name: accountName,
     slug: slugify(accountName),
     description: `Subnetter managed account: ${accountName}`,
-    tags: [{ name: SUBNETTER_MANAGED_TAG, slug: slugify(SUBNETTER_MANAGED_TAG) }],
+    // Note: Tags are added separately after creation to avoid dependency issues
   };
 }
 
@@ -92,10 +91,7 @@ export function mapRegionToSite(
     slug: slugify(regionName),
     status: 'active',
     description: `${cloudProvider.toUpperCase()} region: ${regionName}`,
-    tags: [
-      { name: SUBNETTER_MANAGED_TAG, slug: slugify(SUBNETTER_MANAGED_TAG) },
-      { name: cloudProvider, slug: slugify(cloudProvider) },
-    ],
+    // Note: Tags are added separately after creation to avoid dependency issues
   };
 }
 
@@ -141,13 +137,6 @@ export function mapAllocationToPrefix(
     allocation.subnetRole,
   ].join(' / ');
 
-  // Build tags
-  const tags: TagWritable[] = [
-    { name: SUBNETTER_MANAGED_TAG, slug: slugify(SUBNETTER_MANAGED_TAG) },
-    { name: allocation.cloudProvider, slug: slugify(allocation.cloudProvider) },
-    { name: `az:${allocation.availabilityZone}`, slug: slugify(`az-${allocation.availabilityZone}`) },
-  ];
-
   return {
     prefix: allocation.subnetCidr,
     status,
@@ -155,14 +144,8 @@ export function mapAllocationToPrefix(
     site: siteId ?? undefined,
     role: roleId ?? undefined,
     description,
-    tags,
-    custom_fields: {
-      subnetter_account: allocation.accountName,
-      subnetter_region: allocation.regionName,
-      subnetter_az: allocation.availabilityZone,
-      subnetter_role: allocation.subnetRole,
-      subnetter_usable_ips: allocation.usableIps,
-    },
+    // Note: Tags and custom_fields are omitted to avoid dependency issues
+    // Custom fields must be defined in NetBox before they can be used
   };
 }
 

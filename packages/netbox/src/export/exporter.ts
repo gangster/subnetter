@@ -3,7 +3,7 @@
  */
 
 import type { Allocation } from '@subnetter/core';
-import { NetBoxClient, NetBoxApiError } from '../client/NetBoxClient.js';
+import { NetBoxClient, NetBoxApiError } from '../client/NetBoxClient';
 import type {
   Prefix,
   Site,
@@ -22,7 +22,7 @@ import {
   mapRegionToSite,
   mapSubnetTypeToRole,
   mapAllocationToPrefix,
-} from './mapper.js';
+} from './mapper';
 
 /**
  * Export operation types
@@ -280,10 +280,11 @@ export class NetBoxExporter {
   }
 
   /**
-   * Get all prefixes with the subnetter-managed tag
+   * Get all prefixes from NetBox
+   * Note: We fetch all prefixes since we can't rely on tags being present
    */
   private async getSubnetterManagedPrefixes(): Promise<Prefix[]> {
-    return this.client.prefixes.listAll({ tag: SUBNETTER_MANAGED_TAG });
+    return this.client.prefixes.listAll();
   }
 
   /**

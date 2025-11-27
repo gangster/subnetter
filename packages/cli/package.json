@@ -26,6 +26,7 @@
   "dependencies": {
     "@subnetter/cidr-utils": "2.0.1",
     "@subnetter/core": "2.0.1",
+    "@subnetter/netbox": "0.1.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
     "csv-writer": "^1.6.0"

@@ -4430,6 +4430,7 @@ __metadata:
   dependencies:
     "@subnetter/cidr-utils": "npm:2.0.1"
     "@subnetter/core": "npm:2.0.1"
+    "@subnetter/netbox": "npm:0.1.0"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.10"
     chalk: "npm:^4.1.2"
@@ -4482,7 +4483,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@subnetter/netbox@workspace:packages/netbox":
+"@subnetter/netbox@npm:0.1.0, @subnetter/netbox@workspace:packages/netbox":
   version: 0.0.0-use.local
   resolution: "@subnetter/netbox@workspace:packages/netbox"
   dependencies:

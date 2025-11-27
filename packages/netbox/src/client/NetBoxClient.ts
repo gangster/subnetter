@@ -25,8 +25,8 @@ import type {
   Aggregate,
   AggregateWritable,
   Rir,
-} from './types.js';
-import { NetBoxConfigSchema } from './types.js';
+} from './types';
+import { NetBoxConfigSchema } from './types';
 
 /**
  * Custom error class for NetBox API errors

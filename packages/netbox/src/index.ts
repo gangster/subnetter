@@ -8,7 +8,7 @@
  */
 
 // Client
-export { NetBoxClient, NetBoxApiError } from './client/NetBoxClient.js';
+export { NetBoxClient, NetBoxApiError } from './client/NetBoxClient';
 export type {
   NetBoxConfig,
   Prefix,
@@ -28,16 +28,16 @@ export type {
   PaginatedResponse,
   NestedRef,
   NestedTag,
-} from './client/types.js';
+} from './client/types';
 
 // Export
-export { NetBoxExporter } from './export/exporter.js';
+export { NetBoxExporter } from './export/exporter';
 export type {
   ExportOptions,
   ExportResult,
   PlannedChange,
   OperationType,
-} from './export/exporter.js';
+} from './export/exporter';
 export {
   SUBNETTER_MANAGED_TAG,
   slugify,
@@ -48,5 +48,5 @@ export {
   extractAccounts,
   extractRegions,
   extractRoles,
-} from './export/mapper.js';
+} from './export/mapper';
 

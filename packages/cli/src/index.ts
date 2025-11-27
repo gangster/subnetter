@@ -18,6 +18,11 @@ import {
   SubnetterError,
   ErrorCode
 } from '@subnetter/core';
+import {
+  NetBoxClient,
+  NetBoxExporter,
+  NetBoxApiError
+} from '@subnetter/netbox';
 
 // Package info
 const packageJson = require('../package.json');
@@ -462,6 +467,185 @@ program
       }
     } catch (error: unknown) {
       if (error instanceof SubnetterError) {
+        const errorCode = error.code ? `[${error.code}] ` : '';
+        cliLogger.error(`❌ Error: ${errorCode}${error.message}`);
+        
+        // Display context information for debug level and above
+        if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
+          if (error.getContextString()) {
+            cliLogger.debug(`Context: ${error.getContextString()}`);
+          }
+        }
+        
+        // Always show help text for users
+        const helpText = error.getHelpText();
+        if (helpText) {
+          cliLogger.info(`💡 Help: ${helpText}`);
+        }
+        
+        // Only log the stack trace at debug level and above
+        if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
+          if (error.stack) {
+            cliLogger.debug(`❌ Stack trace: \n${error.stack}`);
+          }
+        }
+      } else {
+        cliLogger.error(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        if (error instanceof Error && error.stack && 
+            (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG)) {
+          cliLogger.debug(`❌ Stack trace: \n${error.stack}`);
+        }
+      }
+      
+      process.exit(1);
+    }
+  });
+
+// Register the netbox-export command
+program
+  .command('netbox-export')
+  .description('Export allocations to NetBox IPAM')
+  .requiredOption('-c, --config <path>', 'Path to configuration file (JSON or YAML format)')
+  .requiredOption('--netbox-url <url>', 'NetBox API URL (e.g., https://netbox.example.com)')
+  .option('--netbox-token <token>', 'NetBox API token (or set NETBOX_TOKEN env var)')
+  .option('--dry-run', 'Show what would be done without making changes', false)
+  .option('--prune', 'Delete prefixes in NetBox not in allocations', false)
+  .option('--status <status>', 'Status for new prefixes (container, active, reserved, deprecated)', 'reserved')
+  .option('-p, --provider <n>', 'Filter results by cloud provider')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('-l, --log-level <level>', 'Set log level (silent, error, warn, info, debug, trace)', 'info')
+  .option('--no-color', 'Disable colored output')
+  .option('--timestamps', 'Include timestamps in log output')
+  .action(async (options) => {
+    try {
+      // Configure the logger based on the options
+      configureLogger({
+        level: options.verbose ? LogLevel.DEBUG : parseLogLevel(options.logLevel),
+        useColor: options.color,
+        timestamps: options.timestamps
+      });
+      
+      cliLogger.debug('Command options:', options);
+      
+      // Get NetBox token from option or environment variable
+      const netboxToken = options.netboxToken || process.env.NETBOX_TOKEN;
+      if (!netboxToken) {
+        throw new SubnetterError(
+          'NetBox API token is required. Use --netbox-token or set NETBOX_TOKEN environment variable.',
+          ErrorCode.MISSING_REQUIRED_FIELD,
+          { option: 'netbox-token' }
+        );
+      }
+      
+      // Load the configuration
+      configLogger.debug(`Loading config from: ${options.config}`);
+      const config = await loadConfig(options.config);
+      configLogger.debug('Config loaded successfully');
+      
+      // Create an allocator
+      allocatorLogger.debug('Creating allocator instance');
+      const allocator = new CidrAllocator(config);
+      allocatorLogger.debug('Allocator created successfully');
+      
+      // Generate allocations
+      allocatorLogger.debug('Generating CIDR allocations');
+      let allocations = allocator.generateAllocations();
+      allocatorLogger.debug(`Generated ${allocations.length} allocations`);
+      
+      // Apply provider filter if specified
+      if (options.provider) {
+        allocatorLogger.debug(`Filtering by provider: ${options.provider}`);
+        allocations = filterAllocationsByProvider(allocations, options.provider);
+        allocatorLogger.debug(`Filtered to ${allocations.length} allocations`);
+      }
+      
+      // Create NetBox client
+      cliLogger.debug(`Connecting to NetBox at: ${options.netboxUrl}`);
+      const client = new NetBoxClient({
+        url: options.netboxUrl,
+        token: netboxToken,
+      });
+      
+      // Test connection
+      const connected = await client.testConnection();
+      if (!connected) {
+        throw new SubnetterError(
+          `Unable to connect to NetBox at ${options.netboxUrl}`,
+          ErrorCode.INVALID_OPERATION,
+          { url: options.netboxUrl }
+        );
+      }
+      cliLogger.debug('NetBox connection successful');
+      
+      // Create exporter and run export
+      const exporter = new NetBoxExporter(client);
+      
+      if (options.dryRun) {
+        cliLogger.info('🔍 Running in dry-run mode (no changes will be made)');
+      }
+      
+      const result = await exporter.export(allocations, {
+        dryRun: options.dryRun,
+        prune: options.prune,
+        status: options.status,
+        createMissing: true,
+      });
+      
+      // Display results
+      cliLogger.info('');
+      cliLogger.info('📊 Export Summary:');
+      cliLogger.info(`   Created: ${result.summary.created}`);
+      cliLogger.info(`   Updated: ${result.summary.updated}`);
+      cliLogger.info(`   Deleted: ${result.summary.deleted}`);
+      cliLogger.info(`   Skipped: ${result.summary.skipped}`);
+      
+      if (result.errors.length > 0) {
+        cliLogger.warn(`   Errors: ${result.summary.errors}`);
+        result.errors.forEach((err: { identifier: string; error: string }) => {
+          cliLogger.warn(`     - ${err.identifier}: ${err.error}`);
+        });
+      }
+      
+      // Show detailed changes in verbose mode
+      if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
+        cliLogger.debug('');
+        cliLogger.debug('Detailed Changes:');
+        const icons: Record<string, string> = {
+          create: '➕',
+          update: '✏️',
+          delete: '🗑️',
+          skip: '⏭️',
+        };
+        result.changes.forEach((change: { operation: string; objectType: string; identifier: string; reason?: string }) => {
+          const icon = icons[change.operation] || '❓';
+          cliLogger.debug(`  ${icon} ${change.operation.toUpperCase()} ${change.objectType}: ${change.identifier}`);
+          if (change.reason) {
+            cliLogger.debug(`     Reason: ${change.reason}`);
+          }
+        });
+      }
+      
+      if (result.success) {
+        if (options.dryRun) {
+          cliLogger.info('');
+          cliLogger.info('✅ Dry run complete. Run without --dry-run to apply changes.');
+        } else {
+          cliLogger.info('');
+          cliLogger.info('✅ Export to NetBox completed successfully!');
+        }
+      } else {
+        cliLogger.warn('');
+        cliLogger.warn('⚠️ Export completed with errors. See above for details.');
+        process.exit(1);
+      }
+    } catch (error: unknown) {
+      if (error instanceof NetBoxApiError) {
+        cliLogger.error(`❌ NetBox API Error: ${error.message} (HTTP ${error.statusCode})`);
+        if (error.response && options.verbose) {
+          cliLogger.debug(`Response: ${JSON.stringify(error.response)}`);
+        }
+      } else if (error instanceof SubnetterError) {
         const errorCode = error.code ? `[${error.code}] ` : '';
         cliLogger.error(`❌ Error: ${errorCode}${error.message}`);
         
