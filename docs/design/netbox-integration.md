@@ -77,20 +77,43 @@ packages/
 
 ## NetBox Object Mapping
 
-### Subnetter → NetBox Mapping
+### Subnetter → NetBox Mapping (Updated for NetBox 4.x)
+
+The mapping creates a proper hierarchy that mirrors cloud topology:
+
+```
+NetBox Hierarchy:
+├── Regions (Cloud Providers)
+│   ├── Amazon Web Services
+│   ├── Microsoft Azure
+│   └── Google Cloud Platform
+│
+├── Sites (Cloud Regions) - under their respective Region
+│   ├── us-east-1 (under AWS)
+│   ├── eastus (under Azure)
+│   ├── us-east1 (under GCP)
+│   └── ...
+│
+├── Locations (Availability Zones) - under their respective Site
+│   ├── us-east-1a (under us-east-1)
+│   ├── us-east-1b (under us-east-1)
+│   └── ...
+│
+└── Prefixes (Subnets) - scoped to their Site
+    ├── 10.0.0.0/24 (scope: us-east-1, tenant: my-account, role: Kubernetes)
+    └── ...
+```
 
 | Subnetter Concept | NetBox Object | NetBox Field | Notes |
 |-------------------|---------------|--------------|-------|
-| `baseCidr` | Aggregate | `prefix`, `rir` | Top-level allocation |
-| Account Name | Tenant | `name`, `slug` | Organizational unit |
-| Cloud Provider | Tag | `name` | e.g., `aws`, `azure`, `gcp` |
-| Region Name | Site | `name`, `slug`, `region` | Physical/logical location |
-| Availability Zone | Site or Tag | TBD | Could be site suffix or tag |
-| VPC CIDR | Prefix | `prefix`, `tenant`, `site` | Container prefix |
-| Region CIDR | Prefix | `prefix`, `site`, `role` | Region-level allocation |
-| AZ CIDR | Prefix | `prefix`, `site`, `role` | AZ-level allocation |
-| Subnet CIDR | Prefix | `prefix`, `role`, `tenant`, `site` | Leaf allocation |
-| Subnet Type/Role | Role | `name`, `slug` | e.g., `public`, `private`, `data` |
+| Cloud Provider | **Region** | `name`, `slug` | Top-level: AWS, Azure, GCP |
+| Cloud Region | **Site** | `name`, `slug`, `region` | e.g., us-east-1, under its provider Region |
+| Availability Zone | **Location** | `name`, `slug`, `site` | e.g., us-east-1a, under its Site |
+| Account Name | **Tenant** | `name`, `slug` | Organizational unit |
+| Subnet Type/Role | **Role** | `name`, `slug` | e.g., Kubernetes, Public, Private |
+| Subnet CIDR | **Prefix** | `prefix`, `scope_type`, `scope_id`, `tenant`, `role` | Scoped to Site (NetBox 4.x) |
+
+> **Note**: In NetBox 4.x, the prefix-to-site relationship uses `scope_type` and `scope_id` instead of the deprecated `site` field.
 
 ### NetBox Prefix Status Mapping
 

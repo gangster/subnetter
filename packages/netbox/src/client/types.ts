@@ -48,6 +48,9 @@ export type PrefixStatus = 'container' | 'active' | 'reserved' | 'deprecated';
 /** IP family values */
 export type IpFamily = 4 | 6;
 
+/** Prefix scope type (NetBox 4.x) */
+export type PrefixScopeType = 'dcim.site' | 'dcim.location' | 'dcim.region' | 'dcim.sitegroup' | null;
+
 /** NetBox Prefix object */
 export interface Prefix {
   id: number;
@@ -56,7 +59,14 @@ export interface Prefix {
   display_url: string;
   family: ChoiceValue<string>;
   prefix: string;
+  /** @deprecated Use scope instead in NetBox 4.x */
   site: NestedRef | null;
+  /** Scope type for the prefix (NetBox 4.x) */
+  scope_type: PrefixScopeType;
+  /** Scope object ID (NetBox 4.x) */
+  scope_id: number | null;
+  /** Scope object reference (NetBox 4.x) */
+  scope: NestedRef | null;
   vrf: NestedRef | null;
   tenant: NestedRef | null;
   vlan: NestedRef | null;
@@ -77,7 +87,12 @@ export interface Prefix {
 /** Create/Update Prefix request */
 export interface PrefixWritable {
   prefix: string;
+  /** @deprecated Use scope_type and scope_id instead in NetBox 4.x */
   site?: number | null;
+  /** Scope type for the prefix (NetBox 4.x): 'dcim.site', 'dcim.location', etc. */
+  scope_type?: PrefixScopeType;
+  /** Scope object ID (NetBox 4.x) */
+  scope_id?: number | null;
   vrf?: number | null;
   tenant?: number | null;
   vlan?: number | null;
@@ -167,6 +182,89 @@ export interface Rir {
 // ============================================================================
 // DCIM Types
 // ============================================================================
+
+/** NetBox Region object (for geographic/provider hierarchy) */
+export interface Region {
+  id: number;
+  url: string;
+  display: string;
+  name: string;
+  slug: string;
+  parent: NestedRef | null;
+  description: string;
+  tags: NestedTag[];
+  custom_fields: Record<string, unknown>;
+  created: string;
+  last_updated: string;
+  site_count: number;
+  _depth: number;
+}
+
+/** Create/Update Region request */
+export interface RegionWritable {
+  name: string;
+  slug: string;
+  parent?: number | null;
+  description?: string;
+  tags?: TagWritable[];
+  custom_fields?: Record<string, unknown>;
+}
+
+/** Region query parameters */
+export interface RegionListParams {
+  limit?: number;
+  offset?: number;
+  name?: string;
+  slug?: string;
+  parent_id?: number;
+  tag?: string | string[];
+}
+
+/** NetBox Location object (for AZs within sites) */
+export interface Location {
+  id: number;
+  url: string;
+  display: string;
+  name: string;
+  slug: string;
+  site: NestedRef;
+  parent: NestedRef | null;
+  status: ChoiceValue<string>;
+  tenant: NestedRef | null;
+  description: string;
+  tags: NestedTag[];
+  custom_fields: Record<string, unknown>;
+  created: string;
+  last_updated: string;
+  rack_count: number;
+  device_count: number;
+  _depth: number;
+}
+
+/** Create/Update Location request */
+export interface LocationWritable {
+  name: string;
+  slug: string;
+  site: number;
+  parent?: number | null;
+  status?: string;
+  tenant?: number | null;
+  description?: string;
+  tags?: TagWritable[];
+  custom_fields?: Record<string, unknown>;
+}
+
+/** Location query parameters */
+export interface LocationListParams {
+  limit?: number;
+  offset?: number;
+  name?: string;
+  slug?: string;
+  site_id?: number;
+  site?: string;
+  parent_id?: number;
+  tag?: string | string[];
+}
 
 /** NetBox Site object */
 export interface Site {

@@ -10,16 +10,22 @@ import type {
   Tenant,
   Role,
   Tag,
+  Region,
+  Location,
   PrefixStatus,
-} from '../client/types.js';
+} from '../client/types';
 import {
   SUBNETTER_MANAGED_TAG,
   slugify,
   extractAccounts,
-  extractRegions,
+  extractCloudProviders,
+  extractCloudRegions,
+  extractAvailabilityZones,
   extractRoles,
   mapAccountToTenant,
+  mapCloudProviderToRegion,
   mapRegionToSite,
+  mapAzToLocation,
   mapSubnetTypeToRole,
   mapAllocationToPrefix,
 } from './mapper';
@@ -34,7 +40,7 @@ export type OperationType = 'create' | 'update' | 'delete' | 'skip';
  */
 export interface PlannedChange<T = unknown> {
   operation: OperationType;
-  objectType: 'prefix' | 'site' | 'tenant' | 'role' | 'tag';
+  objectType: 'prefix' | 'site' | 'tenant' | 'role' | 'tag' | 'region' | 'location';
   identifier: string;
   current?: T;
   planned?: T;
@@ -82,7 +88,9 @@ export class NetBoxExporter {
 
   // Cache of existing objects (populated during export)
   private tenantCache: Map<string, Tenant> = new Map();
-  private siteCache: Map<string, Site> = new Map();
+  private regionCache: Map<string, Region> = new Map();  // Cloud providers
+  private siteCache: Map<string, Site> = new Map();       // Cloud regions
+  private locationCache: Map<string, Location> = new Map(); // Availability zones
   private roleCache: Map<string, Role> = new Map();
   private tagCache: Map<string, Tag> = new Map();
 
@@ -121,15 +129,31 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 4: Ensure sites exist
+    // Phase 4: Ensure cloud provider regions exist (top-level hierarchy)
     if (createMissing) {
-      const regions = extractRegions(allocations);
-      for (const { region, provider } of regions) {
+      const providers = extractCloudProviders(allocations);
+      for (const provider of providers) {
+        await this.ensureRegion(provider, changes, dryRun);
+      }
+    }
+
+    // Phase 5: Ensure cloud region sites exist (under provider regions)
+    if (createMissing) {
+      const cloudRegions = extractCloudRegions(allocations);
+      for (const { region, provider } of cloudRegions) {
         await this.ensureSite(region, provider, changes, dryRun);
       }
     }
 
-    // Phase 5: Ensure roles exist
+    // Phase 6: Ensure availability zone locations exist (under region sites)
+    if (createMissing) {
+      const azs = extractAvailabilityZones(allocations);
+      for (const { az, region } of azs) {
+        await this.ensureLocation(az, region, changes, dryRun);
+      }
+    }
+
+    // Phase 7: Ensure roles exist
     if (createMissing) {
       const roles = extractRoles(allocations);
       for (const role of roles) {
@@ -137,13 +161,13 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 6: Get existing prefixes with subnetter-managed tag
+    // Phase 8: Get existing prefixes
     const existingPrefixes = await this.getSubnetterManagedPrefixes();
     const existingPrefixMap = new Map(
       existingPrefixes.map((p) => [p.prefix, p]),
     );
 
-    // Phase 7: Process allocations
+    // Phase 9: Process allocations
     const processedPrefixes = new Set<string>();
 
     for (const allocation of allocations) {
@@ -155,10 +179,13 @@ export class NetBoxExporter {
       const siteId = this.siteCache.get(slugify(allocation.regionName))?.id;
       const roleId = this.roleCache.get(slugify(allocation.subnetRole))?.id;
 
+      // Filter out placeholder IDs (negative values from dry-run)
+      const validSiteId = siteId && siteId > 0 ? siteId : undefined;
+
       const prefixData = mapAllocationToPrefix(allocation, {
         status,
         tenantId,
-        siteId,
+        siteId: validSiteId,
         roleId,
       });
 
@@ -215,7 +242,7 @@ export class NetBoxExporter {
       }
     }
 
-    // Phase 8: Handle pruning (delete prefixes not in allocations)
+    // Phase 10: Handle pruning (delete prefixes not in allocations)
     if (prune) {
       for (const [prefixCidr, existing] of existingPrefixMap) {
         if (!processedPrefixes.has(prefixCidr)) {
@@ -266,9 +293,17 @@ export class NetBoxExporter {
     const tenants = await this.client.tenants.listAll();
     this.tenantCache = new Map(tenants.map((t) => [t.slug, t]));
 
-    // Load sites
+    // Load regions (cloud providers)
+    const regions = await this.client.regions.listAll();
+    this.regionCache = new Map(regions.map((r) => [r.slug, r]));
+
+    // Load sites (cloud regions)
     const sites = await this.client.sites.listAll();
     this.siteCache = new Map(sites.map((s) => [s.slug, s]));
+
+    // Load locations (availability zones)
+    const locations = await this.client.locations.listAll();
+    this.locationCache = new Map(locations.map((l) => [l.slug, l]));
 
     // Load roles
     const roles = await this.client.roles.listAll();
@@ -329,6 +364,43 @@ export class NetBoxExporter {
   }
 
   /**
+   * Ensure a region (cloud provider) exists
+   */
+  private async ensureRegion(
+    cloudProvider: string,
+    changes: PlannedChange[],
+    dryRun: boolean,
+  ): Promise<void> {
+    const slug = slugify(cloudProvider);
+    if (this.regionCache.has(slug)) return;
+
+    const regionData = mapCloudProviderToRegion(cloudProvider);
+
+    changes.push({
+      operation: 'create',
+      objectType: 'region',
+      identifier: cloudProvider,
+      planned: regionData,
+    });
+
+    if (!dryRun) {
+      try {
+        const region = await this.client.regions.create(regionData);
+        this.regionCache.set(slug, region);
+      } catch (err) {
+        if (err instanceof NetBoxApiError && err.statusCode === 400) {
+          const existing = await this.client.regions.findBySlug(slug);
+          if (existing) {
+            this.regionCache.set(slug, existing);
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  /**
    * Ensure a tenant exists
    */
   private async ensureTenant(
@@ -366,7 +438,7 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a site exists
+   * Ensure a site (cloud region) exists under its parent region (cloud provider)
    */
   private async ensureSite(
     regionName: string,
@@ -377,7 +449,11 @@ export class NetBoxExporter {
     const slug = slugify(regionName);
     if (this.siteCache.has(slug)) return;
 
-    const siteData = mapRegionToSite(regionName, cloudProvider);
+    // Get the parent region (cloud provider) ID
+    const parentRegion = this.regionCache.get(slugify(cloudProvider));
+    const parentRegionId = parentRegion?.id;
+
+    const siteData = mapRegionToSite(regionName, cloudProvider, parentRegionId);
 
     changes.push({
       operation: 'create',
@@ -399,6 +475,55 @@ export class NetBoxExporter {
           }
           // If site doesn't exist and creation failed, the prefix creation will fail later
           // which is the expected behavior
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      // During dry-run, add a placeholder to the cache so child objects can reference it
+      this.siteCache.set(slug, { id: -1, slug, name: regionName } as Site);
+    }
+  }
+
+  /**
+   * Ensure a location (availability zone) exists under its parent site (cloud region)
+   */
+  private async ensureLocation(
+    azName: string,
+    regionName: string,
+    changes: PlannedChange[],
+    dryRun: boolean,
+  ): Promise<void> {
+    const slug = slugify(azName);
+    if (this.locationCache.has(slug)) return;
+
+    // Get the parent site (cloud region) ID
+    const parentSite = this.siteCache.get(slugify(regionName));
+    if (!parentSite) {
+      // Parent site doesn't exist, can't create location
+      return;
+    }
+
+    const locationData = mapAzToLocation(azName, parentSite.id);
+
+    changes.push({
+      operation: 'create',
+      objectType: 'location',
+      identifier: azName,
+      planned: locationData,
+    });
+
+    if (!dryRun) {
+      try {
+        const location = await this.client.locations.create(locationData);
+        this.locationCache.set(slug, location);
+      } catch (err) {
+        if (err instanceof NetBoxApiError && err.statusCode === 400) {
+          // Location might already exist, try to find it
+          const existing = await this.client.locations.findBySiteAndSlug(parentSite.id, slug);
+          if (existing) {
+            this.locationCache.set(slug, existing);
+          }
         } else {
           throw err;
         }
@@ -454,7 +579,9 @@ export class NetBoxExporter {
     if (existing.status.value !== planned.status) return true;
     if (existing.description !== planned.description) return true;
     if (existing.tenant?.id !== planned.tenant) return true;
-    if (existing.site?.id !== planned.site) return true;
+    // NetBox 4.x uses scope_type and scope_id instead of site
+    if (existing.scope_type !== planned.scope_type) return true;
+    if (existing.scope_id !== planned.scope_id) return true;
     if (existing.role?.id !== planned.role) return true;
 
     return false;

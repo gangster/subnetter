@@ -8,6 +8,8 @@ import type {
   SiteWritable,
   TenantWritable,
   RoleWritable,
+  RegionWritable,
+  LocationWritable,
   PrefixStatus,
 } from '../client/types';
 
@@ -40,9 +42,20 @@ export function extractAccounts(allocations: Allocation[]): string[] {
 }
 
 /**
- * Extract unique regions from allocations
+ * Extract unique cloud providers from allocations (for NetBox Regions)
  */
-export function extractRegions(allocations: Allocation[]): Array<{ region: string; provider: string }> {
+export function extractCloudProviders(allocations: Allocation[]): string[] {
+  const providers = new Set<string>();
+  for (const alloc of allocations) {
+    providers.add(alloc.cloudProvider);
+  }
+  return Array.from(providers);
+}
+
+/**
+ * Extract unique cloud regions from allocations (for NetBox Sites)
+ */
+export function extractCloudRegions(allocations: Allocation[]): Array<{ region: string; provider: string }> {
   const regions = new Map<string, string>();
   for (const alloc of allocations) {
     const key = `${alloc.cloudProvider}:${alloc.regionName}`;
@@ -52,6 +65,31 @@ export function extractRegions(allocations: Allocation[]): Array<{ region: strin
   }
   return Array.from(regions.entries()).map(([key, provider]) => ({
     region: key.split(':')[1],
+    provider,
+  }));
+}
+
+/**
+ * Extract unique availability zones from allocations (for NetBox Locations)
+ */
+export function extractAvailabilityZones(allocations: Allocation[]): Array<{
+  az: string;
+  region: string;
+  provider: string;
+}> {
+  const azs = new Map<string, { region: string; provider: string }>();
+  for (const alloc of allocations) {
+    const key = `${alloc.cloudProvider}:${alloc.regionName}:${alloc.availabilityZone}`;
+    if (!azs.has(key)) {
+      azs.set(key, {
+        region: alloc.regionName,
+        provider: alloc.cloudProvider,
+      });
+    }
+  }
+  return Array.from(azs.entries()).map(([key, { region, provider }]) => ({
+    az: key.split(':')[2],
+    region,
     provider,
   }));
 }
@@ -80,18 +118,60 @@ export function mapAccountToTenant(accountName: string): TenantWritable {
 }
 
 /**
+ * Map a cloud provider to a NetBox Region (top-level geographic grouping)
+ */
+export function mapCloudProviderToRegion(cloudProvider: string): RegionWritable {
+  const providerNames: Record<string, string> = {
+    aws: 'Amazon Web Services',
+    azure: 'Microsoft Azure',
+    gcp: 'Google Cloud Platform',
+  };
+
+  return {
+    name: providerNames[cloudProvider.toLowerCase()] || cloudProvider.toUpperCase(),
+    slug: slugify(cloudProvider),
+    description: `Cloud provider: ${cloudProvider.toUpperCase()}`,
+  };
+}
+
+/**
  * Map a cloud region to a NetBox Site
+ *
+ * @param regionName - Cloud region name (e.g., 'us-east-1')
+ * @param cloudProvider - Cloud provider (e.g., 'aws')
+ * @param netboxRegionId - ID of the parent NetBox Region (cloud provider)
  */
 export function mapRegionToSite(
   regionName: string,
   cloudProvider: string,
+  netboxRegionId?: number,
 ): SiteWritable {
   return {
     name: regionName,
     slug: slugify(regionName),
     status: 'active',
+    region: netboxRegionId ?? undefined,
     description: `${cloudProvider.toUpperCase()} region: ${regionName}`,
     // Note: Tags are added separately after creation to avoid dependency issues
+  };
+}
+
+/**
+ * Map an availability zone to a NetBox Location
+ *
+ * @param azName - Availability zone name (e.g., 'us-east-1a')
+ * @param siteId - ID of the parent NetBox Site (cloud region)
+ */
+export function mapAzToLocation(
+  azName: string,
+  siteId: number,
+): LocationWritable {
+  return {
+    name: azName,
+    slug: slugify(azName),
+    site: siteId,
+    status: 'active',
+    description: `Availability Zone: ${azName}`,
   };
 }
 
@@ -114,7 +194,7 @@ export interface MapPrefixOptions {
   status?: PrefixStatus;
   /** Tenant ID to assign (if known) */
   tenantId?: number;
-  /** Site ID to assign (if known) */
+  /** Site ID to assign (if known) - used for scope in NetBox 4.x */
   siteId?: number;
   /** Role ID to assign (if known) */
   roleId?: number;
@@ -122,6 +202,9 @@ export interface MapPrefixOptions {
 
 /**
  * Map a Subnetter allocation to a NetBox Prefix
+ *
+ * Note: In NetBox 4.x, the site relationship is handled via scope_type and scope_id
+ * instead of the deprecated site field.
  */
 export function mapAllocationToPrefix(
   allocation: Allocation,
@@ -141,7 +224,9 @@ export function mapAllocationToPrefix(
     prefix: allocation.subnetCidr,
     status,
     tenant: tenantId ?? undefined,
-    site: siteId ?? undefined,
+    // NetBox 4.x uses scope_type and scope_id instead of site
+    scope_type: siteId ? 'dcim.site' : undefined,
+    scope_id: siteId ?? undefined,
     role: roleId ?? undefined,
     description,
     // Note: Tags and custom_fields are omitted to avoid dependency issues

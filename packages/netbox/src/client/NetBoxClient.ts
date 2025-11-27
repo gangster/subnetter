@@ -13,6 +13,12 @@ import type {
   Site,
   SiteWritable,
   SiteListParams,
+  Region,
+  RegionWritable,
+  RegionListParams,
+  Location,
+  LocationWritable,
+  LocationListParams,
   Tenant,
   TenantWritable,
   TenantListParams,
@@ -353,6 +359,132 @@ export class NetBoxClient {
      */
     delete: async (id: number): Promise<void> => {
       await this.http.delete(`/dcim/sites/${id}/`);
+    },
+  };
+
+  // ==========================================================================
+  // DCIM: Regions
+  // ==========================================================================
+
+  /**
+   * Region operations (for cloud provider hierarchy)
+   */
+  readonly regions = {
+    /**
+     * List regions
+     */
+    list: async (params?: RegionListParams): Promise<PaginatedResponse<Region>> => {
+      const response = await this.http.get<PaginatedResponse<Region>>('/dcim/regions/', { params });
+      return response.data;
+    },
+
+    /**
+     * Get all regions
+     */
+    listAll: async (): Promise<Region[]> => {
+      const results: Region[] = [];
+      let offset = 0;
+      const limit = 100;
+
+      while (true) {
+        const response = await this.regions.list({ limit, offset });
+        results.push(...response.results);
+
+        if (!response.next) break;
+        offset += limit;
+      }
+
+      return results;
+    },
+
+    /**
+     * Create a new region
+     */
+    create: async (data: RegionWritable): Promise<Region> => {
+      const response = await this.http.post<Region>('/dcim/regions/', data);
+      return response.data;
+    },
+
+    /**
+     * Find region by slug
+     */
+    findBySlug: async (slug: string): Promise<Region | null> => {
+      const response = await this.regions.list({ slug });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Delete a region
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/dcim/regions/${id}/`);
+    },
+  };
+
+  // ==========================================================================
+  // DCIM: Locations
+  // ==========================================================================
+
+  /**
+   * Location operations (for availability zones within sites)
+   */
+  readonly locations = {
+    /**
+     * List locations
+     */
+    list: async (params?: LocationListParams): Promise<PaginatedResponse<Location>> => {
+      const response = await this.http.get<PaginatedResponse<Location>>('/dcim/locations/', { params });
+      return response.data;
+    },
+
+    /**
+     * Get all locations
+     */
+    listAll: async (): Promise<Location[]> => {
+      const results: Location[] = [];
+      let offset = 0;
+      const limit = 100;
+
+      while (true) {
+        const response = await this.locations.list({ limit, offset });
+        results.push(...response.results);
+
+        if (!response.next) break;
+        offset += limit;
+      }
+
+      return results;
+    },
+
+    /**
+     * Create a new location
+     */
+    create: async (data: LocationWritable): Promise<Location> => {
+      const response = await this.http.post<Location>('/dcim/locations/', data);
+      return response.data;
+    },
+
+    /**
+     * Find location by slug
+     */
+    findBySlug: async (slug: string): Promise<Location | null> => {
+      const response = await this.locations.list({ slug });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Find location by site and slug
+     */
+    findBySiteAndSlug: async (siteId: number, slug: string): Promise<Location | null> => {
+      const response = await this.locations.list({ site_id: siteId, slug });
+      return response.results.length > 0 ? response.results[0] : null;
+    },
+
+    /**
+     * Delete a location
+     */
+    delete: async (id: number): Promise<void> => {
+      await this.http.delete(`/dcim/locations/${id}/`);
     },
   };
 
