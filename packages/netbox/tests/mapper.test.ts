@@ -6,10 +6,15 @@ import type { Allocation } from '@subnetter/core';
 import {
   slugify,
   extractAccounts,
-  extractRegions,
+  extractCloudProviders,
+  extractCloudRegions,
+  extractAvailabilityZones,
   extractRoles,
   mapAccountToTenant,
+  mapCloudProviderToSiteGroup,
+  mapBaseCidrToAggregate,
   mapRegionToSite,
+  mapAzToLocation,
   mapSubnetTypeToRole,
   mapAllocationToPrefix,
 } from '../src/export/mapper';
@@ -59,7 +64,22 @@ describe('extractAccounts', () => {
   });
 });
 
-describe('extractRegions', () => {
+describe('extractCloudProviders', () => {
+  const allocations: Allocation[] = [
+    createAllocation({ cloudProvider: 'aws' }),
+    createAllocation({ cloudProvider: 'aws' }),
+    createAllocation({ cloudProvider: 'azure' }),
+  ];
+
+  it('should extract unique cloud providers', () => {
+    const providers = extractCloudProviders(allocations);
+    expect(providers).toHaveLength(2);
+    expect(providers).toContain('aws');
+    expect(providers).toContain('azure');
+  });
+});
+
+describe('extractCloudRegions', () => {
   const allocations: Allocation[] = [
     createAllocation({ regionName: 'us-east-1', cloudProvider: 'aws' }),
     createAllocation({ regionName: 'us-east-1', cloudProvider: 'aws' }),
@@ -67,10 +87,25 @@ describe('extractRegions', () => {
   ];
 
   it('should extract unique regions with providers', () => {
-    const regions = extractRegions(allocations);
+    const regions = extractCloudRegions(allocations);
     expect(regions).toHaveLength(2);
     expect(regions).toContainEqual({ region: 'us-east-1', provider: 'aws' });
     expect(regions).toContainEqual({ region: 'eastus', provider: 'azure' });
+  });
+});
+
+describe('extractAvailabilityZones', () => {
+  const allocations: Allocation[] = [
+    createAllocation({ availabilityZone: 'us-east-1a', regionName: 'us-east-1', cloudProvider: 'aws' }),
+    createAllocation({ availabilityZone: 'us-east-1a', regionName: 'us-east-1', cloudProvider: 'aws' }),
+    createAllocation({ availabilityZone: 'us-east-1b', regionName: 'us-east-1', cloudProvider: 'aws' }),
+  ];
+
+  it('should extract unique availability zones with region and provider', () => {
+    const azs = extractAvailabilityZones(allocations);
+    expect(azs).toHaveLength(2);
+    expect(azs).toContainEqual({ az: 'us-east-1a', region: 'us-east-1', provider: 'aws' });
+    expect(azs).toContainEqual({ az: 'us-east-1b', region: 'us-east-1', provider: 'aws' });
   });
 });
 
@@ -98,7 +133,51 @@ describe('mapAccountToTenant', () => {
 
   it('should include description', () => {
     const tenant = mapAccountToTenant('prod');
-    expect(tenant.description).toContain('prod');
+    expect(tenant.description).toBe('Cloud account managed by Subnetter');
+  });
+});
+
+describe('mapCloudProviderToSiteGroup', () => {
+  it('should create site group with full provider name', () => {
+    const siteGroup = mapCloudProviderToSiteGroup('aws');
+    expect(siteGroup.name).toBe('Amazon Web Services');
+    expect(siteGroup.slug).toBe('aws');
+  });
+
+  it('should handle Azure', () => {
+    const siteGroup = mapCloudProviderToSiteGroup('azure');
+    expect(siteGroup.name).toBe('Microsoft Azure');
+    expect(siteGroup.slug).toBe('azure');
+  });
+
+  it('should handle GCP', () => {
+    const siteGroup = mapCloudProviderToSiteGroup('gcp');
+    expect(siteGroup.name).toBe('Google Cloud Platform');
+    expect(siteGroup.slug).toBe('gcp');
+  });
+
+  it('should include descriptive description', () => {
+    const siteGroup = mapCloudProviderToSiteGroup('aws');
+    expect(siteGroup.description).toBe('Cloud infrastructure provider - Amazon Web Services');
+  });
+
+  it('should handle unknown providers', () => {
+    const siteGroup = mapCloudProviderToSiteGroup('unknown');
+    expect(siteGroup.name).toBe('UNKNOWN');
+    expect(siteGroup.slug).toBe('unknown');
+  });
+});
+
+describe('mapBaseCidrToAggregate', () => {
+  it('should create aggregate with correct prefix and RIR', () => {
+    const aggregate = mapBaseCidrToAggregate('10.0.0.0/8', 1);
+    expect(aggregate.prefix).toBe('10.0.0.0/8');
+    expect(aggregate.rir).toBe(1);
+  });
+
+  it('should include descriptive description', () => {
+    const aggregate = mapBaseCidrToAggregate('10.0.0.0/8', 1);
+    expect(aggregate.description).toBe('Root IP allocation for cloud infrastructure');
   });
 });
 
@@ -109,14 +188,42 @@ describe('mapRegionToSite', () => {
     expect(site.slug).toBe('us-east-1');
   });
 
-  it('should include cloud provider in description', () => {
+  it('should include cloud provider and region in description', () => {
     const site = mapRegionToSite('us-east-1', 'aws');
-    expect(site.description).toContain('AWS');
+    expect(site.description).toBe('Amazon Web Services region in us-east-1');
   });
 
   it('should set status to active', () => {
     const site = mapRegionToSite('us-east-1', 'aws');
     expect(site.status).toBe('active');
+  });
+
+  it('should set group if siteGroupId is provided', () => {
+    const site = mapRegionToSite('us-east-1', 'aws', 5);
+    expect(site.group).toBe(5);
+  });
+});
+
+describe('mapAzToLocation', () => {
+  it('should create location with correct name and slug', () => {
+    const location = mapAzToLocation('us-east-1a', 'us-east-1', 'aws', 5);
+    expect(location.name).toBe('us-east-1a');
+    expect(location.slug).toBe('us-east-1a');
+  });
+
+  it('should set site ID', () => {
+    const location = mapAzToLocation('us-east-1a', 'us-east-1', 'aws', 5);
+    expect(location.site).toBe(5);
+  });
+
+  it('should set status to active', () => {
+    const location = mapAzToLocation('us-east-1a', 'us-east-1', 'aws', 5);
+    expect(location.status).toBe('active');
+  });
+
+  it('should include provider, AZ, and region in description', () => {
+    const location = mapAzToLocation('us-east-1a', 'us-east-1', 'aws', 5);
+    expect(location.description).toBe('Amazon Web Services availability zone us-east-1a in us-east-1');
   });
 });
 
@@ -125,6 +232,11 @@ describe('mapSubnetTypeToRole', () => {
     const role = mapSubnetTypeToRole('Public');
     expect(role.name).toBe('Public');
     expect(role.slug).toBe('public');
+  });
+
+  it('should include descriptive description', () => {
+    const role = mapSubnetTypeToRole('Public');
+    expect(role.description).toBe('Subnet role for public workloads');
   });
 });
 
@@ -159,9 +271,10 @@ describe('mapAllocationToPrefix', () => {
     expect(prefix.tenant).toBe(5);
   });
 
-  it('should set site if provided', () => {
+  it('should set scope_type and scope_id if siteId is provided (NetBox 4.x)', () => {
     const prefix = mapAllocationToPrefix(allocation, { siteId: 3 });
-    expect(prefix.site).toBe(3);
+    expect(prefix.scope_type).toBe('dcim.site');
+    expect(prefix.scope_id).toBe(3);
   });
 
   it('should set role if provided', () => {
@@ -169,9 +282,9 @@ describe('mapAllocationToPrefix', () => {
     expect(prefix.role).toBe(7);
   });
 
-  it('should build description from allocation parts', () => {
+  it('should build descriptive description from allocation', () => {
     const prefix = mapAllocationToPrefix(allocation);
-    expect(prefix.description).toBe('production / us-east-1 / us-east-1a / Public');
+    expect(prefix.description).toBe('Public subnet in us-east-1a (Amazon Web Services us-east-1)');
   });
 });
 

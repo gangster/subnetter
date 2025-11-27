@@ -44,6 +44,9 @@ async function safeDelete(fn: () => Promise<void>): Promise<void> {
 describeIfNetBox('NetBox Integration Tests', () => {
   let client: NetBoxClient;
 
+  // Increase timeout for integration tests (network operations)
+  jest.setTimeout(30000);
+
   beforeAll(() => {
     client = new NetBoxClient({
       url: NETBOX_URL,
