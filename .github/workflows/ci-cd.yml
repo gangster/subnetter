@@ -19,42 +19,49 @@ env:
 
 jobs:
   # =============================================================================
-  # PR Validation - Quick checks before running full test suite
-  # TEMPORARILY DISABLED - taking too long to execute
+  # Path Filtering - Determine which jobs need to run based on changed files
   # =============================================================================
-  # validate-pr:
-  #   name: Validate PR
-  #   if: github.event_name == 'pull_request'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  #     - name: Check for package-lock.json
-  #       run: |
-  #         FOUND_FILES=$(find . -name "package-lock.json" -type f | tr '\n' ' ')
-  #         if [ -n "$FOUND_FILES" ]; then
-  #           echo "Error: package-lock.json file(s) found at: $FOUND_FILES"
-  #           echo "This project uses Yarn exclusively. Please remove all package-lock.json files."
-  #           exit 1
-  #         fi
-
-  #     - name: Setup Environment
-  #       uses: ./.github/actions/setup
-  #       with:
-  #         node-version: '20'
-
-  #     - name: Lint Commit Messages
-  #       uses: wagoid/commitlint-github-action@v5
+      - name: Check for file changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'packages/cidr-utils/**'
+              - 'packages/core/**'
+              - 'packages/cli/**'
+              - '__tests__/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - 'tsconfig*.json'
+              - 'jest.config.*'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            docs:
+              - 'packages/docs/**'
+              - 'README.md'
+              - 'REQUIREMENTS.md'
+              - 'packages/*/README.md'
 
   # =============================================================================
   # Build - Single build job that creates artifacts for other jobs
+  # Skipped when only docs change
   # =============================================================================
   build:
     name: Build (${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: ${{ needs.changes.outputs.code == 'true' }}
     strategy:
       matrix:
         # Note: Node.js 24 not supported due to native dependency (iltorb) compilation issues
@@ -87,10 +94,13 @@ jobs:
 
   # =============================================================================
   # Lint - Run linting in parallel with tests
+  # Skipped when only docs change
   # =============================================================================
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: ${{ needs.changes.outputs.code == 'true' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -105,10 +115,13 @@ jobs:
 
   # =============================================================================
   # Unit Tests - Run in parallel with build (no build artifacts needed)
+  # Skipped when only docs change
   # =============================================================================
   unit-test:
     name: Unit Test (${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: ${{ needs.changes.outputs.code == 'true' }}
     strategy:
       matrix:
         # Note: Node.js 24 not supported due to native dependency (iltorb) compilation issues
@@ -128,12 +141,13 @@ jobs:
 
   # =============================================================================
   # E2E Tests - Requires build artifacts (CLI must be compiled)
+  # Skipped when only docs change
   # =============================================================================
   e2e-test:
     name: E2E Test (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    needs: [build]
-    if: ${{ always() && needs.build.result == 'success' }}
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.code == 'true' && needs.build.result == 'success' }}
     strategy:
       matrix:
         # Note: Node.js 24 not supported due to native dependency (iltorb) compilation issues
@@ -170,12 +184,20 @@ jobs:
 
   # =============================================================================
   # Check Release - Determine if a release is needed
+  # Only runs when code changes are present and all tests pass
   # =============================================================================
   check-release:
     name: Check If Release Needed
     runs-on: ubuntu-latest
-    needs: [lint, unit-test, e2e-test]
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.lint.result == 'success' && needs.unit-test.result == 'success' && needs.e2e-test.result == 'success' }}
+    needs: [changes, lint, unit-test, e2e-test]
+    if: |
+      always() && 
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' && 
+      needs.changes.outputs.code == 'true' &&
+      needs.lint.result == 'success' && 
+      needs.unit-test.result == 'success' && 
+      needs.e2e-test.result == 'success'
     outputs:
       release_needed: ${{ steps.check.outputs.release_needed }}
     steps:
@@ -257,12 +279,22 @@ jobs:
 
   # =============================================================================
   # Docs - Build and deploy documentation (only when docs change)
+  # Runs independently when only docs change, or after tests when code changes
   # =============================================================================
   docs:
     name: Build and Deploy Docs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: [lint, unit-test, e2e-test]
+    needs: [changes, lint, unit-test, e2e-test]
+    # Run if: on main push AND (only docs changed OR all code tests passed)
+    if: |
+      always() &&
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.docs == 'true' &&
+      (
+        needs.changes.outputs.code != 'true' ||
+        (needs.lint.result == 'success' && needs.unit-test.result == 'success' && needs.e2e-test.result == 'success')
+      )
     concurrency:
       group: pages
       cancel-in-progress: false
@@ -273,25 +305,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Check for docs changes
-        id: docs-changed
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            docs:
-              - 'packages/docs/**'
-              - 'README.md'
-              - 'REQUIREMENTS.md'
-              - 'packages/*/README.md'
-
       - name: Setup Environment
-        if: steps.docs-changed.outputs.docs == 'true'
         uses: ./.github/actions/setup
         with:
           node-version: '20'
 
       - name: Restore build artifacts
-        if: steps.docs-changed.outputs.docs == 'true'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -299,9 +318,10 @@ jobs:
             packages/core/dist
             packages/cli/dist
           key: build-${{ github.sha }}
+          restore-keys: |
+            build-
 
       - name: Build (if cache miss)
-        if: steps.docs-changed.outputs.docs == 'true'
         run: |
           if [ ! -d "packages/core/dist" ]; then
             yarn build:cidr-utils
@@ -310,24 +330,16 @@ jobs:
           fi
 
       - name: Build Documentation Site
-        if: steps.docs-changed.outputs.docs == 'true'
         run: yarn build:docs
 
       - name: Setup Pages
-        if: steps.docs-changed.outputs.docs == 'true'
         uses: actions/configure-pages@v4
 
       - name: Upload Artifact
-        if: steps.docs-changed.outputs.docs == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: packages/docs/dist
 
       - name: Deploy to GitHub Pages
-        if: steps.docs-changed.outputs.docs == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Skip docs deployment
-        if: steps.docs-changed.outputs.docs != 'true'
-        run: echo "No docs changes detected, skipping deployment"
