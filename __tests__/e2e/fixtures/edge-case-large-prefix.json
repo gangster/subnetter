@@ -1,0 +1,25 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 12,
+    "region": 16,
+    "az": 20
+  },
+  "cloudProviders": ["aws"],
+  "accounts": [
+    {
+      "name": "large-prefix-account",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Kubernetes": 22,
+    "Services": 24,
+    "Data": 24
+  }
+}
+

@@ -1,0 +1,30 @@
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 24
+  },
+  "cloudProviders": ["aws", "azure", "gcp"],
+  "accounts": [
+    {
+      "name": "multicloud-dev",
+      "clouds": {
+        "aws": {
+          "regions": ["us-east-1", "eu-west-1"]
+        },
+        "azure": {
+          "regions": ["eastus", "westeurope"]
+        },
+        "gcp": {
+          "regions": ["us-central1", "europe-west1"]
+        }
+      }
+    }
+  ],
+  "subnetTypes": {
+    "Public": 26,
+    "Private": 26
+  }
+}
+
