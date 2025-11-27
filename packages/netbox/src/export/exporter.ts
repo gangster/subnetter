@@ -392,10 +392,13 @@ export class NetBoxExporter {
         this.siteCache.set(slug, site);
       } catch (err) {
         if (err instanceof NetBoxApiError && err.statusCode === 400) {
+          // Site might already exist, try to find it
           const existing = await this.client.sites.findBySlug(slug);
           if (existing) {
             this.siteCache.set(slug, existing);
           }
+          // If site doesn't exist and creation failed, the prefix creation will fail later
+          // which is the expected behavior
         } else {
           throw err;
         }
