@@ -36,6 +36,29 @@ Recommended Hierarchy:
 └── Subnet:  /24-/28 (varies by workload)
 ```
 
+### Ensure Sufficient Space at Each Level
+
+Each level must have enough space to contain all children. Use the `prefixLengths` configuration to control this:
+
+```json
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {
+    "account": 16,
+    "region": 20,
+    "az": 22
+  }
+}
+```
+
+**Rule of thumb**: Each level's prefix should be at least 2-4 bits larger than the parent to allow for growth.
+
+| Parent | Child | Bits Difference | Children Supported |
+|--------|-------|-----------------|-------------------|
+| /8 | /16 | 8 bits | 256 |
+| /16 | /20 | 4 bits | 16 |
+| /20 | /22 | 2 bits | 4 |
+
 ### Plan for Multi-Cloud from Day One
 
 Even if you're single-cloud today, reserve space for future cloud providers:
@@ -90,14 +113,18 @@ Cloud providers reserve IPs in each subnet:
 ```json
 {
   "subnetTypes": {
-    "Public": 24,
+    "Kubernetes": 22,
     "Private": 23,
+    "Public": 24,
     "Data": 26,
-    "Management": 28,
-    "Kubernetes": 22
+    "Management": 28
   }
 }
 ```
+
+<Aside type="tip" title="Order Matters">
+List subnet types from **largest to smallest** (smallest prefix number first). This ensures efficient allocation and prevents fragmentation. A `/22` should come before a `/24`.
+</Aside>
 
 ## CIDR Allocation Patterns
 
@@ -295,31 +322,45 @@ If you have overlapping ranges:
 
 ```hcl
 locals {
+  # Parse the Subnetter CSV output
   allocations = csvdecode(file("${path.module}/allocations.csv"))
   
-  subnets = {
+  # Filter for AWS subnets only
+  aws_subnets = {
     for row in local.allocations :
     "${row["Account Name"]}-${row["Availability Zone"]}-${row["Subnet Role"]}" => {
-      cidr = row["Subnet CIDR"]
-      az   = row["Availability Zone"]
-      role = row["Subnet Role"]
+      account    = row["Account Name"]
+      vpc_cidr   = row["VPC CIDR"]
+      az_cidr    = row["AZ CIDR"]
+      subnet_cidr = row["Subnet CIDR"]
+      az         = row["Availability Zone"]
+      role       = row["Subnet Role"]
+      region     = row["Region Name"]
+      usable_ips = row["Usable IPs"]
     }
+    if row["Cloud Provider"] == "aws"
   }
 }
 
 resource "aws_subnet" "this" {
-  for_each = local.subnets
+  for_each = local.aws_subnets
   
   vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value.cidr
+  cidr_block        = each.value.subnet_cidr
   availability_zone = each.value.az
   
   tags = {
-    Name = each.key
-    Role = each.value.role
+    Name       = each.key
+    Role       = each.value.role
+    Account    = each.value.account
+    UsableIPs  = each.value.usable_ips
   }
 }
 ```
+
+<Aside type="note" title="CSV Columns">
+Subnetter outputs these columns: `Account Name`, `VPC Name`, `Cloud Provider`, `Region Name`, `Availability Zone`, `Region CIDR`, `VPC CIDR`, `AZ CIDR`, `Subnet CIDR`, `Subnet Role`, `Usable IPs`
+</Aside>
 
 ### CI/CD Pipeline Integration
 
