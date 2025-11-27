@@ -50,6 +50,7 @@ describeIfNetBox('NetBox Integration Tests', () => {
   beforeAll(() => {
     client = new NetBoxClient({
       url: NETBOX_URL,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       token: NETBOX_TOKEN!,
     });
   });

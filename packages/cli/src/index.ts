@@ -647,27 +647,26 @@ program
           cliLogger.debug(`Response: ${JSON.stringify(error.response)}`);
         }
       } else if (error instanceof SubnetterError) {
-        const subneterErr = error as SubnetterError;
-        const errorCode = subneterErr.code ? `[${subneterErr.code}] ` : '';
-        cliLogger.error(`❌ Error: ${errorCode}${subneterErr.message}`);
+        const errorCode = error.code ? `[${error.code}] ` : '';
+        cliLogger.error(`❌ Error: ${errorCode}${error.message}`);
         
         // Display context information for debug level and above
         if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
-          const contextStr = subneterErr.getContextString();
+          const contextStr = error.getContextString();
           if (contextStr) {
             cliLogger.debug(`Context: ${contextStr}`);
           }
         }
         
         // Always show help text for users
-        const helpText = subneterErr.getHelpText();
+        const helpText = error.getHelpText();
         if (helpText) {
           cliLogger.info(`💡 Help: ${helpText}`);
         }
         
         // Only log the stack trace at debug level and above
         if (options.verbose || parseLogLevel(options.logLevel) >= LogLevel.DEBUG) {
-          if (subneterErr.stack) {
+          if (error.stack) {
             cliLogger.debug(`❌ Stack trace: \n${subneterErr.stack}`);
           }
         }

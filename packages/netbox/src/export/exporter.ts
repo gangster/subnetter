@@ -2,7 +2,7 @@
  * NetBox Exporter - exports Subnetter allocations to NetBox
  */
 
-import type { Allocation, Config } from '@subnetter/core';
+import type { Allocation } from '@subnetter/core';
 import { NetBoxClient, NetBoxApiError } from '../client/NetBoxClient';
 import type {
   Prefix,
