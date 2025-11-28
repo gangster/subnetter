@@ -1,27 +1,113 @@
+/**
+ * @module allocator/utils/cidr/hierarchical-allocator
+ * @description Hierarchical CIDR allocation for cloud infrastructure.
+ *
+ * Allocates IP address space in a top-down hierarchy matching cloud
+ * infrastructure: accounts → cloud providers → regions → availability
+ * zones → subnets. Ensures contiguous, non-overlapping allocations at
+ * each level.
+ *
+ * @remarks
+ * The allocator supports:
+ * - **Multi-cloud**: AWS, Azure, and GCP with provider-specific AZ naming
+ * - **Account isolation**: Each account gets its own address space
+ * - **CIDR overrides**: Cloud-specific base CIDRs for flexibility
+ * - **Configurable prefix lengths**: Control block sizes at each level
+ *
+ * @example
+ * ```typescript
+ * import { HierarchicalAllocator, loadConfig } from '@subnetter/core';
+ *
+ * const config = loadConfig('./config.json');
+ * const allocator = new HierarchicalAllocator(config);
+ * const allocations = allocator.generateAllocations();
+ *
+ * // Group by region
+ * const byRegion = allocations.reduce((acc, alloc) => {
+ *   (acc[alloc.regionName] ??= []).push(alloc);
+ *   return acc;
+ * }, {});
+ * ```
+ *
+ * @see {@link CidrAllocator} for the main allocation interface
+ * @see {@link ContiguousAllocator} for the underlying block allocation
+ *
+ * @packageDocumentation
+ */
+
 import { isValidIpv4Cidr } from './calculator';
 import { ContiguousAllocator } from './contiguous-allocator';
 import { AllocationError, ErrorCode } from '../../../utils/errors';
 import { createLogger } from '../../../utils/logger';
-import { Config, Allocation, Account, CloudConfig } from '../../../models/types';
+import type { Config, Allocation, Account, CloudConfig } from '../../../models/types';
 import { ProviderDetector } from '../../utils/cloud';
 
-// Create logger instance for the hierarchical allocator
+/**
+ * Logger instance for hierarchical allocator operations.
+ * @internal
+ */
 const logger = createLogger('HierarchicalAllocator');
 
 /**
- * Allocates CIDRs hierarchically using a contiguous allocation strategy.
- * The allocations are made in a hierarchical manner (accounts -> regions -> AZs -> subnets)
- * with contiguous blocks at each level to ensure no overlaps occur.
+ * Allocates CIDRs hierarchically for multi-cloud infrastructure.
+ *
+ * @remarks
+ * The allocation hierarchy:
+ * 1. **Base CIDR** → divided among accounts
+ * 2. **Account CIDR** → divided among cloud providers/regions
+ * 3. **Region CIDR** → divided among availability zones
+ * 4. **AZ CIDR** → divided into subnets by type
+ *
+ * Each level uses a configurable prefix length:
+ * - Account: defaults to /16 (65,534 addresses)
+ * - Region: defaults to /20 (4,094 addresses)
+ * - AZ: defaults to /24 (254 addresses)
+ *
+ * @example
+ * ```typescript
+ * import { HierarchicalAllocator, validateConfig } from '@subnetter/core';
+ *
+ * const config = validateConfig({
+ *   baseCidr: '10.0.0.0/8',
+ *   prefixLengths: { account: 16, region: 20, az: 24 },
+ *   accounts: [{
+ *     name: 'production',
+ *     clouds: { aws: { regions: ['us-east-1', 'us-west-2'] } }
+ *   }],
+ *   subnetTypes: { public: 26, private: 24 }
+ * });
+ *
+ * const allocator = new HierarchicalAllocator(config);
+ * const allocations = allocator.generateAllocations();
+ * ```
  */
 export class HierarchicalAllocator {
-  private config: Config;
-  private rootAllocator: ContiguousAllocator;
-  private allocations: Allocation[] = [];
-  
   /**
-   * Region-specific AWS availability zone mappings
-   * Maps AWS regions to their specific AZ suffixes
-   * @private
+   * Validated configuration for allocation.
+   * @internal
+   */
+  private config: Config;
+
+  /**
+   * Root allocator for the base CIDR.
+   * @internal
+   */
+  private rootAllocator: ContiguousAllocator;
+
+  /**
+   * Accumulated allocations from the current generation.
+   * @internal
+   */
+  private allocations: Allocation[] = [];
+
+  /**
+   * AWS region to availability zone suffix mapping.
+   *
+   * @remarks
+   * Maps AWS regions to their specific AZ letter suffixes.
+   * Not all regions have the same AZs (e.g., us-west-1 has only a and c).
+   *
+   * @internal
    */
   private readonly awsRegionToAzMap: Record<string, string[]> = {
     'us-east-1': ['a', 'b', 'c', 'd', 'e', 'f'],
@@ -56,22 +142,31 @@ export class HierarchicalAllocator {
   };
 
   /**
-   * List of Azure regions that support availability zones
-   * @private
+   * Azure regions that support availability zones.
+   *
+   * @remarks
+   * Not all Azure regions have AZ support. This list is used to
+   * provide appropriate warnings during allocation.
+   *
+   * @internal
    */
   private readonly azureSupportedZoneRegions: string[] = [
-    'brazilsouth', 'canadacentral', 'centralus', 'eastus', 'eastus2', 
-    'southcentralus', 'westus2', 'westus3', 'francecentral', 
-    'germanywestcentral', 'northeurope', 'norwayeast', 'swedencentral', 
-    'switzerlandnorth', 'uksouth', 'westeurope', 'australiaeast', 
-    'centralindia', 'japaneast', 'koreacentral', 'southeastasia', 
+    'brazilsouth', 'canadacentral', 'centralus', 'eastus', 'eastus2',
+    'southcentralus', 'westus2', 'westus3', 'francecentral',
+    'germanywestcentral', 'northeurope', 'norwayeast', 'swedencentral',
+    'switzerlandnorth', 'uksouth', 'westeurope', 'australiaeast',
+    'centralindia', 'japaneast', 'koreacentral', 'southeastasia',
     'qatarcentral', 'southafricanorth', 'uaenorth'
   ];
 
   /**
-   * Region-specific GCP availability zone mappings
-   * Maps GCP regions to their specific zone suffixes
-   * @private
+   * GCP region to zone suffix mapping.
+   *
+   * @remarks
+   * Maps GCP regions to their available zone suffixes.
+   * Some regions have non-standard suffixes (e.g., us-central1 includes 'f').
+   *
+   * @internal
    */
   private readonly gcpRegionToZoneMap: Record<string, string[]> = {
     'us-central1': ['a', 'b', 'c', 'f'],
@@ -118,15 +213,23 @@ export class HierarchicalAllocator {
 
   /**
    * Creates a new HierarchicalAllocator with the specified configuration.
-   * 
-   * @param config The configuration to use for allocation
+   *
+   * @param config - Validated configuration for allocation
+   *
+   * @throws {@link AllocationError}
+   * Thrown with `INVALID_CIDR_FORMAT` if the base CIDR is malformed.
+   *
+   * @example
+   * ```typescript
+   * const allocator = new HierarchicalAllocator(config);
+   * ```
    */
   constructor(config: Config) {
     logger.debug('Initializing HierarchicalAllocator with configuration');
     logger.trace('Configuration details:', config);
-    
+
     this.config = config;
-    
+
     // Initialize the root allocator with the base CIDR
     if (!isValidIpv4Cidr(config.baseCidr)) {
       throw new AllocationError(
@@ -135,46 +238,59 @@ export class HierarchicalAllocator {
         { cidr: config.baseCidr }
       );
     }
-    
+
     this.rootAllocator = new ContiguousAllocator(config.baseCidr);
   }
-  
+
   /**
-   * Generates IP allocations for all accounts, regions, and subnets.
-   * 
-   * @returns An array of allocation objects representing all subnet allocations
+   * Generates allocations for all accounts, regions, and subnets.
+   *
+   * @remarks
+   * Processes the entire configuration hierarchy and returns a flat
+   * array of subnet allocations. Each call resets internal state,
+   * ensuring deterministic output.
+   *
+   * @returns Array of {@link Allocation} objects for all subnets
+   *
+   * @example
+   * ```typescript
+   * const allocator = new HierarchicalAllocator(config);
+   * const allocations = allocator.generateAllocations();
+   *
+   * console.log(`Generated ${allocations.length} subnets`);
+   * ```
    */
   public generateAllocations(): Allocation[] {
     // Reset any previous allocations
     this.allocations = [];
     this.rootAllocator.reset();
-    
+
     logger.debug('Starting hierarchical allocation process');
     logger.debug(`Base CIDR: ${this.config.baseCidr}`);
     logger.debug(`Account count: ${this.config.accounts.length}`);
-    
+
     // Process each account
     this.config.accounts.forEach(account => {
       this.processAccount(account);
     });
-    
+
     logger.info(`Generated ${this.allocations.length} total subnet allocations`);
     return this.allocations;
   }
-  
+
   /**
    * Processes an account for CIDR allocation.
-   * 
-   * @param account The account to process
-   * @private
+   *
+   * @param account - Account to process
+   * @internal
    */
   private processAccount(account: Account): void {
     logger.debug(`Processing account: ${account.name}`);
-    
+
     // Look for account-specific CIDRs in cloud configs
     let accountCidr: string | undefined;
     let useAccountSpecificCidr = false;
-    
+
     if (account.clouds) {
       // Search for a cloud config with a baseCidr
       Object.values(account.clouds).forEach(cloudConfig => {
@@ -185,20 +301,20 @@ export class HierarchicalAllocator {
         }
       });
     }
-    
+
     // Use account-specific CIDR or allocate from root
     let accountAllocator: ContiguousAllocator;
-    
+
     if (useAccountSpecificCidr && accountCidr) {
       // Use the specified CIDR for this account
       accountAllocator = new ContiguousAllocator(accountCidr);
     } else {
       // Allocate a CIDR for this account from the root allocator
-      const accountPrefix = this.config.prefixLengths?.account || 16; // Default to /16
+      const accountPrefix = this.config.prefixLengths?.account || 16;
       const allocatedCidr = this.rootAllocator.allocate(`/${accountPrefix}`);
       accountAllocator = new ContiguousAllocator(allocatedCidr);
     }
-    
+
     // Process cloud-specific configurations
     if (account.clouds) {
       Object.entries(account.clouds).forEach(([providerName, cloudConfig]) => {
@@ -209,44 +325,43 @@ export class HierarchicalAllocator {
       this.processLegacyAccount(account, accountAllocator);
     }
   }
-  
+
   /**
-   * Processes a legacy account format.
-   * 
-   * @param account The account to process
-   * @param accountAllocator The allocator for this account
-   * @private
+   * Processes legacy account format for backward compatibility.
+   *
+   * @param account - Account with legacy region format
+   * @param accountAllocator - Allocator for this account
+   * @internal
    */
   private processLegacyAccount(account: Account, accountAllocator: ContiguousAllocator): void {
     // @ts-expect-error - handling legacy format intentionally
     const regions = account.regions as string[];
     logger.debug(`Processing legacy account format with regions: ${regions.join(', ')}`);
-    
-    // For legacy format, we'll use AWS as the default provider or detect from region
+
+    // For legacy format, detect provider from region
     regions.forEach(region => {
       const provider = ProviderDetector.detect(region);
-      
-      // Create a simple cloud config for this region
+
       const cloudConfig: CloudConfig = {
         regions: [region]
       };
-      
+
       this.processCloudConfig(account.name, provider, cloudConfig, accountAllocator);
     });
   }
-  
+
   /**
    * Processes a cloud configuration for an account.
-   * 
-   * @param accountName The name of the account
-   * @param providerName The name of the cloud provider
-   * @param cloudConfig The cloud configuration
-   * @param accountAllocator The allocator for this account
-   * @param vpcCidr Optional VPC CIDR if using an account-specific CIDR
-   * @private
+   *
+   * @param accountName - Name of the account
+   * @param providerName - Cloud provider identifier
+   * @param cloudConfig - Cloud-specific configuration
+   * @param accountAllocator - Allocator for this account
+   * @param vpcCidr - Optional VPC CIDR override
+   * @internal
    */
   private processCloudConfig(
-    accountName: string, 
+    accountName: string,
     providerName: string,
     cloudConfig: CloudConfig,
     accountAllocator: ContiguousAllocator,
@@ -256,25 +371,25 @@ export class HierarchicalAllocator {
       logger.warn(`Empty or invalid cloud config for provider ${providerName} in account ${accountName}, skipping`);
       return;
     }
-    
+
     // Use cloud-specific CIDR or the account CIDR
     const effectiveVpcCidr = vpcCidr || cloudConfig.baseCidr || accountAllocator.getAvailableSpace().split('/')[0] + '/8';
-    
+
     // Process each region
     cloudConfig.regions.forEach(regionName => {
       this.processRegion(accountName, regionName, providerName, accountAllocator, effectiveVpcCidr);
     });
   }
-  
+
   /**
    * Processes a region for CIDR allocation.
-   * 
-   * @param accountName The name of the account
-   * @param regionName The name of the region
-   * @param providerName The name of the cloud provider
-   * @param accountAllocator The allocator for this account
-   * @param vpcCidr VPC CIDR to use in allocations
-   * @private
+   *
+   * @param accountName - Name of the account
+   * @param regionName - Region identifier
+   * @param providerName - Cloud provider identifier
+   * @param accountAllocator - Allocator for this account
+   * @param vpcCidr - VPC CIDR for allocations
+   * @internal
    */
   private processRegion(
     accountName: string,
@@ -284,35 +399,35 @@ export class HierarchicalAllocator {
     vpcCidr: string
   ): void {
     logger.debug(`Processing region ${regionName} for account ${accountName}`);
-    
-    // Allocate a CIDR for this region from the account allocator
-    const regionPrefix = this.config.prefixLengths?.region || 20; // Default to /20
+
+    // Allocate a CIDR for this region
+    const regionPrefix = this.config.prefixLengths?.region || 20;
     const regionCidr = accountAllocator.allocate(`/${regionPrefix}`);
-    
+
     // Create an allocator for this region
     const regionAllocator = new ContiguousAllocator(regionCidr);
-    
+
     // Get AZ names for this region
     const azNames = this.getAzNames(regionName, providerName);
     logger.debug(`Region ${regionName} has ${azNames.length} availability zones`);
-    
+
     // Process each availability zone
     azNames.forEach(azName => {
       this.processAz(accountName, regionName, azName, providerName, regionCidr, vpcCidr, regionAllocator);
     });
   }
-  
+
   /**
    * Processes an availability zone for CIDR allocation.
-   * 
-   * @param accountName The name of the account
-   * @param regionName The name of the region
-   * @param azName The name of the availability zone
-   * @param providerName The name of the cloud provider
-   * @param regionCidr The CIDR of the region
-   * @param vpcCidr The CIDR of the VPC
-   * @param regionAllocator The allocator for this region
-   * @private
+   *
+   * @param accountName - Name of the account
+   * @param regionName - Region identifier
+   * @param azName - Availability zone identifier
+   * @param providerName - Cloud provider identifier
+   * @param regionCidr - CIDR of the region
+   * @param vpcCidr - CIDR of the VPC
+   * @param regionAllocator - Allocator for this region
+   * @internal
    */
   private processAz(
     accountName: string,
@@ -324,14 +439,14 @@ export class HierarchicalAllocator {
     regionAllocator: ContiguousAllocator
   ): void {
     logger.debug(`Processing AZ ${azName} for region ${regionName}`);
-    
-    // Allocate a CIDR for this AZ from the region allocator
-    const azPrefix = this.config.prefixLengths?.az || 24; // Default to /24
+
+    // Allocate a CIDR for this AZ
+    const azPrefix = this.config.prefixLengths?.az || 24;
     const azCidr = regionAllocator.allocate(`/${azPrefix}`);
-    
+
     // Create an allocator for this AZ
     const azAllocator = new ContiguousAllocator(azCidr);
-    
+
     // Process subnet types
     if (typeof this.config.subnetTypes === 'object') {
       Object.entries(this.config.subnetTypes).forEach(([subnetType, prefixLength]) => {
@@ -350,21 +465,21 @@ export class HierarchicalAllocator {
       });
     }
   }
-  
+
   /**
-   * Processes a subnet for CIDR allocation.
-   * 
-   * @param accountName The name of the account
-   * @param regionName The name of the region
-   * @param azName The name of the availability zone
-   * @param providerName The name of the cloud provider
-   * @param regionCidr The CIDR of the region
-   * @param vpcCidr The CIDR of the VPC
-   * @param azCidr The CIDR of the availability zone
-   * @param subnetType The type of the subnet
-   * @param prefixLength The prefix length for the subnet
-   * @param azAllocator The allocator for this availability zone
-   * @private
+   * Processes a subnet allocation.
+   *
+   * @param accountName - Name of the account
+   * @param regionName - Region identifier
+   * @param azName - Availability zone identifier
+   * @param providerName - Cloud provider identifier
+   * @param regionCidr - CIDR of the region
+   * @param vpcCidr - CIDR of the VPC
+   * @param azCidr - CIDR of the availability zone
+   * @param subnetType - Subnet role/type name
+   * @param prefixLength - Prefix length for this subnet type
+   * @param azAllocator - Allocator for this AZ
+   * @internal
    */
   private processSubnet(
     accountName: string,
@@ -379,11 +494,11 @@ export class HierarchicalAllocator {
     azAllocator: ContiguousAllocator
   ): void {
     logger.debug(`Processing subnet type ${subnetType} with prefix length ${prefixLength} for AZ ${azName}`);
-    
+
     try {
-      // Allocate a CIDR for this subnet from the AZ allocator
+      // Allocate a CIDR for this subnet
       const subnetCidr = azAllocator.allocate(`/${prefixLength}`);
-      
+
       // Add the allocation
       this.allocations.push({
         accountName,
@@ -398,7 +513,7 @@ export class HierarchicalAllocator {
         subnetRole: subnetType,
         usableIps: this.calculateUsableIps(subnetCidr)
       });
-      
+
       logger.debug(`Allocated subnet ${subnetType} in ${azName} with CIDR ${subnetCidr}`);
     } catch (error) {
       if (error instanceof AllocationError) {
@@ -408,81 +523,72 @@ export class HierarchicalAllocator {
       }
     }
   }
-  
+
   /**
-   * Calculates the number of usable IP addresses in a CIDR block.
-   * 
-   * @param cidr The CIDR block
-   * @returns The number of usable IP addresses
-   * @private
+   * Calculates usable IPs for a CIDR block.
+   *
+   * @param cidr - CIDR block
+   * @returns Number of usable IP addresses
+   * @internal
    */
   private calculateUsableIps(cidr: string): number {
     const prefix = parseInt(cidr.split('/')[1], 10);
-    
-    // Special cases for /31 and /32
+
+    // Special cases for point-to-point and single host
     if (prefix === 32) return 1;
     if (prefix === 31) return 2;
-    
-    // For all other prefixes, we need to subtract 2 for network and broadcast addresses
+
+    // Standard calculation: total - network - broadcast
     return Math.pow(2, 32 - prefix) - 2;
   }
-  
+
   /**
-   * Generates AZ names for a region.
-   * 
-   * @param regionName The region name
-   * @param providerName The cloud provider name
-   * @returns An array of AZ names
-   * @private
+   * Generates AZ names for a region based on cloud provider conventions.
+   *
+   * @param regionName - Region identifier
+   * @param providerName - Cloud provider ('aws', 'azure', 'gcp')
+   * @returns Array of availability zone names
+   * @internal
    */
   private getAzNames(regionName: string, providerName: string): string[] {
-    // Default to 3 AZs if not otherwise specified
+    // Default to 3 AZs
     const defaultCount = 3;
-    
-    // For AWS, AZs are region + letters (a, b, c, etc.)
+
+    // AWS: region + letter suffix (us-east-1a)
     if (providerName === 'aws') {
-      // Use region-specific AZ suffixes if available, or fall back to a, b, c
       const azSuffixes = this.awsRegionToAzMap[regionName] || ['a', 'b', 'c'];
-      // Limit to the first 3 AZs by default to avoid excessive allocations
       const effectiveSuffixes = azSuffixes.slice(0, defaultCount);
-      
+
       logger.debug(`Using AWS AZ suffixes for ${regionName}: ${effectiveSuffixes.join(', ')}`);
       return effectiveSuffixes.map(suffix => `${regionName}${suffix}`);
     }
-    
-    // For Azure, check if the region supports AZs
+
+    // Azure: region + number (eastus-1)
     if (providerName === 'azure') {
-      // Normalize region name to lower case
       const normalizedRegion = regionName.toLowerCase();
-      
-      // Check if the region supports AZs
       const supportsZones = this.azureSupportedZoneRegions.includes(normalizedRegion);
-      
+
       if (!supportsZones) {
         logger.warn(`Azure region ${regionName} may not support availability zones. Proceeding with default naming.`);
       }
-      
-      // Azure uses numeric zone designations (1, 2, 3)
+
       const azNumbers = [1, 2, 3].slice(0, defaultCount);
       logger.debug(`Using Azure AZ numbers for ${regionName}: ${azNumbers.join(', ')}`);
-      
-      // Return in the format: regionName-1, regionName-2, regionName-3
+
       return azNumbers.map(num => `${regionName}-${num}`);
     }
-    
-    // For GCP, AZs are region + -a, -b, -c (with specific variations)
+
+    // GCP: region + letter suffix with hyphen (us-central1-a)
     if (providerName === 'gcp') {
-      // Use region-specific zone suffixes if available, or fall back to a, b, c
       const zoneSuffixes = this.gcpRegionToZoneMap[regionName] || ['a', 'b', 'c'];
-      // Limit to the first 3 zones by default to avoid excessive allocations
       const effectiveSuffixes = zoneSuffixes.slice(0, defaultCount);
-      
+
       logger.debug(`Using GCP zone suffixes for ${regionName}: ${effectiveSuffixes.join(', ')}`);
       return effectiveSuffixes.map(suffix => `${regionName}-${suffix}`);
     }
-    
-    // Default: just append numbers with az prefix for unknown providers
+
+    // Unknown provider: generic naming
     logger.warn(`Unknown provider ${providerName}, using generic AZ naming`);
     return Array.from({ length: defaultCount }, (_, i) => `${regionName}-az${i+1}`);
   }
-} 
+}
