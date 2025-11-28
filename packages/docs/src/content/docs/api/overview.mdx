@@ -1,172 +1,523 @@
 ---
-title: Overview
-description: "Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase."
+title: API Overview
+description: "Subnetter provides a programmatic API for hierarchical IPv4 CIDR allocation across multi-cloud infrastructure."
 ---
 
-Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This API reference documents the available functions, classes, and interfaces in the Subnetter codebase.
+import { Aside, Tabs, TabItem, Card, CardGrid } from '@astrojs/starlight/components';
+
+Subnetter provides a programmatic API that allows you to use its functionality in your own Node.js applications. This overview documents the available packages, key components, and usage patterns.
 
 ## Packages
 
 Subnetter is organized as a monorepo with multiple packages:
 
-- **[@subnetter/core](/subnetter/api/modules/core_src.html)**: Core CIDR allocation engine and utilities
-- **[@subnetter/cli](/subnetter/api/modules/cli_src.html)**: Command-line interface (primarily for internal use)
-- **@subnetter/cidr-utils**: Low-level CIDR utilities (can be used independently)
+<CardGrid>
+  <Card title="@subnetter/core" icon="rocket">
+    Core CIDR allocation engine, configuration loading, and output utilities.
+    This is the main package for programmatic use.
+  </Card>
+  <Card title="@subnetter/cli" icon="terminal">
+    Command-line interface for generate, validate, analyze, and export operations.
+  </Card>
+  <Card title="@subnetter/netbox" icon="cloud">
+    NetBox IPAM integration for exporting allocations to NetBox.
+  </Card>
+  <Card title="@subnetter/cidr-utils" icon="setting">
+    Low-level CIDR utilities for validation, parsing, and calculation.
+  </Card>
+</CardGrid>
 
-For most programmatic use cases, you'll only need to work with the `@subnetter/core` package.
-
-## Key Components
-
-### Core Package
-
-The core package provides the main functionality:
-
-- **[CidrAllocator](/subnetter/api/classes/core_src.CidrAllocator.html)**: Main class for hierarchical CIDR allocation
-- **[loadConfig](/subnetter/api/functions/core_src.loadConfig.html)**: Load and parse configuration files
-- **[validateConfig](/subnetter/api/functions/core_src.validateConfig.html)**: Validate configuration objects
-- **[writeAllocationsToCsv](/subnetter/api/functions/core_src.writeAllocationsToCsv.html)**: Write allocation results to CSV
-
-### Data Types
-
-Important interfaces:
-
-- **[Config](/subnetter/api/interfaces/core_src.Config.html)**: Configuration for CIDR allocation
-- **[Allocation](/subnetter/api/interfaces/core_src.Allocation.html)**: Represents a complete subnet allocation
-- **[Account](/subnetter/api/interfaces/core_src.Account.html)**: Account configuration
-- **[SubnetType](/subnetter/api/interfaces/core_src.SubnetType.html)**: Subnet type definition
-
-## CIDR Utilities
-
-The `@subnetter/cidr-utils` package provides low-level utilities for IP address and CIDR manipulation. This package can be used independently if you only need basic CIDR functionality without the hierarchical allocation features.
-
-### Installation
+## Installation
 
 ```bash
+# Core package (for programmatic use)
+npm install @subnetter/core
+
+# NetBox integration
+npm install @subnetter/netbox
+
+# CIDR utilities only
 npm install @subnetter/cidr-utils
 ```
 
-### Key Utility Functions
-
-#### IP Address Manipulation
+## Quick Start
 
 ```typescript
-import { 
-  ipv4ToNumber, 
-  numberToIpv4, 
-  createIpAddress 
-} from '@subnetter/cidr-utils';
+import {
+  loadConfig,
+  CidrAllocator,
+  writeAllocationsToCsv
+} from '@subnetter/core';
 
-// Convert IP to number
-const num = ipv4ToNumber('192.168.1.1'); // 3232235777
+async function main() {
+  // Load and validate configuration
+  const config = await loadConfig('./config.json');
 
-// Convert number to IP
-const ip = numberToIpv4(3232235777); // '192.168.1.1'
+  // Generate allocations
+  const allocator = new CidrAllocator(config);
+  const allocations = allocator.generateAllocations();
 
-// Create IP address object with multiple formats
-const ipObj = createIpAddress('192.168.1.1');
-console.log(ipObj.asNumber); // 3232235777
-console.log(ipObj.asString); // '192.168.1.1'
-console.log(ipObj.asOctets); // [192, 168, 1, 1]
+  // Write to CSV
+  await writeAllocationsToCsv(allocations, './allocations.csv');
+
+  console.log(`Generated ${allocations.length} subnet allocations`);
+}
+
+main();
 ```
 
-#### CIDR Validation and Parsing
+---
+
+## @subnetter/core
+
+The core package provides the main functionality for CIDR allocation.
+
+### Key Exports
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `CidrAllocator` | Class | Main class for hierarchical CIDR allocation |
+| `loadConfig` | Function | Load and validate configuration files (JSON/YAML) |
+| `validateConfig` | Function | Validate configuration objects programmatically |
+| `writeAllocationsToCsv` | Function | Write allocations to CSV file |
+| `filterAllocationsByProvider` | Function | Filter allocations by cloud provider |
+| `validateNoOverlappingCidrs` | Function | Validate allocations for CIDR overlaps |
+
+### Types and Interfaces
 
 ```typescript
-import { 
-  isValidIpv4Cidr, 
+import type {
+  Config,           // Main configuration interface
+  Allocation,       // Output allocation record
+  Account,          // Account configuration
+  CloudConfig,      // Cloud-specific configuration
+  SubnetTypesMap,   // Subnet type definitions
+  RawConfig,        // Raw config before normalization
+} from '@subnetter/core';
+```
+
+### Configuration Loading
+
+<Tabs>
+  <TabItem label="From File">
+```typescript
+import { loadConfig } from '@subnetter/core';
+
+// Load from JSON or YAML file
+const config = await loadConfig('./config.json');
+const yamlConfig = await loadConfig('./config.yaml');
+```
+  </TabItem>
+  <TabItem label="Programmatic">
+```typescript
+import { validateConfig } from '@subnetter/core';
+
+const config = validateConfig({
+  baseCidr: '10.0.0.0/8',
+  accounts: [{
+    name: 'production',
+    clouds: {
+      aws: { regions: ['us-east-1', 'us-west-2'] }
+    }
+  }],
+  subnetTypes: {
+    public: 26,
+    private: 24,
+    database: 27
+  }
+});
+```
+  </TabItem>
+</Tabs>
+
+### CIDR Allocation
+
+```typescript
+import { CidrAllocator } from '@subnetter/core';
+
+const allocator = new CidrAllocator(config);
+const allocations = allocator.generateAllocations();
+
+// Each allocation contains:
+allocations.forEach(alloc => {
+  console.log({
+    account: alloc.accountName,
+    provider: alloc.cloudProvider,
+    region: alloc.regionName,
+    az: alloc.availabilityZone,
+    subnet: alloc.subnetCidr,
+    role: alloc.subnetRole,
+    usableIps: alloc.usableIps
+  });
+});
+```
+
+### Error Handling
+
+Subnetter provides a comprehensive error hierarchy:
+
+```typescript
+import {
+  SubnetterError,       // Base error class
+  ConfigurationError,   // Configuration validation errors
+  AllocationError,      // CIDR allocation failures
+  IOError,              // File I/O errors
+  ValidationError,      // General validation errors
+  CloudProviderError,   // Cloud provider specific errors
+  ErrorCode             // Error code enum
+} from '@subnetter/core';
+
+try {
+  const config = await loadConfig('./config.json');
+  const allocator = new CidrAllocator(config);
+  const allocations = allocator.generateAllocations();
+} catch (error) {
+  if (error instanceof ConfigurationError) {
+    console.error(`Config error [${error.code}]: ${error.message}`);
+    console.log('Help:', error.getHelpText());
+  } else if (error instanceof AllocationError) {
+    console.error('Allocation failed:', error.message);
+  }
+}
+```
+
+### Logging
+
+```typescript
+import {
+  createLogger,
+  configureLogger,
+  LogLevel,
+  parseLogLevel
+} from '@subnetter/core';
+
+// Configure global logging
+configureLogger({
+  level: LogLevel.DEBUG,
+  useColor: true,
+  timestamps: true
+});
+
+// Create a named logger
+const logger = createLogger('MyApp');
+logger.info('Starting allocation...');
+logger.debug('Config loaded:', config);
+```
+
+### CIDR Utilities (from core)
+
+The core package re-exports common CIDR utilities:
+
+```typescript
+import {
+  isValidIpv4Cidr,
+  calculateUsableIps,
+  doCidrsOverlap,
+  subdivideIpv4Cidr,
+  calculateOptimalPrefixLength,
+  calculateRequiredPrefixLength,
+  ContiguousAllocator,
+  HierarchicalAllocator
+} from '@subnetter/core';
+
+// Validate CIDR format
+isValidIpv4Cidr('10.0.0.0/24');  // true
+
+// Calculate usable IPs
+calculateUsableIps('10.0.0.0/24');  // 254
+
+// Check for overlap
+doCidrsOverlap('10.0.0.0/24', '10.0.0.128/25');  // true
+
+// Subdivide a CIDR
+subdivideIpv4Cidr('10.0.0.0/24', 26);
+// ['10.0.0.0/26', '10.0.0.64/26', '10.0.0.128/26', '10.0.0.192/26']
+```
+
+---
+
+## @subnetter/netbox
+
+The NetBox package provides integration with NetBox IPAM.
+
+### Key Exports
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `NetBoxClient` | Class | REST API client for NetBox |
+| `NetBoxExporter` | Class | Export allocations to NetBox |
+| `NetBoxApiError` | Class | API error with status code |
+
+### NetBox Client
+
+```typescript
+import { NetBoxClient } from '@subnetter/netbox';
+
+const client = new NetBoxClient({
+  url: 'https://netbox.example.com',
+  token: process.env.NETBOX_TOKEN!,
+  timeout: 30000,  // optional
+});
+
+// Test connection
+const connected = await client.testConnection();
+
+// List prefixes
+const prefixes = await client.prefixes.listAll();
+
+// Create a prefix
+const prefix = await client.prefixes.create({
+  prefix: '10.1.0.0/16',
+  status: 'reserved',
+  description: 'Production VPC',
+});
+
+// Other resources: sites, tenants, roles, tags, locations, aggregates
+```
+
+### Exporting to NetBox
+
+```typescript
+import { CidrAllocator, loadConfig } from '@subnetter/core';
+import { NetBoxClient, NetBoxExporter } from '@subnetter/netbox';
+
+// Generate allocations
+const config = await loadConfig('./config.json');
+const allocator = new CidrAllocator(config);
+const allocations = allocator.generateAllocations();
+
+// Create client and exporter
+const client = new NetBoxClient({
+  url: 'https://netbox.example.com',
+  token: process.env.NETBOX_TOKEN!,
+});
+
+const exporter = new NetBoxExporter(client);
+
+// Dry run first
+const preview = await exporter.export(allocations, {
+  dryRun: true,
+  baseCidr: config.baseCidr,
+});
+
+console.log(`Would create: ${preview.summary.created}`);
+console.log(`Would update: ${preview.summary.updated}`);
+
+// Apply changes
+const result = await exporter.export(allocations, {
+  dryRun: false,
+  baseCidr: config.baseCidr,
+  status: 'reserved',  // Prefix status
+  prune: false,        // Delete orphaned prefixes
+});
+```
+
+### NetBox Object Mapping
+
+Subnetter maps cloud concepts to NetBox objects:
+
+| Subnetter | NetBox | Description |
+|-----------|--------|-------------|
+| Base CIDR | Aggregate | Top-level IP block |
+| Cloud Provider | Site Group | AWS, Azure, GCP |
+| Cloud Region | Site | us-east-1, eastus |
+| Availability Zone | Location | us-east-1a |
+| Account | Tenant | Ownership boundary |
+| Subnet Type | Role | public, private |
+| Subnet CIDR | Prefix | Actual allocation |
+
+---
+
+## @subnetter/cidr-utils
+
+Low-level CIDR utilities for validation, parsing, and calculation.
+
+### IP Address Utilities
+
+```typescript
+import {
+  ipv4ToNumber,
+  numberToIpv4,
+  createIpAddress,
+  getNetworkAddress,
+  getBroadcastAddress,
+  calculateSubnetMask
+} from '@subnetter/cidr-utils';
+
+// Convert between formats
+const num = ipv4ToNumber('192.168.1.1');  // 3232235777
+const ip = numberToIpv4(3232235777);       // '192.168.1.1'
+
+// Create IP address object
+const ipObj = createIpAddress('192.168.1.1');
+console.log(ipObj.asNumber);  // 3232235777
+console.log(ipObj.asString);  // '192.168.1.1'
+console.log(ipObj.octets);    // [192, 168, 1, 1]
+
+// Network calculations
+getNetworkAddress('10.0.0.15/24');    // IpAddress for '10.0.0.0'
+getBroadcastAddress('10.0.0.0/24');   // IpAddress for '10.0.0.255'
+calculateSubnetMask(24);               // 4294967040 (0xFFFFFF00)
+```
+
+### CIDR Validation
+
+```typescript
+import {
+  isValidIpv4Cidr,
   validateIpv4Cidr,
-  parseIpv4Cidr
+  CidrError
 } from '@subnetter/cidr-utils';
 
 // Simple validation
-const isValid = isValidIpv4Cidr('10.0.0.0/24'); // true
+isValidIpv4Cidr('10.0.0.0/24');  // true
+isValidIpv4Cidr('10.0.0.0/33');  // false
 
-// Validation with detailed error information
+// Validation with error details
 try {
   validateIpv4Cidr('10.0.0.0/33');
 } catch (error) {
-  console.error(error.message); // 'Invalid prefix length: 33 (must be between 0 and 32)'
-  console.error(error.type); // 'INVALID_PREFIX_LENGTH'
+  if (error instanceof CidrError) {
+    console.error(error.message);  // 'Invalid prefix length...'
+    console.error(error.type);     // 'INVALID_PREFIX_LENGTH'
+  }
 }
+```
+
+### CIDR Parsing
+
+```typescript
+import {
+  parseIpv4Cidr,
+  normalizeCidr
+} from '@subnetter/cidr-utils';
 
 // Parse CIDR into components
 const parsed = parseIpv4Cidr('10.0.0.0/24');
-console.log(parsed.address); // '10.0.0.0'
-console.log(parsed.prefixLength); // 24
+console.log(parsed.address);       // '10.0.0.0'
+console.log(parsed.prefixLength);  // 24
+
+// Normalize CIDR to network address
+normalizeCidr('10.0.0.15/24');  // '10.0.0.0/24'
 ```
 
-#### Subnet Calculations
+### Subnet Calculations
 
 ```typescript
-import { 
-  calculateNetworkAddress,
-  calculateBroadcastAddress,
-  calculateUsableIps,
-  isIpInCidr,
-  doCidrsOverlap
+import {
+  calculateSubnetInfo,
+  getCidrRange,
+  checkCidrOverlap,
+  subdivideCidr,
+  calculateSupernet
 } from '@subnetter/cidr-utils';
 
-// Calculate network address
-const network = calculateNetworkAddress('10.0.0.15/24'); // '10.0.0.0'
+// Get subnet information
+const info = calculateSubnetInfo('10.0.0.0/24');
+console.log(info.totalIps);   // 256
+console.log(info.usableIps);  // 254
 
-// Calculate broadcast address
-const broadcast = calculateBroadcastAddress('10.0.0.0/24'); // '10.0.0.255'
+// Get IP range
+const range = getCidrRange('10.0.0.0/24');
+console.log(range.start.asString);  // '10.0.0.0'
+console.log(range.end.asString);    // '10.0.0.255'
 
-// Calculate usable IPs
-const usableIps = calculateUsableIps('10.0.0.0/24'); // 254
+// Check for overlap
+checkCidrOverlap('10.0.0.0/24', '10.0.0.128/25');  // true
 
-// Check if IP is in CIDR
-const isInRange = isIpInCidr('10.0.0.5', '10.0.0.0/24'); // true
+// Subdivide a CIDR (by prefix delta)
+const result = subdivideCidr('10.0.0.0/24', 2);  // Add 2 bits
+console.log(result.subnets);  // ['10.0.0.0/26', '10.0.0.64/26', ...]
+console.log(result.bitsAdded);  // 2
 
-// Check if CIDRs overlap
-const doOverlap = doCidrsOverlap('10.0.0.0/24', '10.0.0.128/25'); // true
+// Calculate supernet
+calculateSupernet('10.0.1.0/24', 8);  // '10.0.0.0/16'
 ```
 
-#### Subnet Allocation
+---
+
+## TypeScript Support
+
+All packages are written in TypeScript and provide full type definitions:
 
 ```typescript
-import { 
-  subdivideIpv4Cidr,
-  findNextAvailableCidr
+import type {
+  Config,
+  Allocation,
+  Account,
+  CloudConfig
+} from '@subnetter/core';
+
+import type {
+  NetBoxConfig,
+  Prefix,
+  ExportResult
+} from '@subnetter/netbox';
+
+import type {
+  IpAddress,
+  SubnetInfo,
+  IpRange
 } from '@subnetter/cidr-utils';
-
-// Divide a CIDR into smaller subnets
-const subnets = subdivideIpv4Cidr('10.0.0.0/24', 26);
-console.log(subnets); // ['10.0.0.0/26', '10.0.0.64/26', '10.0.0.128/26', '10.0.0.192/26']
-
-// Find next available CIDR given existing allocations
-const allocated = ['10.0.0.0/24', '10.0.1.0/24'];
-const next = findNextAvailableCidr('10.0.0.0/16', allocated, 24);
-console.log(next); // '10.0.2.0/24'
 ```
 
-For comprehensive details on all available utilities, refer to the inline documentation in the source code.
+---
 
-## Example Usage
+## Complete Example
 
-```javascript
-const { loadConfig, CidrAllocator, writeAllocationsToCsv } = require('@subnetter/core');
+```typescript
+import {
+  loadConfig,
+  CidrAllocator,
+  writeAllocationsToCsv,
+  filterAllocationsByProvider,
+  validateNoOverlappingCidrs,
+  SubnetterError,
+  ConfigurationError
+} from '@subnetter/core';
 
-async function generateAllocations() {
+async function main() {
   try {
     // Load configuration
-    const config = loadConfig('config.json');
-    
+    const config = await loadConfig('./config.json');
+    console.log(`Loaded config with ${config.accounts.length} accounts`);
+
     // Generate allocations
     const allocator = new CidrAllocator(config);
     const allocations = allocator.generateAllocations();
-    
-    console.log(`Generated ${allocations.length} subnet allocations`);
-    
+    console.log(`Generated ${allocations.length} allocations`);
+
+    // Validate for overlaps
+    const validation = validateNoOverlappingCidrs(allocations);
+    if (!validation.valid) {
+      console.error(`Found ${validation.overlaps.length} overlaps!`);
+      process.exit(1);
+    }
+
+    // Filter by provider if needed
+    const awsOnly = filterAllocationsByProvider(allocations, 'aws');
+    console.log(`AWS allocations: ${awsOnly.length}`);
+
     // Write to CSV
-    await writeAllocationsToCsv(allocations, 'allocations.csv');
-    console.log('Allocations written to CSV');
+    await writeAllocationsToCsv(allocations, './allocations.csv');
+    console.log('Written to allocations.csv');
+
   } catch (error) {
-    console.error('Error:', error.message);
+    if (error instanceof ConfigurationError) {
+      console.error(`Configuration error: ${error.message}`);
+      console.log('Hint:', error.getHelpText());
+    } else if (error instanceof SubnetterError) {
+      console.error(`Error [${error.code}]: ${error.message}`);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+    process.exit(1);
   }
 }
 
-generateAllocations();
+main();
 ```
 
-For complete API documentation, navigate to the [Generated API Documentation](/subnetter/api/index.html). 
+<Aside type="tip">
+  For complete API documentation including all methods and parameters, see the [TypeDoc Generated Documentation](/subnetter/api/index.html).
+</Aside>
