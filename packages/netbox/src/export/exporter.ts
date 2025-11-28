@@ -1,5 +1,41 @@
 /**
- * NetBox Exporter - exports Subnetter allocations to NetBox
+ * @module export/exporter
+ * @description NetBox export orchestration for Subnetter allocations.
+ *
+ * Provides the main export functionality that synchronizes Subnetter
+ * allocations with a NetBox instance. Handles creation of supporting
+ * objects (tenants, sites, roles) and manages the full export lifecycle.
+ *
+ * ## Export Hierarchy
+ *
+ * The exporter creates NetBox objects in the following hierarchy:
+ *
+ * ```
+ * Aggregate (10.0.0.0/8)
+ * └── Site Group (AWS)
+ *     └── Site (us-east-1)
+ *         └── Location (us-east-1a)
+ *             └── Prefix (10.1.1.0/24) ← with Tenant + Role
+ * ```
+ *
+ * ## Export Phases
+ *
+ * 1. Load existing data from NetBox into caches
+ * 2. Ensure 'subnetter-managed' tag exists
+ * 3. Ensure RFC 1918 RIR exists (for aggregates)
+ * 4. Create aggregate for base CIDR
+ * 5. Create tenants for each account
+ * 6. Create site groups for each cloud provider
+ * 7. Create sites for each cloud region
+ * 8. Create locations for each availability zone
+ * 9. Create roles for each subnet type
+ * 10. Create/update/skip prefixes
+ * 11. Optionally prune orphaned prefixes
+ *
+ * @see {@link NetBoxExporter} for the main export class
+ * @see {@link ../mapper} for object mapping functions
+ *
+ * @packageDocumentation
  */
 
 import type { Allocation } from '@subnetter/core';
@@ -33,87 +69,235 @@ import {
   mapAllocationToPrefix,
 } from './mapper';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Export operation types
+ * Types of operations that can be performed during export.
  */
 export type OperationType = 'create' | 'update' | 'delete' | 'skip';
 
 /**
- * Represents a planned change
+ * Represents a single planned or executed change.
+ *
+ * @typeParam T - The type of the current/planned objects
+ *
+ * @example
+ * ```typescript
+ * const change: PlannedChange<Prefix> = {
+ *   operation: 'create',
+ *   objectType: 'prefix',
+ *   identifier: '10.1.0.0/16',
+ *   planned: { prefix: '10.1.0.0/16', status: 'reserved' },
+ * };
+ * ```
  */
 export interface PlannedChange<T = unknown> {
+  /** The type of operation */
   operation: OperationType;
+  /** NetBox object type */
   objectType: 'prefix' | 'site' | 'site_group' | 'tenant' | 'role' | 'tag' | 'location' | 'aggregate' | 'rir';
+  /** Human-readable identifier (e.g., CIDR, name) */
   identifier: string;
+  /** Current state in NetBox (for update/delete) */
   current?: T;
+  /** Planned new state (for create/update) */
   planned?: T;
+  /** Reason for the operation */
   reason?: string;
 }
 
 /**
- * Export result
+ * Result of an export operation.
+ *
+ * @example
+ * ```typescript
+ * const result = await exporter.export(allocations);
+ *
+ * if (result.success) {
+ *   console.log(`Created ${result.summary.created} prefixes`);
+ * } else {
+ *   console.error(`Export failed with ${result.errors.length} errors`);
+ * }
+ * ```
  */
 export interface ExportResult {
+  /** Whether the export completed without errors */
   success: boolean;
+  /** List of all changes (planned or executed) */
   changes: PlannedChange[];
+  /** List of errors that occurred */
   errors: Array<{ identifier: string; error: string }>;
+  /** Summary counts by operation type */
   summary: {
+    /** Number of objects created */
     created: number;
+    /** Number of objects updated */
     updated: number;
+    /** Number of objects deleted */
     deleted: number;
+    /** Number of objects skipped (no changes needed) */
     skipped: number;
+    /** Number of errors */
     errors: number;
   };
 }
 
 /**
- * Export options
+ * Options for controlling export behavior.
+ *
+ * @example
+ * ```typescript
+ * // Preview changes without applying them
+ * const options: ExportOptions = {
+ *   dryRun: true,
+ *   baseCidr: '10.0.0.0/8',
+ * };
+ *
+ * // Apply changes and clean up orphans
+ * const options: ExportOptions = {
+ *   dryRun: false,
+ *   prune: true,
+ *   status: 'reserved',
+ * };
+ * ```
  */
 export interface ExportOptions {
-  /** Create missing tenants, sites, and roles (default: true) */
+  /**
+   * Create missing supporting objects (tenants, sites, roles).
+   * @defaultValue true
+   */
   createMissing?: boolean;
-  /** Delete prefixes in NetBox that are not in allocations (default: false) */
+  /**
+   * Delete prefixes in NetBox that are not in the allocations.
+   * @defaultValue false
+   */
   prune?: boolean;
-  /** Status to assign to new prefixes (default: 'reserved') */
+  /**
+   * Status to assign to new prefixes.
+   * @defaultValue 'reserved'
+   */
   status?: PrefixStatus;
-  /** Only show what would be done, don't make changes */
+  /**
+   * Preview mode: show what would be done without making changes.
+   * @defaultValue false
+   */
   dryRun?: boolean;
-  /** Base CIDR block for creating Aggregate (e.g., '10.0.0.0/8') */
+  /**
+   * Base CIDR block for creating an Aggregate (e.g., '10.0.0.0/8').
+   * Required for proper IP hierarchy in NetBox.
+   */
   baseCidr?: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Exporter Implementation
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * NetBox Exporter
+ * Exports Subnetter allocations to NetBox IPAM.
  *
- * Exports Subnetter allocations to NetBox, creating necessary
- * supporting objects (tenants, sites, roles) as needed.
+ * @remarks
+ * The exporter synchronizes Subnetter's generated allocations with a NetBox
+ * instance. It creates the necessary hierarchy of supporting objects
+ * (tenants, site groups, sites, locations, roles) and then creates or
+ * updates prefixes.
  *
- * Hierarchy created:
- * - Aggregates: Top-level IP blocks (e.g., 10.0.0.0/8)
- * - Site Groups: Cloud providers (AWS, Azure, GCP)
- * - Sites: Cloud regions (us-east-1, eastus, etc.)
- * - Locations: Availability zones (us-east-1a, etc.)
- * - Prefixes: Subnet allocations (scoped to Sites)
+ * ## Object Mapping
+ *
+ * | Subnetter | NetBox | Description |
+ * |-----------|--------|-------------|
+ * | Base CIDR | Aggregate | Top-level IP block |
+ * | Cloud Provider | Site Group | Functional grouping |
+ * | Cloud Region | Site | Geographic location |
+ * | Availability Zone | Location | Zone within a site |
+ * | Account | Tenant | Ownership boundary |
+ * | Subnet Type | Role | Network function |
+ * | Subnet CIDR | Prefix | IP allocation |
+ *
+ * ## Dry Run Mode
+ *
+ * Use `dryRun: true` to preview changes without applying them. The result
+ * will contain all planned changes for review.
+ *
+ * ## Idempotency
+ *
+ * The exporter is idempotent - running it multiple times with the same
+ * allocations will not create duplicates. Existing objects are skipped
+ * unless their attributes have changed.
+ *
+ * @example Basic export
+ * ```typescript
+ * const client = new NetBoxClient({ url, token });
+ * const exporter = new NetBoxExporter(client);
+ *
+ * const result = await exporter.export(allocations, {
+ *   baseCidr: config.baseCidr,
+ * });
+ *
+ * console.log(`Created: ${result.summary.created}`);
+ * console.log(`Updated: ${result.summary.updated}`);
+ * ```
+ *
+ * @example Dry run preview
+ * ```typescript
+ * const result = await exporter.export(allocations, {
+ *   dryRun: true,
+ *   baseCidr: '10.0.0.0/8',
+ * });
+ *
+ * console.log('Planned changes:');
+ * for (const change of result.changes) {
+ *   console.log(`  ${change.operation}: ${change.objectType} ${change.identifier}`);
+ * }
+ * ```
+ *
+ * @see {@link ExportOptions} for configuration options
+ * @see {@link ExportResult} for result structure
  */
 export class NetBoxExporter {
+  /** NetBox API client */
   private readonly client: NetBoxClient;
 
-  // Cache of existing objects (populated during export)
-  private tenantCache: Map<string, Tenant> = new Map();
-  private siteGroupCache: Map<string, SiteGroup> = new Map();  // Cloud providers
-  private siteCache: Map<string, Site> = new Map();             // Cloud regions
-  private locationCache: Map<string, Location> = new Map();     // Availability zones
-  private roleCache: Map<string, Role> = new Map();
-  private tagCache: Map<string, Tag> = new Map();
-  private aggregateCache: Map<string, Aggregate> = new Map();   // Top-level IP blocks
-  private rirCache: Map<string, Rir> = new Map();               // RIRs (e.g., RFC 1918)
+  // ─────────────────────────────────────────────────────────────────────────
+  // Caches for existing objects (populated during export)
+  // ─────────────────────────────────────────────────────────────────────────
 
+  /** Tenants by slug */
+  private tenantCache: Map<string, Tenant> = new Map();
+  /** Site groups by slug (cloud providers) */
+  private siteGroupCache: Map<string, SiteGroup> = new Map();
+  /** Sites by slug (cloud regions) */
+  private siteCache: Map<string, Site> = new Map();
+  /** Locations by slug (availability zones) */
+  private locationCache: Map<string, Location> = new Map();
+  /** Roles by slug */
+  private roleCache: Map<string, Role> = new Map();
+  /** Tags by slug */
+  private tagCache: Map<string, Tag> = new Map();
+  /** Aggregates by prefix (top-level IP blocks) */
+  private aggregateCache: Map<string, Aggregate> = new Map();
+  /** RIRs by slug (e.g., RFC 1918) */
+  private rirCache: Map<string, Rir> = new Map();
+
+  /**
+   * Creates a new NetBox exporter.
+   *
+   * @param client - Configured NetBox API client
+   */
   constructor(client: NetBoxClient) {
     this.client = client;
   }
 
   /**
-   * Export allocations to NetBox
+   * Exports allocations to NetBox.
+   *
+   * @param allocations - Array of Subnetter allocations to export
+   * @param options - Export configuration options
+   * @returns Result containing changes, errors, and summary
+   *
+   * @throws {@link NetBoxApiError} for unrecoverable API errors
    */
   async export(
     allocations: Allocation[],
@@ -310,8 +494,13 @@ export class NetBoxExporter {
     };
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private Methods: Cache Loading
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
-   * Load existing data from NetBox into caches
+   * Loads existing data from NetBox into local caches.
+   * @private
    */
   private async loadExistingData(): Promise<void> {
     // Load tenants
@@ -348,15 +537,20 @@ export class NetBoxExporter {
   }
 
   /**
-   * Get all prefixes from NetBox
-   * Note: We fetch all prefixes since we can't rely on tags being present
+   * Gets all prefixes from NetBox for comparison.
+   * @private
    */
   private async getSubnetterManagedPrefixes(): Promise<Prefix[]> {
     return this.client.prefixes.listAll();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private Methods: Object Creation
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
-   * Ensure RFC 1918 RIR exists
+   * Ensures the RFC 1918 RIR exists for private address space.
+   * @private
    */
   private async ensureRfc1918Rir(
     changes: PlannedChange[],
@@ -398,31 +592,41 @@ export class NetBoxExporter {
   }
 
   /**
-   * Normalize a CIDR to its proper network address
-   * e.g., 10.100.0.0/8 -> 10.0.0.0/8
+   * Normalizes a CIDR to its proper network address.
+   *
+   * @param cidr - CIDR notation that may have incorrect host bits
+   * @returns Normalized CIDR with correct network address
+   *
+   * @example
+   * ```typescript
+   * normalizeCidr('10.100.0.0/8') // returns '10.0.0.0/8'
+   * ```
+   *
+   * @private
    */
   private normalizeCidr(cidr: string): string {
     const [ip, prefixStr] = cidr.split('/');
     const prefix = parseInt(prefixStr, 10);
     const octets = ip.split('.').map(Number);
-    
+
     // Calculate the network address based on prefix length
     const ipNum = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
     const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
     const networkNum = (ipNum & mask) >>> 0;
-    
+
     const networkOctets = [
       (networkNum >>> 24) & 0xff,
       (networkNum >>> 16) & 0xff,
       (networkNum >>> 8) & 0xff,
       networkNum & 0xff,
     ];
-    
+
     return `${networkOctets.join('.')}/${prefix}`;
   }
 
   /**
-   * Ensure an Aggregate exists for the base CIDR
+   * Ensures an Aggregate exists for the base CIDR.
+   * @private
    */
   private async ensureAggregate(
     baseCidr: string,
@@ -431,7 +635,7 @@ export class NetBoxExporter {
   ): Promise<void> {
     // Normalize the CIDR to a proper network address
     const normalizedCidr = this.normalizeCidr(baseCidr);
-    
+
     if (this.aggregateCache.has(normalizedCidr)) return;
 
     const rir = this.rirCache.get('rfc-1918');
@@ -464,7 +668,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a tag exists
+   * Ensures a tag exists.
+   * @private
    */
   private async ensureTag(
     tagName: string,
@@ -505,7 +710,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a site group (cloud provider) exists
+   * Ensures a site group (cloud provider) exists.
+   * @private
    */
   private async ensureSiteGroup(
     cloudProvider: string,
@@ -545,7 +751,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a tenant exists
+   * Ensures a tenant exists.
+   * @private
    */
   private async ensureTenant(
     accountName: string,
@@ -582,7 +789,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a site (cloud region) exists under its parent region (cloud provider)
+   * Ensures a site (cloud region) exists under its parent site group.
+   * @private
    */
   private async ensureSite(
     regionName: string,
@@ -632,7 +840,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a location (availability zone) exists under its parent site (cloud region)
+   * Ensures a location (availability zone) exists under its parent site.
+   * @private
    */
   private async ensureLocation(
     azName: string,
@@ -682,7 +891,8 @@ export class NetBoxExporter {
   }
 
   /**
-   * Ensure a role exists
+   * Ensures a role exists.
+   * @private
    */
   private async ensureRole(
     roleName: string,
@@ -718,8 +928,18 @@ export class NetBoxExporter {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private Methods: Comparison
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
-   * Check if a prefix needs to be updated
+   * Checks if a prefix needs to be updated based on attribute changes.
+   *
+   * @param existing - Current prefix in NetBox
+   * @param planned - Planned prefix attributes
+   * @returns True if any relevant attributes differ
+   *
+   * @private
    */
   private prefixNeedsUpdate(
     existing: Prefix,
@@ -737,4 +957,3 @@ export class NetBoxExporter {
     return false;
   }
 }
-
