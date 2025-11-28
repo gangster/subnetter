@@ -7,7 +7,7 @@
     "./packages/netbox/src/index.ts",
     "./packages/cidr-utils/src/index.ts"
   ],
-  "out": "docs/api",
+  "out": "docs/typedoc",
   "name": "Subnetter API Documentation",
   "includeVersion": true,
   "skipErrorChecking": true,
