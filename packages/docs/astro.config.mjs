@@ -31,7 +31,9 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'Configuration', link: '/configuration' },
-						{ label: 'API Documentation', link: '/api/overview' },
+						{ label: 'API Overview', link: '/api/overview' },
+						{ label: 'API Reference', link: '/api/reference' },
+						{ label: 'TypeDoc API Docs', link: '/api/index.html', attrs: { target: '_blank' } },
 						{ label: 'Error Handling', link: '/error-handling' },
 					],
 				},
