@@ -46,6 +46,13 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Integrations',
+					items: [
+						{ label: 'Overview', link: '/integrations' },
+						{ label: 'NetBox', link: '/integrations/netbox' },
+					],
+				},
+				{
 					label: 'Troubleshooting',
 					link: '/troubleshooting',
 				},

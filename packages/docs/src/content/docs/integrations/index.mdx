@@ -1,0 +1,29 @@
+---
+title: Integrations
+description: Integrate Subnetter with external systems for IP address management and network infrastructure.
+---
+
+# Integrations
+
+Subnetter can integrate with external systems to synchronize IP address allocations, validate against existing infrastructure, and maintain a single source of truth for your network planning.
+
+## Available Integrations
+
+### NetBox
+
+[NetBox](/subnetter/integrations/netbox/) is an open-source IP Address Management (IPAM) and Data Center Infrastructure Management (DCIM) tool. Subnetter's NetBox integration enables:
+
+- **Export allocations** — Push planned network allocations to NetBox as the source of truth
+- **Validate against NetBox** — Check for conflicts between planned allocations and existing data
+- **Import from NetBox** — Generate Subnetter configurations from existing NetBox prefixes
+- **Idempotent operations** — Support for dry-run mode and incremental updates
+
+## Coming Soon
+
+Future integrations under consideration:
+
+- **Nautobot** — NetBox fork with additional automation features
+- **Infoblox** — Enterprise IPAM integration
+- **phpIPAM** — Open-source IPAM alternative
+- **Terraform** — Infrastructure as code integration
+
