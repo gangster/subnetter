@@ -1,3 +1,17 @@
+# [2.1.0](https://github.com/gangster/subnetter/compare/v2.0.1...v2.1.0) (2025-11-28)
+
+
+### Bug Fixes
+
+* **docs:** correct subnet type ordering in all examples ([e9932a3](https://github.com/gangster/subnetter/commit/e9932a395834359cabca495a843a725fd6bba57b))
+* **docs:** simplify CIDR primer quick reference to prevent layout overflow ([#7](https://github.com/gangster/subnetter/issues/7)) ([f551809](https://github.com/gangster/subnetter/commit/f5518096f5104af66806134a8e36b3e9f187a332))
+
+
+### Features
+
+* add NetBox integration design and development environment ([c4769f2](https://github.com/gangster/subnetter/commit/c4769f2658ab6e01049a7480fc2c914934b944f3))
+* **netbox:** NetBox IPAM integration ([#10](https://github.com/gangster/subnetter/issues/10)) ([fe91a23](https://github.com/gangster/subnetter/commit/fe91a2302ec90d03592dddd7f26f5881692407bd))
+
 ## [2.0.1](https://github.com/gangster/subnetter/compare/v2.0.0...v2.0.1) (2025-11-27)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@subnetter/cidr-utils",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Pure JavaScript/TypeScript utilities for CIDR manipulation and subnet calculations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
