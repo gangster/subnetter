@@ -3,7 +3,9 @@
   "entryPointStrategy": "expand",
   "entryPoints": [
     "./packages/core/src/index.ts",
-    "./packages/cli/src/index.ts"
+    "./packages/cli/src/index.ts",
+    "./packages/netbox/src/index.ts",
+    "./packages/cidr-utils/src/index.ts"
   ],
   "out": "docs/api",
   "name": "Subnetter API Documentation",
@@ -15,5 +17,9 @@
   "excludeInternal": true,
   "externalPattern": ["**/node_modules/**"],
   "sort": ["kind", "visibility", "static-first", "alphabetical"],
-  "categorizeByGroup": true
-} 
+  "categorizeByGroup": true,
+  "navigationLinks": {
+    "Documentation": "https://gangster.github.io/subnetter/",
+    "GitHub": "https://github.com/gangster/subnetter"
+  }
+}
