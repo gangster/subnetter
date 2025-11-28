@@ -1,27 +1,76 @@
+/**
+ * @module config/loader
+ * @description Configuration loading and validation for Subnetter.
+ *
+ * Provides functions to load configuration from JSON or YAML files,
+ * validate configuration objects, and normalize them for use with
+ * the CIDR allocator.
+ *
+ * @remarks
+ * The loader performs several validation steps:
+ * 1. File format detection (JSON/YAML based on extension)
+ * 2. Schema validation using Zod
+ * 3. CIDR overlap detection for cloud-specific overrides
+ * 4. Normalization to consistent internal format
+ *
+ * @example
+ * ```typescript
+ * import { loadConfig, validateConfig } from '@subnetter/core';
+ *
+ * // Load from file
+ * const config = loadConfig('./network-config.json');
+ *
+ * // Or validate an object directly
+ * const config = validateConfig({
+ *   baseCidr: '10.0.0.0/8',
+ *   accounts: [...],
+ *   subnetTypes: { public: 24 }
+ * });
+ * ```
+ *
+ * @see {@link configSchema} for the validation schema
+ * @see {@link Config} for the output type
+ *
+ * @packageDocumentation
+ */
+
 import { readFileSync } from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { configSchema } from './schema';
-import { Config, RawConfig } from '../models/types';
+import type { Config, RawConfig } from '../models/types';
 import { ZodError } from 'zod';
 import { Logger } from '../utils/logger';
 import { ConfigurationError, ErrorCode, IOError } from '../utils/errors';
 import { doCidrsOverlap } from '../allocator/utils/cidr/calculator';
 
-// Create logger instance for config operations
+/**
+ * Logger instance for configuration operations.
+ * @internal
+ */
 const logger = new Logger('ConfigLoader');
 
 /**
  * Parses configuration data based on file extension.
- * 
- * @param data Raw file content
- * @param extension File extension (e.g., '.json', '.yaml')
- * @returns Parsed configuration object
- * @throws {ConfigurationError} If the file format is unsupported or if parsing fails
+ *
+ * @param data - Raw file content as a string
+ * @param extension - File extension including the dot (e.g., '.json', '.yaml')
+ * @returns Parsed configuration object (unvalidated)
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `INVALID_JSON_FORMAT` if JSON parsing fails.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `INVALID_YAML_FORMAT` if YAML parsing fails.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `INVALID_CONFIG_FORMAT` if the extension is unsupported.
+ *
+ * @internal
  */
 function parseConfigData(data: string, extension: string): unknown {
   logger.debug(`Parsing config data with extension: ${extension}`);
-  
+
   switch (extension.toLowerCase()) {
     case '.json':
       logger.debug('Parsing as JSON');
@@ -59,10 +108,16 @@ function parseConfigData(data: string, extension: string): unknown {
 }
 
 /**
- * Normalizes the configuration object to ensure all required properties are in the expected format.
- * 
- * @param config Validated configuration object
+ * Normalizes a validated configuration to the internal format.
+ *
+ * @remarks
+ * Ensures `cloudProviders` is always an array, even if not specified
+ * in the original configuration.
+ *
+ * @param rawConfig - Validated raw configuration
  * @returns Normalized configuration object
+ *
+ * @internal
  */
 function normalizeConfig(rawConfig: RawConfig): Config {
   return {
@@ -75,22 +130,27 @@ function normalizeConfig(rawConfig: RawConfig): Config {
 }
 
 /**
- * Validates that no baseCidr values in the configuration overlap with each other.
- * This prevents configurations that would generate duplicate/overlapping subnet allocations.
- * 
- * @param config The raw configuration to validate
- * @throws {ConfigurationError} If overlapping CIDRs are detected
+ * Validates that no baseCidr values in the configuration overlap.
+ *
+ * @remarks
+ * This validation prevents configurations that would generate
+ * duplicate or overlapping subnet allocations. Only cloud-specific
+ * CIDR overrides are checked against each other; the top-level
+ * `baseCidr` is expected to be the parent of all allocations.
+ *
+ * @param config - The raw configuration to validate
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CIDR_OVERLAP` if overlapping CIDRs are detected.
+ *
+ * @internal
  */
 function validateNoCidrOverlaps(config: RawConfig): void {
   logger.debug('Validating configuration for CIDR overlaps');
-  
+
   const allCidrs: Array<{ cidr: string; path: string }> = [];
-  
-  // Collect all baseCidrs from config
-  // Note: We don't include the top-level baseCidr here because it's expected
-  // to be the parent of all other CIDRs. We only check cloud-specific overrides
-  // against each other.
-  
+
+  // Collect all baseCidrs from cloud configurations
   config.accounts.forEach((account, accountIndex) => {
     if (account.clouds) {
       Object.entries(account.clouds).forEach(([provider, cloud]) => {
@@ -103,15 +163,15 @@ function validateNoCidrOverlaps(config: RawConfig): void {
       });
     }
   });
-  
-  // If there are less than 2 CIDRs with overrides, no overlap is possible
+
+  // Skip validation if fewer than 2 CIDR overrides exist
   if (allCidrs.length < 2) {
     logger.debug('Less than 2 CIDR overrides found, skipping overlap check');
     return;
   }
-  
+
   logger.debug(`Checking ${allCidrs.length} CIDR overrides for overlaps`);
-  
+
   // Check each pair for overlaps
   for (let i = 0; i < allCidrs.length; i++) {
     for (let j = i + 1; j < allCidrs.length; j++) {
@@ -139,31 +199,75 @@ function validateNoCidrOverlaps(config: RawConfig): void {
       }
     }
   }
-  
+
   logger.debug('No CIDR overlaps detected in configuration');
 }
 
 /**
  * Loads and validates a configuration file.
- * Supports JSON and YAML formats.
- * 
- * @param configPath Path to the configuration file
- * @returns The validated configuration object
- * @throws {ConfigurationError} If the configuration is invalid
- * @throws {IOError} If the file can't be read
+ *
+ * @remarks
+ * Supports JSON (`.json`) and YAML (`.yaml`, `.yml`) file formats.
+ * The file path can be absolute or relative to the current working directory.
+ *
+ * The loading process:
+ * 1. Resolves the file path
+ * 2. Validates the file extension
+ * 3. Reads and parses the file content
+ * 4. Validates against the configuration schema
+ * 5. Checks for CIDR overlaps in cloud configurations
+ * 6. Normalizes to the internal format
+ *
+ * @param configPath - Path to the configuration file (absolute or relative)
+ * @returns The validated and normalized configuration
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CONFIG_FILE_NOT_FOUND` if the file doesn't exist.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `INVALID_CONFIG_FORMAT` if the file extension is unsupported.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `INVALID_JSON_FORMAT` or `INVALID_YAML_FORMAT` if parsing fails.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CONFIG_VALIDATION_FAILED` if schema validation fails.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CIDR_OVERLAP` if cloud CIDRs overlap.
+ *
+ * @throws {@link IOError}
+ * Thrown with `INSUFFICIENT_PERMISSIONS` if the file cannot be read.
+ *
+ * @example
+ * ```typescript
+ * import { loadConfig } from '@subnetter/core';
+ *
+ * // Load from JSON
+ * const config = loadConfig('./config.json');
+ *
+ * // Load from YAML
+ * const config = loadConfig('./config.yaml');
+ *
+ * // Use absolute path
+ * const config = loadConfig('/etc/subnetter/config.json');
+ * ```
+ *
+ * @see {@link validateConfig} for validating objects without file I/O
+ * @see {@link Config} for the return type structure
  */
 export function loadConfig(configPath: string): Config {
   logger.info(`Loading configuration from: ${configPath}`);
-  
+
   try {
     // Resolve the path if it's relative
     const resolvedPath = path.isAbsolute(configPath) ? configPath : path.resolve(process.cwd(), configPath);
     logger.debug(`Resolved config path: ${resolvedPath}`);
-    
+
     // Get the file extension
     const extension = path.extname(resolvedPath);
     logger.debug(`File extension: ${extension}`);
-    
+
     // Check if the file extension is supported before reading the file
     if (!['.json', '.yaml', '.yml'].includes(extension.toLowerCase())) {
       logger.error(`Unsupported file extension: ${extension}`);
@@ -173,35 +277,35 @@ export function loadConfig(configPath: string): Config {
         { extension, supportedExtensions: ['.json', '.yaml', '.yml'] }
       );
     }
-    
+
     // Read the file
     logger.debug(`Reading file: ${resolvedPath}`);
     try {
       const fileContent = readFileSync(resolvedPath, 'utf-8');
       logger.trace(`File content length: ${fileContent.length} bytes`);
-      
+
       // Parse the file content based on its extension
       logger.debug('Parsing configuration data');
       const configData = parseConfigData(fileContent, extension);
-      
+
       try {
         // Validate the configuration against the schema
         logger.debug('Validating configuration against schema');
         const validatedConfig = configSchema.parse(configData) as RawConfig;
         logger.info('Configuration validation successful');
         logger.debug(`Config has ${validatedConfig.accounts.length} accounts`);
-        
+
         // Validate that no CIDRs overlap
         validateNoCidrOverlaps(validatedConfig);
-        
+
         // Normalize the configuration
         const normalizedConfig = normalizeConfig(validatedConfig);
-        
+
         return normalizedConfig;
       } catch (error) {
         if (error instanceof ZodError) {
           logger.warn(`Configuration validation failed for ${configPath}`);
-          
+
           throw new ConfigurationError(
             `Configuration validation failed: ${configPath}`,
             ErrorCode.CONFIG_VALIDATION_FAILED,
@@ -220,7 +324,7 @@ export function loadConfig(configPath: string): Config {
       if (error instanceof ConfigurationError) {
         throw error;
       }
-      
+
       if (error instanceof Error && error.message.includes('ENOENT')) {
         logger.error(`Configuration file not found: ${configPath}`);
         throw new ConfigurationError(
@@ -229,7 +333,7 @@ export function loadConfig(configPath: string): Config {
           { configPath }
         );
       }
-      
+
       if (error instanceof Error && (error.message.includes('permission') || error.message.includes('EACCES'))) {
         logger.error(`Insufficient permissions to read file: ${configPath}`);
         throw new IOError(
@@ -238,7 +342,7 @@ export function loadConfig(configPath: string): Config {
           { configPath }
         );
       }
-      
+
       logger.error(`Error reading configuration file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new IOError(
         `Error reading configuration file: ${configPath}`,
@@ -251,7 +355,7 @@ export function loadConfig(configPath: string): Config {
     if (error instanceof ConfigurationError || error instanceof IOError) {
       throw error;
     }
-    
+
     // Handle any other unexpected errors
     logger.error(`Unexpected error loading configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw new ConfigurationError(
@@ -264,24 +368,60 @@ export function loadConfig(configPath: string): Config {
 
 /**
  * Validates a configuration object without loading from a file.
- * 
- * @param config Configuration object to validate
- * @returns The validated configuration object
- * @throws {ConfigurationError} If the configuration is invalid
+ *
+ * @remarks
+ * Use this function when you have a configuration object in memory
+ * (e.g., from an API request or programmatic construction) rather
+ * than loading from a file.
+ *
+ * Performs the same validation steps as {@link loadConfig}:
+ * 1. Schema validation using Zod
+ * 2. CIDR overlap detection
+ * 3. Normalization
+ *
+ * @param config - Configuration object to validate (unknown type for flexibility)
+ * @returns The validated and normalized configuration
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CONFIG_VALIDATION_FAILED` if schema validation fails.
+ *
+ * @throws {@link ConfigurationError}
+ * Thrown with `CIDR_OVERLAP` if cloud CIDRs overlap.
+ *
+ * @example
+ * ```typescript
+ * import { validateConfig } from '@subnetter/core';
+ *
+ * const config = validateConfig({
+ *   baseCidr: '10.0.0.0/8',
+ *   accounts: [
+ *     {
+ *       name: 'production',
+ *       clouds: { aws: { regions: ['us-east-1'] } }
+ *     }
+ *   ],
+ *   subnetTypes: { public: 24, private: 24 }
+ * });
+ *
+ * console.log(`Validated ${config.accounts.length} accounts`);
+ * ```
+ *
+ * @see {@link loadConfig} for loading from files
+ * @see {@link configSchema} for the underlying validation schema
  */
 export function validateConfig(config: unknown): Config {
   logger.debug('Validating configuration object');
-  
+
   try {
     const validatedConfig = configSchema.parse(config) as RawConfig;
     logger.info('Configuration validation successful');
-    
+
     // Validate that no CIDRs overlap
     validateNoCidrOverlaps(validatedConfig);
-    
+
     // Normalize the configuration
     const normalizedConfig = normalizeConfig(validatedConfig);
-    
+
     return normalizedConfig;
   } catch (error) {
     // Let ConfigurationError pass through (includes CIDR overlap errors)
@@ -308,4 +448,4 @@ export function validateConfig(config: unknown): Config {
       { rawError: error }
     );
   }
-} 
+}
