@@ -1,0 +1,304 @@
+---
+title: NetBox Integration
+description: Export Subnetter allocations to NetBox IPAM for centralized IP address management
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+# NetBox Integration
+
+Subnetter integrates with [NetBox](https://netbox.dev/), the leading open-source IP Address Management (IPAM) and Data Center Infrastructure Management (DCIM) solution. This integration enables you to export your planned IP allocations directly to NetBox, creating a centralized source of truth for your network infrastructure.
+
+## Why NetBox?
+
+NetBox provides:
+
+- **Centralized IPAM**: Single source of truth for all IP allocations across your organization
+- **Audit Trail**: Track changes to IP allocations over time
+- **Team Collaboration**: Multiple teams can view and manage IP space
+- **API-First Design**: Automation-friendly REST API
+- **Visualization**: Built-in tools for viewing IP utilization
+- **Documentation**: Link IP allocations to devices, services, and documentation
+
+## Prerequisites
+
+Before using the NetBox integration, you need:
+
+1. **NetBox 4.x** running and accessible (earlier versions may work but are not tested)
+2. **API Token** with write permissions for IPAM, DCIM, and Tenancy modules
+3. **Subnetter configuration** with your desired IP allocations
+
+### Getting a NetBox API Token
+
+1. Log in to your NetBox instance
+2. Navigate to **Admin → API Tokens** (or your user profile → API Tokens)
+3. Click **Add** to create a new token
+4. Ensure the token has write permissions for:
+   - IPAM (Prefixes, Aggregates, Roles, RIRs)
+   - DCIM (Sites, Site Groups, Locations)
+   - Tenancy (Tenants)
+5. Copy and save the token securely
+
+## Quick Start
+
+Export your Subnetter allocations to NetBox:
+
+<Tabs>
+  <TabItem label="Using Environment Variables">
+```bash
+export NETBOX_URL="https://netbox.example.com"
+export NETBOX_TOKEN="your-api-token"
+
+subnetter netbox-export --config config.json --dry-run
+```
+  </TabItem>
+  <TabItem label="Using CLI Options">
+```bash
+subnetter netbox-export \
+  --config config.json \
+  --netbox-url https://netbox.example.com \
+  --netbox-token your-api-token \
+  --dry-run
+```
+  </TabItem>
+</Tabs>
+
+The `--dry-run` flag shows what would be created without making changes. Remove it to actually export to NetBox.
+
+## NetBox Hierarchy
+
+Subnetter creates a logical hierarchy in NetBox that mirrors your cloud infrastructure:
+
+```
+RIR (RFC 1918)
+└── Aggregate (10.0.0.0/8)
+    └── Site Group (Amazon Web Services)
+        └── Site (us-east-1)
+            └── Location (us-east-1a)
+                └── Prefix (10.100.0.0/26)
+```
+
+### Object Mapping
+
+| Subnetter Concept | NetBox Object | Description |
+|-------------------|---------------|-------------|
+| Base CIDR | **Aggregate** | Root of your IP hierarchy (e.g., `10.0.0.0/8`) |
+| Cloud Provider | **Site Group** | Logical grouping for AWS, Azure, or GCP |
+| Cloud Region | **Site** | Physical/logical location (e.g., `us-east-1`) |
+| Availability Zone | **Location** | Subdivision within a site (e.g., `us-east-1a`) |
+| Account Name | **Tenant** | Organizational unit for ownership |
+| Subnet Type | **Role** | Purpose of the subnet (e.g., `Kubernetes`, `Public`) |
+| Subnet CIDR | **Prefix** | The actual IP allocation |
+
+### Why This Hierarchy?
+
+- **Aggregates** establish the root of your IP addressing hierarchy and link to an RIR (RFC 1918 for private ranges)
+- **Site Groups** provide functional grouping for cloud providers, keeping multi-cloud environments organized
+- **Sites** represent cloud regions, which are the primary geographical/logical units in cloud infrastructure
+- **Locations** represent availability zones within regions, maintaining the cloud hierarchy
+- **Prefixes** are scoped to Sites (using NetBox 4.x's `scope_type`/`scope_id` API), linking IP allocations to their physical location
+
+## CLI Command Reference
+
+### `subnetter netbox-export`
+
+Export allocations to NetBox.
+
+```bash
+subnetter netbox-export [options]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--config <path>` | Path to Subnetter configuration file | Required |
+| `--netbox-url <url>` | NetBox API URL | `$NETBOX_URL` |
+| `--netbox-token <token>` | NetBox API token | `$NETBOX_TOKEN` |
+| `--dry-run` | Preview changes without applying | `false` |
+| `--prune` | Delete prefixes not in allocations | `false` |
+| `--status <status>` | Status for new prefixes | `reserved` |
+
+**Examples:**
+
+```bash
+# Preview what would be created
+subnetter netbox-export --config config.json --dry-run
+
+# Export with active status
+subnetter netbox-export --config config.json --status active
+
+# Export and remove stale prefixes
+subnetter netbox-export --config config.json --prune
+```
+
+## Export Workflow
+
+When you run `netbox-export`, Subnetter:
+
+1. **Loads your configuration** and generates all IP allocations
+2. **Connects to NetBox** and loads existing data
+3. **Ensures prerequisites exist**:
+   - RFC 1918 RIR (created if missing)
+   - Aggregate for your base CIDR
+   - Site Groups for each cloud provider
+   - Tenants for each account
+   - Sites for each region
+   - Locations for each availability zone
+   - Roles for each subnet type
+4. **Creates or updates prefixes** for each allocation
+5. **Reports results** with counts of created, updated, and skipped objects
+
+### Idempotency
+
+The export is fully idempotent. Running it multiple times with the same configuration produces the same result:
+
+```bash
+$ subnetter netbox-export --config config.json
+
+Export Summary:
+  Site Groups: 1 created, 0 updated, 0 skipped
+  Tenants: 3 created, 0 updated, 0 skipped
+  Sites: 6 created, 0 updated, 0 skipped
+  Locations: 18 created, 0 updated, 0 skipped
+  Roles: 4 created, 0 updated, 0 skipped
+  Prefixes: 2288 created, 0 updated, 0 skipped
+
+$ subnetter netbox-export --config config.json  # Run again
+
+Export Summary:
+  Site Groups: 0 created, 0 updated, 1 skipped
+  Tenants: 0 created, 0 updated, 3 skipped
+  Sites: 0 created, 0 updated, 6 skipped
+  Locations: 0 created, 0 updated, 18 skipped
+  Roles: 0 created, 0 updated, 4 skipped
+  Prefixes: 0 created, 0 updated, 2288 skipped
+```
+
+## Descriptive Metadata
+
+All NetBox objects created by Subnetter include descriptive metadata:
+
+| Object Type | Description Example |
+|-------------|---------------------|
+| Site Group | `Cloud infrastructure provider - Amazon Web Services` |
+| Site | `Amazon Web Services region in us-east-1` |
+| Location | `Amazon Web Services availability zone us-east-1a in us-east-1` |
+| Tenant | `Cloud account managed by Subnetter` |
+| Role | `Subnet role for kubernetes workloads` |
+| Prefix | `Kubernetes subnet in us-east-1a (Amazon Web Services us-east-1)` |
+| Aggregate | `Root IP allocation for cloud infrastructure` |
+
+## Development Setup
+
+For local development and testing, you can run NetBox using Docker Compose:
+
+```bash
+# Start NetBox
+./scripts/netbox-dev.sh start
+
+# View logs
+./scripts/netbox-dev.sh logs
+
+# Stop NetBox
+./scripts/netbox-dev.sh stop
+
+# Reset all data
+./scripts/netbox-dev.sh reset
+```
+
+NetBox will be available at `http://localhost:8000` with default credentials:
+- Username: `admin`
+- Password: `admin`
+
+Create an API token through the web UI before using the export command.
+
+## Best Practices
+
+### Use Dry-Run First
+
+Always preview changes before applying:
+
+```bash
+subnetter netbox-export --config config.json --dry-run
+```
+
+### Use Environment Variables for Tokens
+
+Never commit API tokens to version control:
+
+```bash
+export NETBOX_TOKEN="your-secret-token"
+subnetter netbox-export --config config.json
+```
+
+### Start with Reserved Status
+
+Use `reserved` status (the default) for planned allocations, then update to `active` when deployed:
+
+```bash
+# Initial planning
+subnetter netbox-export --config config.json --status reserved
+
+# After deployment
+subnetter netbox-export --config config.json --status active
+```
+
+### Coordinate with Your Team
+
+If multiple teams manage IP allocations, establish clear ownership boundaries using:
+- Tenants for organizational ownership
+- Tags for additional categorization
+- Roles for subnet purpose classification
+
+## Troubleshooting
+
+### Authentication Errors
+
+```
+Error: NetBox API authentication failed (401)
+```
+
+**Solution**: Verify your API token is correct and has not expired. Ensure it has write permissions for IPAM, DCIM, and Tenancy.
+
+### Prefix Conflicts
+
+```
+Error: Prefix 10.0.1.0/24 already exists with different attributes
+```
+
+**Solution**: The prefix exists in NetBox with different metadata. Either:
+1. Update the existing prefix in NetBox to match
+2. Delete the existing prefix if it's stale
+3. Modify your Subnetter config to avoid the conflict
+
+### Missing Parent Objects
+
+```
+Error: Site 'us-east-1' not found
+```
+
+**Solution**: This shouldn't happen with the current implementation (parent objects are auto-created), but if it does, ensure your NetBox API token has write permissions for DCIM.
+
+### Rate Limiting
+
+For large configurations, NetBox may rate-limit API requests. The client includes automatic retry logic with exponential backoff.
+
+## Future Enhancements
+
+Planned features for the NetBox integration:
+
+- **`subnetter netbox-validate`**: Check for conflicts before exporting
+- **`subnetter netbox-import`**: Generate Subnetter config from existing NetBox data
+- **Custom fields**: Store additional Subnetter metadata in NetBox custom fields
+- **Tags**: Apply custom tags to exported objects
+- **VRF support**: Handle overlapping IP spaces with VRFs
+- **Bidirectional sync**: Keep Subnetter and NetBox in sync
+
+## Related Resources
+
+- [NetBox Documentation](https://docs.netbox.dev/)
+- [NetBox REST API](https://demo.netbox.dev/api/docs/)
+- [NetBox Docker](https://github.com/netbox-community/netbox-docker)
+- [Design Document](/subnetter/docs/design/netbox-integration.md) (internal)
+

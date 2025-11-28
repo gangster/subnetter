@@ -31,6 +31,27 @@ A comprehensive guide to designing multi-availability zone Kubernetes network ar
 
 This guide is particularly useful for organizations running Kubernetes workloads across multiple availability zones who need to ensure high availability while efficiently utilizing IP address space.
 
+### [NetBox Integration](./netbox-integration/)
+
+Export your Subnetter allocations to NetBox for centralized IP address management. This guide covers:
+
+- Connecting Subnetter to your NetBox instance
+- Understanding the NetBox object hierarchy (Aggregates, Site Groups, Sites, Locations, Prefixes)
+- Using the `netbox-export` CLI command
+- Idempotent exports and best practices
+- Setting up a local NetBox development environment
+
+This guide is essential for organizations using NetBox as their source of truth for IP address management who want to integrate their planning workflow with their IPAM system.
+
+### [Best Practices](./best-practices/)
+
+Comprehensive best practices for IP address planning and CIDR allocation. This guide covers:
+
+- Planning strategies for different organization sizes
+- Cloud provider-specific considerations and limits
+- Avoiding common pitfalls
+- Documentation and governance recommendations
+
 ## Coming Soon
 
 We're working on additional guides that will cover:

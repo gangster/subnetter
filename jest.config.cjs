@@ -31,6 +31,7 @@ module.exports = {
   moduleNameMapper: {
     '^@subnetter/cidr-utils$': '<rootDir>/packages/cidr-utils/src/index.ts',
     '^@subnetter/core$': '<rootDir>/packages/core/src/index.ts',
+    '^@subnetter/netbox$': '<rootDir>/packages/netbox/src/index.ts',
     '^@subnetter/cli$': '<rootDir>/packages/cli/src/index.ts',
     // Map .js imports to .ts source files
     '../../src/(.*)\.js$': '<rootDir>/packages/core/src/$1.ts',

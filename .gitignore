@@ -69,5 +69,5 @@ temp/
 Thumbs.db 
 
 packages/docs/public/*
-# NetBox development environment
-netbox/
+# NetBox development environment (netbox-docker clone at project root)
+/netbox/

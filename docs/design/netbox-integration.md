@@ -77,20 +77,63 @@ packages/
 
 ## NetBox Object Mapping
 
-### Subnetter → NetBox Mapping
+### Subnetter → NetBox Mapping (Updated for NetBox 4.x)
+
+The mapping creates a proper hierarchy that follows NetBox best practices:
+
+```
+NetBox Hierarchy:
+├── RIRs (Regional Internet Registries)
+│   └── RFC 1918 (private address space)
+│
+├── Aggregates (Top-level IP blocks)
+│   └── 10.0.0.0/8 (RIR: RFC 1918)
+│
+├── Site Groups (Functional grouping - Cloud Providers)
+│   ├── Amazon Web Services
+│   ├── Microsoft Azure
+│   └── Google Cloud Platform
+│
+├── Sites (Cloud Regions) - under their respective Site Group
+│   ├── us-east-1 (group: Amazon Web Services)
+│   ├── eastus (group: Microsoft Azure)
+│   ├── us-east1 (group: Google Cloud Platform)
+│   └── ...
+│
+├── Locations (Availability Zones) - under their respective Site
+│   ├── us-east-1a (site: us-east-1)
+│   ├── us-east-1b (site: us-east-1)
+│   └── ...
+│
+└── Prefixes (Subnets) - scoped to their Site
+    ├── 10.100.0.0/26 (scope: us-east-1, tenant: my-account, role: Kubernetes)
+    └── ...
+```
 
 | Subnetter Concept | NetBox Object | NetBox Field | Notes |
 |-------------------|---------------|--------------|-------|
-| `baseCidr` | Aggregate | `prefix`, `rir` | Top-level allocation |
-| Account Name | Tenant | `name`, `slug` | Organizational unit |
-| Cloud Provider | Tag | `name` | e.g., `aws`, `azure`, `gcp` |
-| Region Name | Site | `name`, `slug`, `region` | Physical/logical location |
-| Availability Zone | Site or Tag | TBD | Could be site suffix or tag |
-| VPC CIDR | Prefix | `prefix`, `tenant`, `site` | Container prefix |
-| Region CIDR | Prefix | `prefix`, `site`, `role` | Region-level allocation |
-| AZ CIDR | Prefix | `prefix`, `site`, `role` | AZ-level allocation |
-| Subnet CIDR | Prefix | `prefix`, `role`, `tenant`, `site` | Leaf allocation |
-| Subnet Type/Role | Role | `name`, `slug` | e.g., `public`, `private`, `data` |
+| Base CIDR | **Aggregate** | `prefix`, `rir` | Root of IP hierarchy (e.g., 10.0.0.0/8) |
+| (auto-created) | **RIR** | `name`, `slug`, `is_private` | RFC 1918 for private ranges |
+| Cloud Provider | **Site Group** | `name`, `slug` | Functional grouping: AWS, Azure, GCP |
+| Cloud Region | **Site** | `name`, `slug`, `group` | e.g., us-east-1, under its provider Site Group |
+| Availability Zone | **Location** | `name`, `slug`, `site` | e.g., us-east-1a, under its Site |
+| Account Name | **Tenant** | `name`, `slug` | Organizational unit |
+| Subnet Type/Role | **Role** | `name`, `slug` | e.g., Kubernetes, Public, Private |
+| Subnet CIDR | **Prefix** | `prefix`, `scope_type`, `scope_id`, `tenant`, `role` | Scoped to Site (NetBox 4.x) |
+
+### Key Design Decisions
+
+1. **Aggregates for IP hierarchy root**: Aggregates represent the top-level IP blocks you manage (e.g., 10.0.0.0/8 for RFC 1918). This establishes the root of your IP addressing hierarchy in NetBox.
+
+2. **Site Groups for cloud providers**: Site Groups are used for functional/logical grouping, which is appropriate for cloud providers. Regions in NetBox are for geographic organization.
+
+3. **Sites for cloud regions**: Each cloud region (e.g., us-east-1) is represented as a Site, grouped under its cloud provider's Site Group.
+
+4. **Locations for availability zones**: AZs are represented as Locations within their parent Site.
+
+5. **Scope for prefix-site relationship**: In NetBox 4.x, prefixes use `scope_type` and `scope_id` to associate with Sites instead of the deprecated `site` field.
+
+> **Note**: In NetBox 4.x, the prefix-to-site relationship uses `scope_type` and `scope_id` instead of the deprecated `site` field.
 
 ### NetBox Prefix Status Mapping
 
