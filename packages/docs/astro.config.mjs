@@ -33,7 +33,7 @@ export default defineConfig({
 						{ label: 'Configuration', link: '/configuration' },
 						{ label: 'API Overview', link: '/api/overview' },
 						{ label: 'API Reference', link: '/api/reference' },
-						{ label: 'TypeDoc API Docs', link: '/api/index.html', attrs: { target: '_blank' } },
+						{ label: 'TypeDoc API Docs', link: '/typedoc/index.html', attrs: { target: '_blank' } },
 						{ label: 'Error Handling', link: '/error-handling' },
 					],
 				},

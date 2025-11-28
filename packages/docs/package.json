@@ -16,7 +16,7 @@
     "build": "yarn generate-api-docs && astro build && node postbuild.js",
     "preview": "astro preview",
     "astro": "astro",
-    "generate-api-docs": "cd ../.. && yarn api-docs && mkdir -p packages/docs/public/api && cp -R docs/api/* packages/docs/public/api/",
+    "generate-api-docs": "cd ../.. && yarn api-docs && mkdir -p packages/docs/public/typedoc && cp -R docs/typedoc/* packages/docs/public/typedoc/",
     "build-astro-only": "astro build && node postbuild.js",
     "build-fix": "astro build && node postbuild.js",
     "test": "NODE_ENV=test jest",
