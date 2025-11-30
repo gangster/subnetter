@@ -17,6 +17,7 @@
  * | `analyze` | Display configuration statistics |
  * | `validate-allocations` | Check an existing CSV for CIDR overlaps |
  * | `netbox-export` | Export allocations to NetBox IPAM |
+ * | `chat` | Generate allocations using natural language (LLM) |
  *
  * ## Global Options
  *
@@ -73,6 +74,12 @@ import {
   NetBoxExporter,
   NetBoxApiError
 } from '@subnetter/netbox';
+import {
+  generateFromNaturalLanguage,
+  getDefaultModel,
+  type LLMConfig,
+  type ProviderType
+} from '@subnetter/nlp';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Package Metadata
@@ -625,6 +632,152 @@ program
       } else {
         handleError(error, options);
       }
+      process.exit(1);
+    }
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Command (NLP Interface)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Chat command: Generate allocations using natural language.
+ *
+ * @remarks
+ * Uses an LLM (Claude, GPT, or Ollama) to interpret natural language
+ * requirements and generate valid subnet allocations. The LLM generates
+ * a configuration which is then validated and used to create allocations.
+ *
+ * Supports:
+ * - Multiple LLM providers (Anthropic, OpenAI, Ollama)
+ * - Single-shot generation from a prompt
+ * - Output to CSV or stdout
+ *
+ * @example
+ * ```bash
+ * # Generate with Anthropic Claude
+ * subnetter chat "I need subnets for 2 AWS accounts in us-east-1" -o allocations.csv
+ *
+ * # Use OpenAI
+ * subnetter chat "Create subnets for Azure eastus" --provider openai
+ *
+ * # Use local Ollama
+ * subnetter chat "AWS production setup" --provider ollama --model llama3.1
+ * ```
+ */
+program
+  .command('chat')
+  .description('Generate allocations using natural language (requires LLM API key)')
+  .argument('<prompt>', 'Natural language description of network requirements')
+  .option('--provider <provider>', 'LLM provider: anthropic, openai, ollama', 'anthropic')
+  .option('--model <model>', 'Model name (uses provider default if not specified)')
+  .option('--api-key <key>', 'API key (or use ANTHROPIC_API_KEY/OPENAI_API_KEY env var)')
+  .option('--ollama-url <url>', 'Ollama API URL', 'http://localhost:11434')
+  .option('-o, --output <path>', 'Path to output CSV file')
+  .option('--json', 'Output generated config as JSON instead of allocations')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('-l, --log-level <level>', 'Set log level (silent, error, warn, info, debug, trace)', 'info')
+  .option('--no-color', 'Disable colored output')
+  .option('--timestamps', 'Include timestamps in log output')
+  .action(async (prompt: string, options) => {
+    try {
+      // Configure logging
+      configureLogger({
+        level: options.verbose ? LogLevel.DEBUG : parseLogLevel(options.logLevel),
+        useColor: options.color,
+        timestamps: options.timestamps
+      });
+
+      cliLogger.debug('Chat command options:', options);
+      cliLogger.debug('Prompt:', prompt);
+
+      // Validate provider
+      const validProviders = ['anthropic', 'openai', 'ollama'];
+      if (!validProviders.includes(options.provider)) {
+        throw new SubnetterError(
+          `Invalid provider: ${options.provider}. Must be one of: ${validProviders.join(', ')}`,
+          ErrorCode.INVALID_CONFIG_FORMAT,
+          { provider: options.provider }
+        );
+      }
+
+      // Build LLM config
+      const providerType = options.provider as ProviderType;
+      const llmConfig: LLMConfig = {
+        provider: providerType,
+        model: options.model || getDefaultModel(providerType),
+        apiKey: options.apiKey,
+        baseUrl: providerType === 'ollama' ? options.ollamaUrl : undefined,
+      };
+
+      cliLogger.debug(`Using provider: ${llmConfig.provider}, model: ${llmConfig.model}`);
+
+      // Check for API key (except Ollama)
+      if (providerType !== 'ollama' && !llmConfig.apiKey) {
+        const envVar = providerType === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY';
+        llmConfig.apiKey = process.env[envVar];
+
+        if (!llmConfig.apiKey) {
+          throw new SubnetterError(
+            `API key required for ${providerType}. Use --api-key or set ${envVar} environment variable.`,
+            ErrorCode.MISSING_REQUIRED_FIELD,
+            { provider: providerType, envVar }
+          );
+        }
+      }
+
+      cliLogger.info(`🤖 Generating configuration from: "${prompt}"`);
+      cliLogger.info(`   Provider: ${llmConfig.provider} (${llmConfig.model})`);
+
+      // Generate allocations
+      const result = await generateFromNaturalLanguage(prompt, llmConfig);
+
+      // Handle clarification requests
+      if (result.needsClarification) {
+        cliLogger.warn('❓ The LLM needs more information:');
+        cliLogger.warn(`   ${result.clarificationMessage}`);
+        cliLogger.info('💡 Try providing more details about your requirements.');
+        process.exit(1);
+      }
+
+      // Handle errors
+      if (!result.success) {
+        cliLogger.error('❌ Failed to generate allocations:');
+        result.errors?.forEach((err) => {
+          cliLogger.error(`   - ${err}`);
+        });
+        process.exit(1);
+      }
+
+      // Success!
+      cliLogger.info(`✅ Generated ${result.allocations?.length ?? 0} subnet allocations.`);
+
+      if (result.tokensUsed) {
+        cliLogger.debug(`Tokens used: ${result.tokensUsed}`);
+      }
+
+      // Output JSON config if requested
+      if (options.json) {
+        console.log(JSON.stringify(result.config, null, 2));
+        return;
+      }
+
+      // Write to CSV
+      if (options.output && result.allocations) {
+        outputLogger.debug(`Writing allocations to CSV: ${options.output}`);
+        await writeAllocationsToCsv(result.allocations, options.output);
+        cliLogger.info(`📝 Results written to ${path.resolve(options.output)}`);
+      } else if (result.allocations) {
+        // Output to stdout as CSV
+        cliLogger.info('');
+        cliLogger.info('Allocations:');
+        console.log('Account Name,VPC Name,Cloud Provider,Region Name,Availability Zone,Region CIDR,VPC CIDR,AZ CIDR,Subnet CIDR,Subnet Role,Usable IPs');
+        result.allocations.forEach((a) => {
+          console.log(`${a.accountName},${a.vpcName},${a.cloudProvider},${a.regionName},${a.availabilityZone},${a.regionCidr},${a.vpcCidr},${a.azCidr},${a.subnetCidr},${a.subnetRole},${a.usableIps}`);
+        });
+      }
+    } catch (error: unknown) {
+      handleError(error, options);
       process.exit(1);
     }
   });

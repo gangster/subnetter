@@ -40,6 +40,7 @@ jobs:
               - 'packages/cidr-utils/**'
               - 'packages/core/**'
               - 'packages/netbox/**'
+              - 'packages/nlp/**'
               - 'packages/cli/**'
               - '__tests__/**'
               - 'package.json'
@@ -82,6 +83,7 @@ jobs:
           yarn build:cidr-utils
           yarn build:core
           yarn build:netbox
+          yarn build:nlp
           yarn build:cli
 
       - name: Cache build artifacts
@@ -92,6 +94,7 @@ jobs:
             packages/cidr-utils/dist
             packages/core/dist
             packages/netbox/dist
+            packages/nlp/dist
             packages/cli/dist
           key: build-${{ github.sha }}
 
@@ -173,6 +176,7 @@ jobs:
             packages/cidr-utils/dist
             packages/core/dist
             packages/netbox/dist
+            packages/nlp/dist
             packages/cli/dist
           key: build-${{ github.sha }}
 
@@ -182,6 +186,7 @@ jobs:
           yarn build:cidr-utils
           yarn build:core
           yarn build:netbox
+          yarn build:nlp
           yarn build:cli
 
       - name: Run E2E Tests
@@ -267,6 +272,7 @@ jobs:
             packages/cidr-utils/dist
             packages/core/dist
             packages/netbox/dist
+            packages/nlp/dist
             packages/cli/dist
           key: build-${{ github.sha }}
 
@@ -276,6 +282,7 @@ jobs:
             yarn build:cidr-utils
             yarn build:core
             yarn build:netbox
+            yarn build:nlp
             yarn build:cli
           fi
 
@@ -324,6 +331,7 @@ jobs:
             packages/cidr-utils/dist
             packages/core/dist
             packages/netbox/dist
+            packages/nlp/dist
             packages/cli/dist
           key: build-${{ github.sha }}
           restore-keys: |
@@ -335,6 +343,7 @@ jobs:
             yarn build:cidr-utils
             yarn build:core
             yarn build:netbox
+            yarn build:nlp
             yarn build:cli
           fi
 
