@@ -27,6 +27,7 @@
     "@subnetter/cidr-utils": "2.2.0",
     "@subnetter/core": "2.2.0",
     "@subnetter/netbox": "2.2.0",
+    "@subnetter/nlp": "2.2.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
     "csv-writer": "^1.6.0"
