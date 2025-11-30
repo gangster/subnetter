@@ -200,8 +200,23 @@ export class ContiguousAllocator {
 
     // Verify we have enough space left
     const maxIp = this.baseIp.toByteArray().reduce((acc, byte, i) => acc + byte * Math.pow(256, 3 - i), 0);
-    const currentIpValue = this.currentIp.toByteArray().reduce((acc, byte, i) => acc + byte * Math.pow(256, 3 - i), 0);
+    let currentIpValue = this.currentIp.toByteArray().reduce((acc, byte, i) => acc + byte * Math.pow(256, 3 - i), 0);
     const baseBlockSize = Math.pow(2, 32 - this.basePrefix);
+
+    // Align current position to proper CIDR boundary for the requested prefix
+    // A /24 must start on a 256-address boundary, /26 on 64-address boundary, etc.
+    const alignedIpValue = Math.ceil(currentIpValue / blockSize) * blockSize;
+    if (alignedIpValue !== currentIpValue) {
+      logger.debug(`Aligning from ${this.currentIp.toString()} to next /${prefix} boundary`);
+      currentIpValue = alignedIpValue;
+      
+      // Update currentIp to the aligned position
+      const octet1 = (currentIpValue >> 24) & 0xFF;
+      const octet2 = (currentIpValue >> 16) & 0xFF;
+      const octet3 = (currentIpValue >> 8) & 0xFF;
+      const octet4 = currentIpValue & 0xFF;
+      this.currentIp = ipaddr.IPv4.parse(`${octet1}.${octet2}.${octet3}.${octet4}`);
+    }
 
     if (currentIpValue + blockSize > maxIp + baseBlockSize) {
       throw new AllocationError(
@@ -215,7 +230,7 @@ export class ContiguousAllocator {
       );
     }
 
-    // Create the CIDR block
+    // Create the CIDR block (now properly aligned)
     const allocatedCidr = `${this.currentIp.toString()}/${prefix}`;
     logger.debug(`Allocated CIDR block ${allocatedCidr}`);
 

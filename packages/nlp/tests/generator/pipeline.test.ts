@@ -259,6 +259,9 @@ describe('Config Generation Pipeline', () => {
     });
 
     it('handles many accounts and regions', async () => {
+      // Use subnet types that fit together properly in a /24 AZ CIDR
+      // (public /26 = 64 addrs, private /26 = 64 addrs, database /26 = 64 addrs)
+      // With alignment, these all fit on 64-address boundaries within a /24
       const largeConfig = {
         baseCidr: '10.0.0.0/8',
         accounts: Array.from({ length: 10 }, (_, i) => ({
@@ -267,7 +270,7 @@ describe('Config Generation Pipeline', () => {
             aws: { regions: ['us-east-1', 'us-west-2', 'eu-west-1'] },
           },
         })),
-        subnetTypes: { public: 26, private: 24, database: 27 },
+        subnetTypes: { public: 26, private: 26, database: 26 },
       };
 
       mockGenerateConfig.mockResolvedValueOnce({
@@ -278,6 +281,7 @@ describe('Config Generation Pipeline', () => {
       const result = await generateFromNaturalLanguage('Large enterprise setup', llmConfig);
 
       expect(result.success).toBe(true);
+      // 10 accounts × 3 regions × 3 AZs × 3 subnet types = 270 allocations
       expect(result.allocations?.length).toBeGreaterThan(100);
     });
   });
