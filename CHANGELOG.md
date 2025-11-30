@@ -1,3 +1,12 @@
+# [2.3.0](https://github.com/gangster/subnetter/compare/v2.2.0...v2.3.0) (2025-11-30)
+
+
+### Features
+
+* **cli:** add chat command for natural language generation ([#24](https://github.com/gangster/subnetter/issues/24)) ([843155e](https://github.com/gangster/subnetter/commit/843155e162c317afff425eb05ffead15e9a071ce))
+* **nlp:** implement config generation pipeline ([#23](https://github.com/gangster/subnetter/issues/23)) ([0f37ee9](https://github.com/gangster/subnetter/commit/0f37ee9268fc14834fc98785b0ca02ef33c3fef5))
+* **nlp:** implement LLM provider abstraction layer ([#22](https://github.com/gangster/subnetter/issues/22)) ([02871be](https://github.com/gangster/subnetter/commit/02871be586719468ae486b27690d6fe91fed27b9))
+
 # [2.2.0](https://github.com/gangster/subnetter/compare/v2.1.0...v2.2.0) (2025-11-30)
 
 

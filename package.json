@@ -1,6 +1,6 @@
 {
   "name": "subnetter",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "IPv4 CIDR allocation tool for cloud infrastructure",
   "private": true,
   "workspaces": [
@@ -89,7 +89,7 @@
   "homepage": "https://github.com/gangster/subnetter#readme",
   "packageManager": "yarn@4.7.0",
   "dependencies": {
-    "@subnetter/cidr-utils": "2.2.0",
+    "@subnetter/cidr-utils": "2.3.0",
     "chalk": "^4.1.2",
     "csv-writer": "^1.6.0"
   },

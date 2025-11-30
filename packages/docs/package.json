@@ -1,7 +1,7 @@
 {
   "name": "@subnetter/docs",
   "type": "module",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Documentation for the Subnetter IPv4 CIDR Allocation Tool",
   "private": true,
   "browser": {

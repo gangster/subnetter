@@ -1,6 +1,6 @@
 {
   "name": "@subnetter/nlp",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Natural language interface for Subnetter CIDR allocation",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,7 +30,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@subnetter/core": "2.2.0",
+    "@subnetter/core": "2.3.0",
     "openai": "^4.77.0",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.23.0"
