@@ -1,0 +1,45 @@
+{
+  "name": "@subnetter/nlp",
+  "version": "2.1.0",
+  "description": "Natural language interface for Subnetter CIDR allocation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "subnetter",
+    "nlp",
+    "natural-language",
+    "cidr",
+    "llm",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@subnetter/core": "2.1.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@subnetter/core": "workspace:*"
+  }
+}

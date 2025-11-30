@@ -4408,7 +4408,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@subnetter/cidr-utils@npm:2.0.1, @subnetter/cidr-utils@workspace:packages/cidr-utils":
+"@subnetter/cidr-utils@npm:2.1.0, @subnetter/cidr-utils@workspace:packages/cidr-utils":
   version: 0.0.0-use.local
   resolution: "@subnetter/cidr-utils@workspace:packages/cidr-utils"
   dependencies:
@@ -4428,9 +4428,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@subnetter/cli@workspace:packages/cli"
   dependencies:
-    "@subnetter/cidr-utils": "npm:2.0.1"
-    "@subnetter/core": "npm:2.0.1"
-    "@subnetter/netbox": "npm:0.1.0"
+    "@subnetter/cidr-utils": "npm:2.1.0"
+    "@subnetter/core": "npm:2.1.0"
+    "@subnetter/netbox": "npm:2.1.0"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.10"
     chalk: "npm:^4.1.2"
@@ -4442,11 +4442,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@subnetter/core@npm:2.0.1, @subnetter/core@workspace:*, @subnetter/core@workspace:packages/core":
+"@subnetter/core@npm:2.1.0, @subnetter/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@subnetter/core@workspace:packages/core"
   dependencies:
-    "@subnetter/cidr-utils": "npm:2.0.1"
+    "@subnetter/cidr-utils": "npm:2.1.0"
     "@types/jest": "npm:^29.5.14"
     "@types/js-yaml": "npm:^4.0.9"
     "@types/node": "npm:^22.13.10"
@@ -4483,11 +4483,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@subnetter/netbox@npm:0.1.0, @subnetter/netbox@workspace:packages/netbox":
+"@subnetter/netbox@npm:2.1.0, @subnetter/netbox@workspace:packages/netbox":
   version: 0.0.0-use.local
   resolution: "@subnetter/netbox@workspace:packages/netbox"
   dependencies:
-    "@subnetter/core": "workspace:*"
+    "@subnetter/core": "npm:2.1.0"
     "@types/node": "npm:^22.10.2"
     axios: "npm:^1.7.9"
     jest: "npm:^29.7.0"
@@ -4495,6 +4495,22 @@ __metadata:
     ts-jest: "npm:^29.2.5"
     typescript: "npm:^5.7.2"
     zod: "npm:^3.24.1"
+  peerDependencies:
+    "@subnetter/core": "workspace:*"
+  languageName: unknown
+  linkType: soft
+
+"@subnetter/nlp@workspace:packages/nlp":
+  version: 0.0.0-use.local
+  resolution: "@subnetter/nlp@workspace:packages/nlp"
+  dependencies:
+    "@subnetter/core": "npm:2.1.0"
+    "@types/node": "npm:^22.10.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    typescript: "npm:^5.7.2"
+    zod: "npm:^3.24.1"
+    zod-to-json-schema: "npm:^3.23.0"
   peerDependencies:
     "@subnetter/core": "workspace:*"
   languageName: unknown
@@ -15808,7 +15824,7 @@ __metadata:
     "@stryker-mutator/core": "npm:^8.2.6"
     "@stryker-mutator/jest-runner": "npm:^8.2.6"
     "@stryker-mutator/typescript-checker": "npm:^8.2.6"
-    "@subnetter/cidr-utils": "npm:2.0.1"
+    "@subnetter/cidr-utils": "npm:2.1.0"
     "@types/react": "npm:^19.0.10"
     "@types/react-dom": "npm:^19.0.4"
     "@typescript-eslint/eslint-plugin": "npm:^8.25.0"
@@ -17430,6 +17446,15 @@ __metadata:
   version: 2.1.1
   resolution: "yoctocolors@npm:2.1.1"
   checksum: 10/563fbec88bce9716d1044bc98c96c329e1d7a7c503e6f1af68f1ff914adc3ba55ce953c871395e2efecad329f85f1632f51a99c362032940321ff80c42a6f74d
+  languageName: node
+  linkType: hard
+
+"zod-to-json-schema@npm:^3.23.0":
+  version: 3.25.0
+  resolution: "zod-to-json-schema@npm:3.25.0"
+  peerDependencies:
+    zod: ^3.25 || ^4
+  checksum: 10/cb932e20b5b5e64c75b2c34a7e6dae74b727292eab9e014b93c2607378b8cb1b227f80b429053ceb77c8e0dddc338837f9e534b2a658540ff60c9e4ffdc7cc19
   languageName: node
   linkType: hard
 

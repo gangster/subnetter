@@ -9,10 +9,11 @@
   "scripts": {
     "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
     "clean:all": "yarn clean && rimraf node_modules \"packages/*/node_modules\"",
-    "build": "yarn build:cidr-utils && yarn build:core && yarn build:netbox && yarn build:cli",
+    "build": "yarn build:cidr-utils && yarn build:core && yarn build:netbox && yarn build:nlp && yarn build:cli",
     "build:cidr-utils": "yarn workspace @subnetter/cidr-utils build",
     "build:core": "yarn workspace @subnetter/core build",
     "build:netbox": "yarn workspace @subnetter/netbox build",
+    "build:nlp": "yarn workspace @subnetter/nlp build",
     "build:cli": "yarn workspace @subnetter/cli build",
     "build:docs": "yarn workspace @subnetter/docs build",
     "postinstall": "yarn build:cidr-utils",
