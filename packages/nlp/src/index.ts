@@ -7,11 +7,18 @@
  *
  * @example
  * ```typescript
- * import { generateFromNaturalLanguage } from '@subnetter/nlp';
+ * import { createProvider, getConfigJsonSchema } from '@subnetter/nlp';
  *
- * const result = await generateFromNaturalLanguage(
+ * const provider = createProvider({
+ *   provider: 'anthropic',
+ *   model: 'claude-sonnet-4-20250514',
+ *   apiKey: process.env.ANTHROPIC_API_KEY,
+ * });
+ *
+ * const schema = getConfigJsonSchema();
+ * const result = await provider.generateConfig(
  *   'I need subnets for 2 AWS accounts in us-east-1',
- *   { provider: 'anthropic', model: 'claude-sonnet-4-20250514' }
+ *   schema
  * );
  * ```
  *
@@ -21,11 +28,22 @@
 // Schema utilities
 export { getConfigJsonSchema, type JsonSchema } from './schema/converter';
 
-// LLM types and providers (Phase 1)
+// LLM providers and types
+export {
+  createProvider,
+  getDefaultModel,
+  AnthropicProvider,
+  OpenAIProvider,
+  OllamaProvider,
+} from './llm';
+
 export type {
   LLMProvider,
   LLMConfig,
   LLMResponse,
+  LLMError,
   ProviderType,
-} from './llm/types';
+  ConversationContext,
+  ConversationMessage,
+} from './llm';
 

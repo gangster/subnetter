@@ -29,7 +29,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@subnetter/core": "2.2.0",
+    "openai": "^4.77.0",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.23.0"
   },
