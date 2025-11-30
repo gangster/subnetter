@@ -1,6 +1,6 @@
 {
   "name": "@subnetter/core",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Core IP allocation functionality for Subnetter",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
     "directory": "packages/core"
   },
   "dependencies": {
-    "@subnetter/cidr-utils": "2.1.0",
+    "@subnetter/cidr-utils": "2.2.0",
     "chalk": "^4.1.2",
     "csv-writer": "^1.6.0",
     "ipaddr.js": "^2.2.0",

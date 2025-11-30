@@ -1,6 +1,6 @@
 {
   "name": "@subnetter/netbox",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "NetBox IPAM integration for Subnetter",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,7 +28,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@subnetter/core": "2.1.0",
+    "@subnetter/core": "2.2.0",
     "axios": "^1.7.9",
     "zod": "^3.24.1"
   },

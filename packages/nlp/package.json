@@ -1,6 +1,6 @@
 {
   "name": "@subnetter/nlp",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Natural language interface for Subnetter CIDR allocation",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,7 +29,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@subnetter/core": "2.1.0",
+    "@subnetter/core": "2.2.0",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.23.0"
   },

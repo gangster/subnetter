@@ -1,3 +1,16 @@
+# [2.2.0](https://github.com/gangster/subnetter/compare/v2.1.0...v2.2.0) (2025-11-30)
+
+
+### Bug Fixes
+
+* **docs:** move TypeDoc to /typedoc/ to avoid Astro route conflict ([#17](https://github.com/gangster/subnetter/issues/17)) ([5285bcd](https://github.com/gangster/subnetter/commit/5285bcdab183e5e81184c4e4fc150a05dbbaadb9))
+* **docs:** use absolute URL for TypeDoc links to avoid trailing slash ([#19](https://github.com/gangster/subnetter/issues/19)) ([9f09ada](https://github.com/gangster/subnetter/commit/9f09adaaee1cc26845a5d1a16cc6529f674cb8b9))
+
+
+### Features
+
+* **nlp:** scaffold @subnetter/nlp package with schema converter ([#21](https://github.com/gangster/subnetter/issues/21)) ([acfb64c](https://github.com/gangster/subnetter/commit/acfb64c3dbc4c7ff8a9a9caba8f8fdd278006cf8))
+
 # [2.1.0](https://github.com/gangster/subnetter/compare/v2.0.1...v2.1.0) (2025-11-28)
 
 
