@@ -272,6 +272,26 @@ export class ContiguousAllocator {
   }
 
   /**
+   * Gets the original base CIDR for this allocator.
+   *
+   * @remarks
+   * Returns the CIDR that was used to initialize this allocator,
+   * regardless of how much has been allocated.
+   *
+   * @returns The original base CIDR
+   *
+   * @example
+   * ```typescript
+   * const allocator = new ContiguousAllocator('10.0.0.0/16');
+   * allocator.allocate('/24');
+   * console.log(allocator.getBaseCidr()); // '10.0.0.0/16' (unchanged)
+   * ```
+   */
+  public getBaseCidr(): string {
+    return this.baseCidr;
+  }
+
+  /**
    * Resets the allocator to its initial state.
    *
    * @remarks
