@@ -7,23 +7,32 @@
  *
  * @example
  * ```typescript
- * import { createProvider, getConfigJsonSchema } from '@subnetter/nlp';
+ * import { generateFromNaturalLanguage } from '@subnetter/nlp';
  *
- * const provider = createProvider({
- *   provider: 'anthropic',
- *   model: 'claude-sonnet-4-20250514',
- *   apiKey: process.env.ANTHROPIC_API_KEY,
- * });
- *
- * const schema = getConfigJsonSchema();
- * const result = await provider.generateConfig(
- *   'I need subnets for 2 AWS accounts in us-east-1',
- *   schema
+ * const result = await generateFromNaturalLanguage(
+ *   'I need subnets for 2 AWS accounts in us-east-1 with public and private subnets',
+ *   {
+ *     provider: 'anthropic',
+ *     model: 'claude-sonnet-4-20250514',
+ *     apiKey: process.env.ANTHROPIC_API_KEY,
+ *   }
  * );
+ *
+ * if (result.success) {
+ *   console.log(`Generated ${result.allocations.length} allocations`);
+ * }
  * ```
  *
  * @packageDocumentation
  */
+
+// Main generation pipeline
+export { generateFromNaturalLanguage } from './generator';
+export type {
+  GenerationResult,
+  GenerationOptions,
+  ValidationError,
+} from './generator';
 
 // Schema utilities
 export { getConfigJsonSchema, type JsonSchema } from './schema/converter';
