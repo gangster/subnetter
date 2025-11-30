@@ -71,14 +71,33 @@ export class OllamaProvider implements LLMProvider {
    * @param schema - JSON Schema for the expected output (used for prompting)
    * @returns LLM response with generated config or reasoning
    */
-  async generateConfig(prompt: string, schema: object): Promise<LLMResponse> {
+  async generateConfig(prompt: string, _schema: object): Promise<LLMResponse> {
     const systemPrompt = `You are a network infrastructure expert helping users plan their cloud network architecture.
 Generate a valid Subnetter configuration based on the user's requirements.
 
-IMPORTANT: Your response must be ONLY valid JSON matching this schema:
-${JSON.stringify(schema, null, 2)}
+IMPORTANT: The configuration structure requires:
+- baseCidr: The root CIDR block (e.g., "10.0.0.0/8")
+- accounts: Array of account objects, each with:
+  - name: Account identifier (e.g., "prod", "staging")
+  - clouds: Object mapping cloud providers to their config:
+    - aws/azure/gcp: Object with "regions" array (e.g., {"azure": {"regions": ["eastus"]}})
+- subnetTypes: Object mapping subnet names to prefix lengths (e.g., {"public": 26, "private": 24})
+- prefixLengths (optional): Object with account/region/az prefix sizes
+  - Defaults: account=16, region=20, az=24
+  - IMPORTANT: If subnet types include /24 or larger, set az to 22 or smaller to fit all subnets
 
-Do not include any explanation or markdown. Return only the JSON object.
+Example with mixed subnet sizes (/26 and /24):
+{
+  "baseCidr": "10.0.0.0/8",
+  "prefixLengths": {"account": 16, "region": 20, "az": 22},
+  "accounts": [
+    {"name": "prod", "clouds": {"azure": {"regions": ["eastus"]}}},
+    {"name": "staging", "clouds": {"azure": {"regions": ["eastus"]}}}
+  ],
+  "subnetTypes": {"public": 26, "private": 24}
+}
+
+Your response must be ONLY valid JSON. Do not include any explanation or markdown.
 Be precise with CIDR blocks and follow cloud provider conventions for regions.`;
 
     const response = await this.chat(systemPrompt, prompt);
