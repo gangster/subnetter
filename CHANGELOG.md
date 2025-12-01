@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/gangster/subnetter/compare/v2.3.0...v2.3.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* **core:** align CIDR allocations to proper network boundaries ([#25](https://github.com/gangster/subnetter/issues/25)) ([81e5d54](https://github.com/gangster/subnetter/commit/81e5d5456403e88484e7e7cba3c2a1293e1a2e10))
+
 # [2.3.0](https://github.com/gangster/subnetter/compare/v2.2.0...v2.3.0) (2025-11-30)
 
 
