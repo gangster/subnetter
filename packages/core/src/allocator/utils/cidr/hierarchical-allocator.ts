@@ -373,7 +373,8 @@ export class HierarchicalAllocator {
     }
 
     // Use cloud-specific CIDR or the account CIDR
-    const effectiveVpcCidr = vpcCidr || cloudConfig.baseCidr || accountAllocator.getAvailableSpace().split('/')[0] + '/8';
+    // Get the base CIDR of the account allocator (before any allocations modified it)
+    const effectiveVpcCidr = vpcCidr || cloudConfig.baseCidr || accountAllocator.getBaseCidr();
 
     // Process each region
     cloudConfig.regions.forEach(regionName => {
