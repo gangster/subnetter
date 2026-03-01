@@ -1,0 +1,86 @@
+export const CLOUD_PROVIDERS = ["aws", "azure", "gcp"] as const;
+
+export const PROVIDER_COLORS: Record<string, string> = {
+  aws: "#FF9900",
+  azure: "#0078D4",
+  gcp: "#4285F4",
+};
+
+export const PROVIDER_LABELS: Record<string, string> = {
+  aws: "AWS",
+  azure: "Azure",
+  gcp: "GCP",
+};
+
+export const PROVIDER_REGIONS: Record<string, string[]> = {
+  aws: [
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "eu-central-1",
+    "eu-north-1",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-south-1",
+    "ca-central-1",
+    "sa-east-1",
+  ],
+  azure: [
+    "eastus",
+    "eastus2",
+    "westus",
+    "westus2",
+    "westus3",
+    "centralus",
+    "northcentralus",
+    "southcentralus",
+    "northeurope",
+    "westeurope",
+    "uksouth",
+    "ukwest",
+    "eastasia",
+    "southeastasia",
+    "japaneast",
+    "australiaeast",
+    "canadacentral",
+    "brazilsouth",
+  ],
+  gcp: [
+    "us-central1",
+    "us-east1",
+    "us-east4",
+    "us-west1",
+    "us-west2",
+    "us-west4",
+    "europe-west1",
+    "europe-west2",
+    "europe-west3",
+    "europe-west4",
+    "europe-north1",
+    "asia-east1",
+    "asia-southeast1",
+    "asia-northeast1",
+    "australia-southeast1",
+    "southamerica-east1",
+  ],
+};
+
+export const CSV_COLUMNS = [
+  "Cloud Provider",
+  "Account Name",
+  "VPC Name",
+  "Region Name",
+  "Availability Zone",
+  "Region CIDR",
+  "VPC CIDR",
+  "AZ CIDR",
+  "Subnet CIDR",
+  "Subnet Role",
+  "Usable IPs",
+] as const;

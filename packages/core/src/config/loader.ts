@@ -39,7 +39,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { configSchema } from './schema';
 import type { Config, RawConfig } from '../models/types';
-import { ZodError } from 'zod';
+import { ZodError } from 'zod/v4';
 import { Logger } from '../utils/logger';
 import { ConfigurationError, ErrorCode, IOError } from '../utils/errors';
 import { doCidrsOverlap } from '../allocator/utils/cidr/calculator';
@@ -311,7 +311,7 @@ export function loadConfig(configPath: string): Config {
             ErrorCode.CONFIG_VALIDATION_FAILED,
             {
               configPath,
-              validationErrors: error.errors.map(e => ({
+              validationErrors: error.issues.map(e => ({
                 path: e.path,
                 message: e.message
               }))
@@ -434,8 +434,8 @@ export function validateConfig(config: unknown): Config {
         'Configuration validation failed',
         ErrorCode.CONFIG_VALIDATION_FAILED,
         {
-          validationErrors: error.errors.map(e => ({
-            path: e.path,
+          validationErrors: error.issues.map(e => ({
+            path: e.path.map(String),
             message: e.message
           }))
         }
