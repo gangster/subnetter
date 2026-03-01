@@ -28,7 +28,7 @@
  * @packageDocumentation
  */
 
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { RawConfig } from '../models/types';
 
 /**
@@ -108,7 +108,7 @@ export const cloudConfigSchema = z.object({
    * Optional CIDR override for this cloud provider.
    * When specified, this cloud uses a separate address space.
    */
-  baseCidr: z.string().regex(ipv4CidrRegex, 'Invalid IPv4 CIDR format').optional(),
+  baseCidr: z.string().regex(ipv4CidrRegex, { error: 'Invalid IPv4 CIDR format' }).optional(),
 
   /**
    * Regions to deploy subnets in.
@@ -141,7 +141,7 @@ export const accountSchema = z.object({
    * Unique account identifier.
    * Trimmed and validated to be non-empty.
    */
-  name: z.string().trim().min(1, 'Account name cannot be empty'),
+  name: z.string().trim().min(1, { error: 'Account name cannot be empty' }),
 
   /**
    * Cloud provider configurations.
@@ -233,7 +233,7 @@ export const configSchema = z.object({
    * All subnets are carved from this address space unless a cloud
    * configuration specifies an override.
    */
-  baseCidr: z.string().regex(ipv4CidrRegex, 'Invalid IPv4 CIDR format'),
+  baseCidr: z.string().regex(ipv4CidrRegex, { error: 'Invalid IPv4 CIDR format' }),
 
   /**
    * Optional prefix length configuration.

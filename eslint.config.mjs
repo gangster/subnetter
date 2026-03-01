@@ -10,11 +10,12 @@ export default [
       'dist/**', 
       'coverage/**', 
       'node_modules/**', 
-      '**/dist/**', 
-      '**/coverage/**', 
+      '**/dist/**',
+      '**/coverage/**',
       '**/node_modules/**',
       '**/*.d.ts',
-      '.yarn/releases/**'
+      '.yarn/releases/**',
+      'packages/web/**'
     ]
   },
   {

@@ -17,7 +17,7 @@
  * @packageDocumentation
  */
 
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod/v4';
 import { configSchema } from '@subnetter/core';
 
 /**
@@ -114,46 +114,22 @@ export interface JsonSchema {
  * ```
  */
 export function getConfigJsonSchema(): JsonSchema {
-  // Use type assertion to handle complex Zod schema types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawSchema = zodToJsonSchema(configSchema as any, {
-    name: 'SubnetterConfig',
-    $refStrategy: 'none', // Inline all refs for LLM compatibility
-    errorMessages: true,
-  }) as JsonSchema & { definitions?: Record<string, JsonSchema> };
-
-  // zod-to-json-schema may return a schema with $ref and definitions
-  // We need to extract the actual schema from definitions for LLM compatibility
-  let result: JsonSchema;
-
-  if (rawSchema.$ref && rawSchema.definitions) {
-    // Extract the main schema from definitions
-    const refName = rawSchema.$ref.replace('#/definitions/', '');
-    const mainSchema = rawSchema.definitions[refName];
-
-    if (mainSchema) {
-      result = {
-        $schema: rawSchema.$schema,
-        ...mainSchema,
-      };
-    } else {
-      result = rawSchema;
-    }
-  } else {
-    result = rawSchema;
-  }
+  const rawSchema = z.toJSONSchema(configSchema, {
+    reused: 'inline', // Inline all refs for LLM compatibility
+    unrepresentable: 'any',
+  }) as JsonSchema;
 
   // Add title if not present
-  if (!result.title) {
-    result.title = 'SubnetterConfig';
+  if (!rawSchema.title) {
+    rawSchema.title = 'SubnetterConfig';
   }
 
   // Add high-level description for LLM context
-  if (!result.description) {
-    result.description =
+  if (!rawSchema.description) {
+    rawSchema.description =
       'Configuration for Subnetter CIDR allocation. Defines base CIDR, accounts, cloud providers, regions, and subnet types.';
   }
 
-  return result;
+  return rawSchema;
 }
 

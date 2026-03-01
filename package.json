@@ -15,9 +15,11 @@
     "build:netbox": "yarn workspace @subnetter/netbox build",
     "build:nlp": "yarn workspace @subnetter/nlp build",
     "build:cli": "yarn workspace @subnetter/cli build",
+    "build:web": "yarn workspace @subnetter/web build",
     "build:docs": "yarn workspace @subnetter/docs build",
     "postinstall": "yarn build:cidr-utils",
     "dev": "tsc -b --watch",
+    "dev:web": "yarn workspace @subnetter/web dev",
     "dev:docs": "yarn workspace @subnetter/docs dev",
     "test": "jest",
     "test:coverage": "jest --config jest.config.cjs --coverage",
@@ -92,6 +94,11 @@
     "@subnetter/cidr-utils": "2.3.1",
     "chalk": "^4.1.2",
     "csv-writer": "^1.6.0"
+  },
+  "dependenciesMeta": {
+    "iltorb": {
+      "built": false
+    }
   },
   "resolutions": {
     "esbuild": "0.19.8",

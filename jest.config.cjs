@@ -5,7 +5,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['<rootDir>/packages/*/tests/**/*.test.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/', 'packages/web', '.next'],
   collectCoverage: true,
   coverageDirectory: 'coverage/unit',
   coverageReporters: ['json-summary', 'json', 'lcov', 'text', 'clover'],
@@ -38,5 +38,6 @@ module.exports = {
     '../src/(.*)\.js$': '<rootDir>/packages/cli/src/$1.ts'
   },
   moduleFileExtensions: [...defaults.moduleFileExtensions, 'ts', 'tsx'],
+  modulePathIgnorePatterns: ['<rootDir>/packages/web/.next'],
   verbose: true
 }; 

@@ -24,7 +24,7 @@
  * @packageDocumentation
  */
 
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 // ============================================================================
 // Common Types
@@ -973,8 +973,8 @@ export interface NetBoxConfig {
  * creating the HTTP client.
  */
 export const NetBoxConfigSchema = z.object({
-  url: z.string().url('Invalid NetBox URL'),
-  token: z.string().min(1, 'API token is required'),
+  url: z.url({ error: 'Invalid NetBox URL' }),
+  token: z.string().min(1, { error: 'API token is required' }),
   timeout: z.number().positive().optional().default(30000),
   verifySsl: z.boolean().optional().default(true),
 });

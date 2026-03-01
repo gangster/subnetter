@@ -271,8 +271,8 @@ describe('Configuration Schema Validation', () => {
           issue.path.includes('subnetTypes'));
         expect(hasSubnetTypesError).toBe(true);
         
-        const hasNumberError = result.error.issues.some(issue => 
-          issue.message.includes('Number must be less than or equal to 32'));
+        const hasNumberError = result.error.issues.some(issue =>
+          issue.message.includes('<=32') || issue.message.includes('less than or equal to 32'));
         expect(hasNumberError).toBe(true);
       }
     });
